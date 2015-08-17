@@ -4,7 +4,7 @@
   <groupId>com.trivago</groupId>
   <artifactId>triava</artifactId>
   <packaging>jar</packaging>
-  <version>0.1-SNAPSHOT</version>
+  <version>0.3</version>
   <name>triava</name>
   <url>http://maven.apache.org</url>
   <dependencies>
@@ -28,6 +28,38 @@
           <target>1.7</target>
         </configuration>
       </plugin>
+
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-source-plugin</artifactId>
+      <executions>
+        <execution>
+          <id>attach-sources</id>
+          <goals>
+            <goal>jar</goal>
+          </goals>
+        </execution>
+      </executions>
+    </plugin>
+
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-javadoc-plugin</artifactId>
+      <executions>
+        <execution>
+          <id>attach-javadocs</id>
+          <goals>
+            <goal>jar</goal>
+          </goals>
+            <configuration>
+<!-- TODO Fix javadocs, then remove the additionalparam -->
+                <additionalparam>-Xdoclint:none</additionalparam>
+            </configuration>
+
+        </execution>
+      </executions>
+    </plugin>
+
     </plugins>
   </build>
 </project>
