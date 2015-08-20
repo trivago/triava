@@ -1,4 +1,4 @@
-package com.trivago.commons.annotations;
+package com.trivago.triava.annotations;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
