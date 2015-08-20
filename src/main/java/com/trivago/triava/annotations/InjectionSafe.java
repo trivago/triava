@@ -1,4 +1,4 @@
-package com.trivago.commons.annotations;
+package com.trivago.triava.annotations;
 
 import com.trivago.triava.annotations.TriavaCandidate;
 import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
