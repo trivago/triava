@@ -17,10 +17,10 @@ public class CacheExample
 	public static void main(String[] args)
 	{
 		TCacheFactory factory = TCacheFactory.standardFactory();
-		Cache.setLogger(new TriavaConsoleLogger());
+//		Cache.setLogger(new TriavaConsoleLogger());  // For some logs to the console, uncomment this line
 		
-		exampleCacheGetWithoutLoader(factory);
 		exampleCacheGetWithLoader(factory);
+		exampleCacheGetWithoutLoader(factory);
 		exampleCachePut(factory);
 		exampleCachePutWithEvictionLRU(factory);
 		exampleCachePutWithEvictionLFU(factory);
