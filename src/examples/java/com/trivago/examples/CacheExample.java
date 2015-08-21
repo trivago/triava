@@ -46,7 +46,7 @@ public class CacheExample
 	private static void exampleCachePutWithEvictionLRU(TCacheFactory factory)
 	{
 		Builder<Integer, String> builder = factory.<Integer,String>builder();
-		builder.setId("exampleCachePutWithEvictionLRU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LFU);
+		builder.setId("exampleCachePutWithEvictionLRU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LRU);
 		Cache<String> cache = builder.build();
 		
 		putElements(cache,10);
@@ -55,7 +55,7 @@ public class CacheExample
 	private static void exampleCachePutWithEvictionLFU(TCacheFactory factory)
 	{
 		Builder<Integer, String> builder = factory.<Integer,String>builder();
-		builder.setId("exampleCachePutWithEvictionLFU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LRU);
+		builder.setId("exampleCachePutWithEvictionLFU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LFU);
 		Cache<String> cache = builder.build();
 		
 		putElements(cache,10);
