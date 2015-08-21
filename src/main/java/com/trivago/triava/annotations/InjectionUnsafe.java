@@ -1,26 +1,25 @@
 package com.trivago.triava.annotations;
 
-import com.trivago.triava.annotations.TriavaCandidate;
-import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
 
 /**
  * Documents why a field or method is or might be Injection <b>unsafe</b> Mostly we talk about SQL injection, but input might be
  * also used for other systems like Cache servers or non-relational or non-SQL databases.
  */
-@TriavaCandidate(javapackage=JavaPackage.Annotation)
 public @interface InjectionUnsafe
 {
-	enum UnsafeReason { UsedInTooManyPlaces, SentToExternalSystem }
+	enum UnsafeReason { UnclearUsage, ForwardedToUnsafeService }
 		
 	String comment() default "";
 	/**
 	 * Whether why the given field is SQL injection <b>unsafe</b>.
 	 * <ul>
 	 * <li>
-	 * UsedInTooManyPlaces = The value is used in so many places that we have doubts on the safety.
+	 * UnclearUsage = The value is used in a complex manner or in so many places that there serious doubts on the safety.
 	 * </li>
 	 * <li>
-	 * SentToExternalSystem = We send the value unquoted to an external system where it has not been verified for injection safety. 
+	 * ForwardedToUnsafeService = The value is sent unquoted to an external service which has not been verified for injection safety.
+	 * This means, the request ot the external system is properly quoted (er.g. URL-Encoding for a REST service), but the external service
+	 * is not injection safe or has not yet been fully checked.  
 	 * </li>
 	 * </ul>
 	 * 

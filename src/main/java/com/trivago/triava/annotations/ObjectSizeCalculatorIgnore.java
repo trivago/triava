@@ -1,9 +1,7 @@
 package com.trivago.triava.annotations;
 
-import java.lang.annotation.*;
-
-import com.trivago.triava.annotations.TriavaCandidate;
-import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
 * A flag annotation to tag fields which should not get counted in the ObjectSizeCalculator. This is useful
@@ -21,7 +19,6 @@ import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
 * @author Christian Esken, trivago GmbH
 *
 */
-@TriavaCandidate(javapackage=JavaPackage.Annotation)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ObjectSizeCalculatorIgnore
 {

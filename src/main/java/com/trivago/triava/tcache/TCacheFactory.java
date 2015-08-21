@@ -23,7 +23,6 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
  * @since 2015-03-10
  *
  */
-@TriavaCandidate(javapackage=JavaPackage.tCache, comment="This class and any other in the tcache package can move to the com.trivago.triava.tcache package")
 public class TCacheFactory
 {
 	private static final CopyOnWriteArrayList<Cache<?>> CacheInstances = new CopyOnWriteArrayList<Cache<?>>();

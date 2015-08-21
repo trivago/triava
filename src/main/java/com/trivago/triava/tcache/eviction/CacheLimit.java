@@ -25,7 +25,6 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
  *
  * @param <T>
  */
-@TriavaCandidate(javapackage=JavaPackage.tCache)
 public class CacheLimit<T> extends Cache<T>
 {
 	/**

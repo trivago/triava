@@ -41,7 +41,6 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
  * @since 2009-06-10
  *
  */
-@TriavaCandidate(javapackage=JavaPackage.tCache)
 public class Cache<T> implements Thread.UncaughtExceptionHandler
 {
 	protected static TriavaLogger logger = new TriavaNullLogger();

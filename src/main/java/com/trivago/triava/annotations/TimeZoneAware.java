@@ -1,43 +1,32 @@
 package com.trivago.triava.annotations;
 
-import com.trivago.triava.annotations.TriavaCandidate;
-import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
 
 /**
- * The purpose  of this annotation is to document how TimeZone aware Trivago's methods are, especially those in
- * TimeUtil. The background is that the time zone of several dates are not documented, including the booking period
- * fromDate and toDate in the request from PHP. PHP does not send UTC, but actually the current local time, which is
- * most of the times either CET, or CEST, resulting in UTC+1 or UTC+2.
- * <p>
- * <b>Aftermath</b>: After annotating several methods in the TimeUtil class the result is disastrous. <b>Only because
- * the MS/PS is Timezone unaware as PHP, the whole system works as expected</b>. If MS and PHP have different Timezone
- * descriptions or changing CET to CEST differently due to unequal clocks, the results will blow: fromDate and toDate
- * will shift back one day. 
+ * Documents whether a certain method is time zone aware.  
  */
-@TriavaCandidate(javapackage=JavaPackage.Annotation)
 public @interface TimeZoneAware
 {
 	enum State { Independent, Aware, NotAware, CheckPending }
 		
 	String comment() default "";
 	/**
-	 * Whether the method is aware of timezones.
+	 * Whether the method is aware of time zones.
 	 * <ul>
 	 * <li>
-	 * Aware = Yes, it is aware and treats the timezone as documented.
+	 * Aware = Yes. The method is aware and treats the time zone as documented.
 	 * </li>
 	 * <li>
-	 * NotAware = No, timezone is not taken into account. The default timezone is used.
+	 * NotAware = No. The time zone is not taken into account. The default time zone is used.
 	 * </li>
 	 * <li>
-	 * Independent = Timezone doesn't matter. Method does not use Timezone relevant methods or objects.
+	 * Independent = Time zone doesn't matter. Method does not use time zone relevant methods or objects.
 	 * </li>
 	 * <li>
-	 * CheckPending = We don't know yet. But the method should be checked.
+	 * CheckPending = Th method makes includes timne functionality, but has not yet been checked.
 	 * </li>
 	 * </ul>
 	 * 
-	 * @return Whether the method is aware of timezones
+	 * @return Whether the method is aware of time zones
 	 */
 	State aware();
 }

@@ -1,15 +1,12 @@
 package com.trivago.triava.annotations;
 
-import com.trivago.triava.annotations.TriavaCandidate;
-import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
 
 /**
  * Documents how a field or method is made Injection safe. Mostly we talk about SQL injection, but input might be
- * also used for other systems like Cache servers or non-relational or non-SQL databases.
+ * also used for other systems like Cache servers or non-relational or non-SQL databases, depending on their query language.
  * Normalizing or discarding input is the preferred style. Quoting the output is dangerous, because you have to do
  * it for each SQL statement separately. 
  */
-@TriavaCandidate(javapackage=JavaPackage.Annotation)
 public @interface InjectionSafe
 {
 	enum Reason { InputNormalized, RequestRejected, OutputQuoted, NoExternalUsage, TrustedSource }
