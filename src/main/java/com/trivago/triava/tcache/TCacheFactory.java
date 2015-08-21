@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import com.trivago.triava.annotations.TriavaCandidate;
-import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.util.CacheSizeInfo;

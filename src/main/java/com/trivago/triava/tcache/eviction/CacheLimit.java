@@ -9,8 +9,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.trivago.triava.annotations.TriavaCandidate;
-import com.trivago.triava.annotations.TriavaCandidate.JavaPackage;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.EvictionInterface;
