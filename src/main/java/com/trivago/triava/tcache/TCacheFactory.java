@@ -28,8 +28,9 @@ public class TCacheFactory
 	static TCacheFactory standardFactory = new TCacheFactory();
 	
 	/**
-	 * Returns the standard factory. 
-	 * @return
+	 * Returns the standard factory. Library code should not use this method, but create a new TCacheFactory instance for managing its own
+	 * Cache collection.  
+	 * @return The standard cache factory.
 	 */
 	public static TCacheFactory standardFactory()
 	{
@@ -82,7 +83,7 @@ public class TCacheFactory
 	
 	/**
 	 * Returns the list of Caches that have been registered in this factory.
-	 * @return
+	 * @return The cache list
 	 */
 	public List<Cache<?>> instances()
 	{

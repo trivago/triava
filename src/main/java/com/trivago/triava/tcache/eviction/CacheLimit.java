@@ -17,7 +17,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 
 /**
  * A size limited Cache, that evicts elements asynchronously in the background.
- * The element to be evicted are chosen by subclasses, by implementing {@link #evicvtionComparator()}.
+ * The element to be evicted are chosen by the evictionClass, 
  * 
  * @author cesken
  *
@@ -82,10 +82,10 @@ public class CacheLimit<T> extends Cache<T>
 
 
 	/**
-	 * Returns whether the Cache is full. Due to the concurrency nature of the ConcurrentHashMap, we declare
-	 * the Cache already full when it reaches maxFillRate (normally 99%).
+	 * Returns whether the Cache is full. We declare the Cache full, when it has reached the number of
+	 * expected elements, even though there may be some extra eviction space available.
 	 * 
-	 * @return
+	 * @return true, if the cache is full
 	 */
 	protected boolean isFull()
 	{
@@ -121,15 +121,22 @@ public class CacheLimit<T> extends Cache<T>
 	}
 
 	/**
-	 * Returns a size factor that accommodates the maxFillRate. Required, as maxFillRate defines the start of
-	 * eviction, and thus we cannot actually hold so many elements.
+	 * Calculates the amount of extra space that we need as eviction extra space in the storage Map.
+	 * The amount returned is the number of extra elements to allocate in the Map. A StorageBackend
+	 * can use that.
 	 * 
-	 * 0                          Empty
-	 * evictUntilAt         Lower mark
-	 * evictionStartAt    Upper mark
-	 * blockStartAt        Block mark
+	 * <p>
+	 * Internally this method calculates some more numbers:
 	 * 
-	 * @return
+	 *   0                               // Empty
+	 *   private int evictUntilAtLeast;  // Position below userDataElements
+	 *   private int userDataElements;   // Expected elements, as given by user
+	 *   private int blockStartAt;       // Block mark
+	 *   
+	 *   private int evictNormallyElements; // SET DURING  CONSTRUCTION
+	 *
+	 * 
+	 * @return The number of extra elements required in the storage Map.
 	 */
 	@Override
 	protected int evictionExtraSpace(Builder<Object,T> builder)
@@ -173,12 +180,10 @@ public class CacheLimit<T> extends Cache<T>
 	}
 
 	/**
-	 * Determine how many elements to remove. The count is n% of {@link #maxElements} plus any overflow.
-	 * Overflow is not commonly seen. It may occur if the size() method of underlying data structure is not
-	 * exact. Or if {@link #ensureFreeCapacity()} is implemented asynchronously. Or if
-	 * {@link #ensureFreeCapacity()} is cleaning not always, but only on occasion.
+	 * Determine how many elements to remove. The goal is to evict {@link #evictNormallyElements}
+	 * elements, and to definitely reach the low water mark {@link #evictUntilAtLeast}.
 	 *
-	 * @return
+	 * @return The number of elements to remove
 	 */
 	protected int elementsToRemove()
 	{

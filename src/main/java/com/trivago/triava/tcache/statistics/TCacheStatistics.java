@@ -29,19 +29,10 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 	private long evictionHalts;
 	private long evictionRate;
 
-	
-	/**
-	 * Creates Statistics for the given Cache  
-	 * @param cache
-	 */
-	public TCacheStatistics(Cache<?> cache)
-	{
-		this.setId(cache.id());
-	}
 
 	/**
-	 * Creates empty Statistics  
-	 * @param cache
+	 * Creates empty Statistics.
+	 * @param id The ID of the cache instance 
 	 */
 	public TCacheStatistics(String id)
 	{
@@ -130,14 +121,14 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 		this.dropCount = dropCount;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
+
 	@Override
 	public String toString()
 	{
 		StringBuilder builder = new StringBuilder();
-		builder.append("Statistics [hitRatio=");
+		builder.append("Statistics [id=");
+		builder.append(id);
+		builder.append(", hitRatio=");
 		builder.append(hitRatio);
 		builder.append(", hitCount=");
 		builder.append(hitCount);

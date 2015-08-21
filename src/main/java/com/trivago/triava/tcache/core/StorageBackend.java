@@ -13,7 +13,7 @@ public interface StorageBackend<K,V>
 	 * 
 	 * @param builder The configuration parameter for the Map
 	 * @param sizeFactor Sizing factor to take into account
-	 * @return
+	 * @return An instance of the sorage.
 	 */
 	public ConcurrentMap<K, Cache.AccessTimeObjectHolder<V>> createMap(Builder<K,V> builder, double sizeFactor);
 }

@@ -62,8 +62,8 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		
 		/**
 		 * @param data
-		 * @param aMaxIdleTime
-		 * @param maxCacheTime Max Cache time in seconds 
+		 * @param maxIdleTime Maximum idle time in seconds
+		 * @param maxCacheTime Maximum cache time in seconds 
 		 */
 		public AccessTimeObjectHolder(T data , long maxIdleTime, long maxCacheTime) {
 			setLastAccessTime();
@@ -108,7 +108,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		 * <p>
 		 * Future directions: Offer a better method for iteration, like an iterator or a Java 8 stream.
 		 * 
-		 * @return
+		 * @return The value of this holder 
 		 */
 		public T peek()
 		{
@@ -333,7 +333,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	/**
 	 * constructor with default cache time and expected map size.
 	 * @param maxIdleTime Maximum idle time in seconds
-	 * @param pMaxCacheTime Maximum Cache time in seconds
+	 * @param maxCacheTime Maximum Cache time in seconds
 	 * @param expectedMapSize
 	 */
 	public Cache(String id, long maxIdleTime, long maxCacheTime, int expectedMapSize)
@@ -537,8 +537,8 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	}
 
 	/**
-	 * The same like {@link #put(Object, Object, long, Long)}, but uses
-	 * {@link ConcurrentMap#putIfAbsent(Object, Object)} to actually write
+	 * The same like {@link #put(Object, Object, long, long)}, but uses
+	 * {@link java.util.concurrent.ConcurrentMap#putIfAbsent(Object, Object)} to actually write
 	 * the data in the backing ConcurrentMap. For the sake of the Cache hit or miss statistics this method
 	 * is a treated as a read operation and thus updates the hit or miss counters. Rationale is that the
 	 * putIfAbsent() result is usually evaluated by the caller.
@@ -578,15 +578,18 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	
 
 	/**
+	 * Puts the value wrapped in a AccessTimeObjectHolder in the map and returns it. What exactly is returned depends on the value of returnEffectiveHolder. 
+	 * If putIfAbsent is true, the put is done in the fashion of {@link java.util.concurrent.ConcurrentMap#putIfAbsent(Object, Object)}, otherwise
+	 * like {@link java.util.Map#put(Object, Object)}.
 	 * 
-	 * @param pKey
-	 * @param pData
+	 * @param key The key
+	 * @param data The value
 	 * @param idleTime in seconds
 	 * @param cacheTime  Max Cache time in seconds
-	 * @param putIfAbsent
-	 * @return
+	 * @param putIfAbsent Defines the behavior when the key is already present. See method documentation. 
+	 * @return If returnEffectiveHolder is true, the holder object of the object in the Map is returned. If returnEffectiveHolder is false, the returned value is like described in {@link java.util.Map#put(Object, Object)}. 
 	 */
-	protected AccessTimeObjectHolder<T> putToMap(Object pKey, T pData, long idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
+	protected AccessTimeObjectHolder<T> putToMap(Object key, T data, long idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
 	{
 		if (shuttingDown)
 		{
@@ -594,7 +597,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 			return null;
 		}
 		
-		if(pData == null || idleTime < 0)
+		if(data == null || idleTime < 0)
 		{
 			// Reject invalid data
 			return null;
@@ -612,7 +615,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		
 		if (idleTime <= 0 && cacheTime <= 0) 
 		{
-			logger.error("Adding object to Cache with infinite lifetime: " + pKey.toString() + " : " + pData.toString());
+			logger.error("Adding object to Cache with infinite lifetime: " + key.toString() + " : " + data.toString());
 		}
 		
 		AccessTimeObjectHolder<T> holder; // holder returned by objects.put*().
@@ -621,8 +624,8 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		
 		if (putIfAbsent)
 		{
-			newHolder = new AccessTimeObjectHolder<T>(pData, idleTime, cacheTime);
-			holder = this.objects.putIfAbsent(pKey, newHolder);
+			newHolder = new AccessTimeObjectHolder<T>(data, idleTime, cacheTime);
+			holder = this.objects.putIfAbsent(key, newHolder);
 			
 			/*
 			 *	A putIfAbsent() is also treated as a GET operation, so update cache statistics. 
@@ -643,8 +646,8 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		}
 		else
 		{
-			newHolder = new AccessTimeObjectHolder<T>(pData, idleTime, cacheTime);
-			holder = this.objects.put(pKey, newHolder);
+			newHolder = new AccessTimeObjectHolder<T>(data, idleTime, cacheTime);
+			holder = this.objects.put(key, newHolder);
 //			holder = newHolder;  // <<< wrong
 			effectiveHolder = newHolder;
 			statisticsCalculator.incrementPutCount();
@@ -795,7 +798,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 
 	public TCacheStatistics statistics()
 	{
-		TCacheStatistics stats = new TCacheStatistics(this);
+		TCacheStatistics stats = new TCacheStatistics(this.id());
 		fillCacheStatistics(stats);
 		return stats;
 	}
@@ -1032,7 +1035,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	/**
 	 * Returns a thread-safe unmodifiable collection of the keys.
 	 * 
-	 * @return
+	 * @return The keys as a Collection
 	 */
 	public Collection<Object> keySet()
 	{
