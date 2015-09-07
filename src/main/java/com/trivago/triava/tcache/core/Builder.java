@@ -14,6 +14,14 @@ import com.trivago.triava.tcache.eviction.CacheLimitLRU;
 import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
 import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
 
+/**
+ * A builder to create Cache instances.
+ * 
+ * @author cesken
+ *
+ * @param <K> Key type
+ * @param <V> Value type
+ */
 public class Builder<K,V>
 {
 	static final AtomicInteger anonymousCacheId = new AtomicInteger();
@@ -22,6 +30,7 @@ public class Builder<K,V>
 	private String id;
 	private long maxIdleTime = MAX_IDLE_TIME; // 30 minutes
 	private long maxCacheTime = 3600; // 60 minutes
+	private int maxCacheTimeSpread = 0; // 0 seconds
 	private int expectedMapSize = 10000;
 	private int concurrencyLevel = 14;
 	private int mapConcurrencyLevel = 16;
@@ -94,6 +103,12 @@ public class Builder<K,V>
 		return this;
 	}
 
+	/**
+	 * Sets the maximum time of an unused (idle) cache entry.
+	 * 
+	 * @param maxIdleTime The maximum time
+	 * @return c
+	 */
 	public Builder<K,V> setMaxIdleTime(long maxIdleTime)
 	{
 		if (maxIdleTime == 0)
@@ -103,6 +118,29 @@ public class Builder<K,V>
 		return this;
 	}
 
+	/**
+	 * Sets the interval within a cache entry expires. The value in the interval [maxCacheTime, maxCacheTime+interval]
+	 * is selected pseudo-randomly for each individual entry put in the cache, unless an explicit expiration time is set in the put() operation. 
+	 * <p>
+	 * This method is useful for mass-inserts in the Cache, that
+	 * should not expire at the same time (e.g. for resource reasons).
+	 * 
+	 * @param maxIdleTime The minimum time to keep
+	 * @param interval The size of the interval
+	 * @return This Builder
+	 */
+	public Builder<K,V> setMaxCacheTime(long maxCacheTime, int interval)
+	{
+		this.maxCacheTime = maxCacheTime;
+		this.maxCacheTimeSpread = interval;
+		return this;
+	}
+
+	/**
+	 * Sets the time when a cache entry expires. All entries put in the cache use this, unless an explicit expiration time is set in the put() operation.
+	 * @param maxCacheTime The time to keep
+	 * @return This Builder
+	 */
 	public Builder<K,V> setMaxCacheTime(long maxCacheTime)
 	{
 		this.maxCacheTime = maxCacheTime;
@@ -178,6 +216,12 @@ public class Builder<K,V>
 		return statistics;
 	}
 
+	/**
+	 * Sets whether statistics should be gathered. The performance impact on creating statistics is very low,
+	 * so it is safe to activate statistics. If this method is not called, the default is to collect statistics.
+	 * @param statistics
+	 * @return
+	 */
 	public Builder<K,V> setStatistics(boolean statistics)
 	{
 		this.statistics = statistics;
@@ -201,11 +245,20 @@ public class Builder<K,V>
 	}
 
 	/**
-	 * @return the maxCacheTime
+	 * @return The lower bound of the "maximum cache time interval" [maxCacheTime, maxCacheTime+maxCacheTimeSpread]
 	 */
 	public long getMaxCacheTime()
 	{
 		return maxCacheTime;
+	}
+
+	/**
+	 * 
+	 * @return The interval size of the cache time interval
+	 */
+	public int getMaxCacheTimeSpread()
+	{
+		return maxCacheTimeSpread;
 	}
 
 	/**

@@ -140,6 +140,10 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 		builder.append(dropCount);
 		builder.append(", evictionCount=");
 		builder.append(evictionCount);
+		builder.append(", evictionRounds=");
+		builder.append(evictionRounds);
+		builder.append(", evictionHalts=");
+		builder.append(evictionHalts);
 		builder.append(", elementCount=");
 		builder.append(elementCount);
 		builder.append("]");

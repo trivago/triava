@@ -306,6 +306,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	private final long defaultMaxIdleTime;
 	// max cache time in seconds
 	private final long maxCacheTime;
+	protected int maxCacheTimeSpread;
 	final protected ConcurrentMap<Object,AccessTimeObjectHolder<T>> objects;
 	Random random = new Random(System.currentTimeMillis());
 	
@@ -352,6 +353,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	{
 		this.id = builder.getId();
 		this.maxCacheTime = builder.getMaxCacheTime();
+		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
 		this.defaultMaxIdleTime = builder.getMaxIdleTime();
 		// Next line: "* 100" is actually "* 1000 / 10".
 		// a) "* 1000" is for converting secs to ms.
@@ -521,10 +523,21 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 */
 	public void put(Object pKey, T pData)
 	{
-		put(pKey, pData, this.defaultMaxIdleTime, this.maxCacheTime);
+		put(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread());
 	}
 	
 	
+	Random randomCacheTime = new Random(System.currentTimeMillis());
+	
+	private long cacheTimeSpread()
+	{
+		if (maxCacheTimeSpread == 0)
+			return maxCacheTime;
+		else
+			return maxCacheTime + randomCacheTime.nextInt(maxCacheTimeSpread);
+	}
+
+
 	/**
 	 * Add an object to the cache under the given key with the given cache time in seconds
 	 * @param pKey
@@ -560,7 +573,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	
 	public T putIfAbsent(Object pKey, T pData)
 	{
-		AccessTimeObjectHolder<T> holder = putToMap(pKey, pData, this.defaultMaxIdleTime, this.maxCacheTime, true);
+		AccessTimeObjectHolder<T> holder = putToMap(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread(), true);
 		
 		if (holder == null)
 		{
@@ -734,7 +747,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 			try
 			{
 				T loadedValue = loader.load(key);
-				holder = putToMap(key, loadedValue, defaultMaxIdleTime, maxCacheTime, false, true);
+				holder = putToMap(key, loadedValue, defaultMaxIdleTime, cacheTimeSpread(), false, true);
 				loaded = true;
 				// ##LOADED_MISS_COUNT##
 				statisticsCalculator.incrementMissCount(); // needed to load => increment miss count
