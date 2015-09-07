@@ -8,11 +8,8 @@ import com.trivago.triava.tcache.core.StorageBackend;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 
 /**
- * <b>DO NOT USE THIS FOR PRODUCTIVE CODE. JAR IS NOT AVAILABLE LIVE.</b>
- * <p>
- * Implements a storage that uses the Highscale libs. It is only implemented for performance tests. 
- * <p>
- * <b>DO NOT USE THIS FOR PRODUCTIVE CODE. JAR IS NOT AVAILABLE LIVE.</b>
+ * Implements a storage that uses the Highscale libs. It is only implemented for performance tests.
+ * The instanciation is done fully via reflection, for avoiding compile-time dependencies to 3rd-party libraries.
  *  
  * @author cesken
  *
