@@ -1,6 +1,5 @@
 package com.trivago.examples;
 
-import com.trivago.triava.logging.TriavaConsoleLogger;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
@@ -8,7 +7,8 @@ import com.trivago.triava.tcache.core.CacheLoader;
 import com.trivago.triava.tcache.eviction.Cache;
 
 /**
- * Examples for creating various types of Caches
+ * Examples for creating various types of Caches. Demonstrated features are put() and get() operations,
+ * selecting a eviction strategy, and how to use a Loader.
  * @author cesken
  *
  */
