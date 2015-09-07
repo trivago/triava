@@ -29,8 +29,8 @@ public class CacheLimit<T> extends Cache<T>
 	 * FREE_PERCENTAGE defines how much elements to free.
 	 * Percentage relates to evictionStartAt. 
 	 */
-	private static final int FREE_PERCENTAGE = 20;
-	private static final float EVICTION_SPACE_PERCENT = 20; // TODO cesken Move to 10%. Tests with bb show that it is OK.
+	private static final int FREE_PERCENTAGE = 10;
+	private static final float EVICTION_SPACE_PERCENT = 15; // TODO cesken Move to 10%. Tests with bb show that it is OK.
 	
 	// --- FEATURE_ExtraParEvictionSpace START ----------
 	private static final boolean FEATURE_ExtraParEvictionSpace = false;
@@ -166,11 +166,11 @@ public class CacheLimit<T> extends Cache<T>
 		long normalEvictionSpace = (long)(userDataElements * factor);
 		long extraEvictionSpace = Math.max(normalEvictionSpace, parallelityEvictionSpace);
 		long plannedSizeLong = userDataElements + extraEvictionSpace;
-		int plannedSize = (int)Math.min(plannedSizeLong, Integer.MAX_VALUE); 
+		blockStartAt = (int)Math.min(plannedSizeLong, Integer.MAX_VALUE); 
 		
-		blockStartAt = plannedSize;
-		evictNormallyElements = (int)((double)plannedSize * FREE_PERCENTAGE / 100D);
-		evictUntilAtLeast = plannedSize - evictNormallyElements;
+//		blockStartAt = plannedSize;
+		evictNormallyElements = (int)((double)userDataElements * FREE_PERCENTAGE / 100D);
+		evictUntilAtLeast = userDataElements - evictNormallyElements;
 		if (LOG_INTERNAL_DATA)
 		{
 			logger.info("Cache eviction tuning [" + id() +"]. Size=" + userDataElements + ", BLOCK=" + blockStartAt + ", evictToPos=" + evictUntilAtLeast + ", normal-evicting=" + evictNormallyElements);
@@ -180,23 +180,47 @@ public class CacheLimit<T> extends Cache<T>
 	}
 
 	/**
-	 * Determine how many elements to remove. The goal is to evict {@link #evictNormallyElements}
-	 * elements, and to definitely reach the low water mark {@link #evictUntilAtLeast}.
+	 * Determine how many elements to remove. The goal is to reach the interval
+	 * [ {@link #evictUntilAtLeast}, {@link #userDataElements}]. Typically we would try to
+	 * evict {@link #evictNormallyElements} elements.
 	 *
 	 * @return The number of elements to remove
 	 */
 	protected int elementsToRemove()
 	{
 		int currentElements = objects.size();
-		int removeTargetPos = currentElements - evictNormallyElements;
-		if (removeTargetPos <= evictUntilAtLeast)
+		if (currentElements < userDataElements)
 		{
-			// We will end below acceptable border => OK. Evict normal number of elements
-			return evictNormallyElements;			
+			// [0, userDataElements-1] means: Not full. Nothing to evict.
+			return 0;
 		}
 		
+		// ----------------------------------------------------------
+		
+		int removeTargetPos = currentElements - evictNormallyElements;
+		if (removeTargetPos > userDataElements)
+		{
+			// Evict will reach [userDataElements, MAX_INT] : Evicting not enough
+			removeTargetPos = userDataElements - evictNormallyElements;
+		}
+		
+		// removeTargetPos in now in the interval [-MAX_INT,  userDataElements-1]
+		if (removeTargetPos >= evictUntilAtLeast)
+		{
+			// Evict will reach [evictUntilAtLeast, userDataElements-1] : Good
+		}
+		else
+		{
+			// Evict will reach [0, evictUntilAtLeast-1] : Too much
+			removeTargetPos = evictUntilAtLeast;
+		}
+
 		// else: Make sure we make room for at least until evictUntilAtLeast
-		int removeCount1 = currentElements - evictUntilAtLeast;
+		int removeCount1 = currentElements - removeTargetPos;
+		if (removeCount1 < 0)
+		{
+			logger.error("Trying to evict a negative number of elements. id=" + id() + ", currentElements=" + currentElements + ", removeCount=" + removeCount1);
+		}
 		
 		return removeCount1 < 0 ? 0 : removeCount1;
 	}
@@ -254,7 +278,7 @@ public class CacheLimit<T> extends Cache<T>
 					evictionIsRunning = false;
 					evictionNotifierQ.take();  // wait
 					evictionNotifierQ.clear();  // get rid of further notifications (if any)
-					// --- clear() must be before evictionIsRunning = true;
+					// --- clear() must be before evictionIsRunning = true;  // TODO Explain why!!! There is a race condition when we do not do this. But it needs an explanation
 					evictionIsRunning = true;
 //					if (LOG_INTERNAL_DATA && logInternalExtendedData())
 //						System.out.println("Evicting");
@@ -298,6 +322,24 @@ public class CacheLimit<T> extends Cache<T>
 		
 		protected void evictWithFreezer()
 		{
+			int elemsToRemovePreCheck = elementsToRemove();
+			if (elemsToRemovePreCheck <= 0)
+			{
+				/**
+				 * Check, if eviction makes sense. Rationale: In a concurrent situation, threads may enqueue
+				 * an additional "eviction request".
+				 * 
+				 * This thread: evictionNotifierQ.clear();  // get rid of further notifications (if any)
+				 * Other thread: evictionNotifierQ.offer(Boolean.TRUE);
+				 * This thread: evictionIsRunning = true;
+				 * 
+				 * In that case, if we wouldn't check at the beginning of this method, we would first go
+				 * through the entrySet() (which can be very expensive due to CHM locking) only to find out
+				 * shortly after that there is no work to do.
+				 */
+				return;
+			}
+			
 			int i=0;
 			Set<Entry<Object, Cache.AccessTimeObjectHolder<T>>> entrySet = objects.entrySet();
 			int size = entrySet.size();
@@ -328,6 +370,9 @@ public class CacheLimit<T> extends Cache<T>
 
 			int removedCount = 0;
 //			int notRemovedCount1 = 0;
+			
+			// Important note: Do not re-use the value elemsToRemovePreCheck for elemsToRemove. Other threads
+			// may have added elements or removed some (including the expiration thread)
 			int elemsToRemove = elementsToRemove();
 			for (HolderFreezer<Object, T> entryToRemove : toCheck)
 			{
