@@ -2,12 +2,11 @@ package com.trivago.triava.tcache.eviction;
 
 public interface TCacheHolder<V>
 {
-	
-	public V get();
-	public V peek();
-	public long getLastAccess();
-	public int getUseCount();
-	public long getInputDate();
-	public int getMaxIdleTime();
-	public boolean isInvalid();
+	V get();
+	V peek();
+	long getLastAccess();
+	int getUseCount();
+	long getInputDate();
+	int getMaxIdleTime();
+	boolean isInvalid();
 }

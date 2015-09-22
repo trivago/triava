@@ -24,7 +24,7 @@ public class HolderFreezer<K, V>
 		this.frozenValue = frozenValue;
 	}
 
-	public Object getKey()
+	public K getKey()
 	{
 		return key;
 	}

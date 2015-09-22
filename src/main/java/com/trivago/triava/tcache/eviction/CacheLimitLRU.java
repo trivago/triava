@@ -8,9 +8,9 @@ import com.trivago.triava.tcache.core.Builder;
  * @author cesken
  * @since March 2015
  * 
- * @param <T> Data (value) type
+ * @param <K, V> Key / value (data) type
  */
-public class CacheLimitLRU<T> extends CacheLimit<T>
+public class CacheLimitLRU<K, V> extends CacheLimit<K, V>
 {
 	private static final long serialVersionUID = 6678178712081760715L;
 

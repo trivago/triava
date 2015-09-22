@@ -21,9 +21,9 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
  * 
  * @author cesken
  *
- * @param <T>
+ * @param <K, V>
  */
-public class CacheLimit<T> extends Cache<T>
+public class CacheLimit<K, V> extends Cache<K, V>
 {
 	/**
 	 * FREE_PERCENTAGE defines how much elements to free.
@@ -41,7 +41,7 @@ public class CacheLimit<T> extends Cache<T>
 	private static final boolean LOG_INTERNAL_DATA = true;
 	private static final boolean LOG_INTERNAL_EXTENDED_DATA = false;
 
-	protected EvictionInterface<Object, T> evictionClass = null;
+	protected EvictionInterface<K, V> evictionClass = null;
 
 //	@ObjectSizeCalculatorIgnore
 	private volatile transient EvictionThread evictor = null;
@@ -139,7 +139,7 @@ public class CacheLimit<T> extends Cache<T>
 	 * @return The number of extra elements required in the storage Map.
 	 */
 	@Override
-	protected int evictionExtraSpace(Builder<Object,T> builder)
+	protected int evictionExtraSpace(Builder<K, V> builder)
 	{
 		double factor = EVICTION_SPACE_PERCENT / 100D; //  20/100d = 0.2
 		userDataElements = builder.getExpectedMapSize();
@@ -341,32 +341,32 @@ public class CacheLimit<T> extends Cache<T>
 			}
 			
 			int i=0;
-			Set<Entry<Object, Cache.AccessTimeObjectHolder<T>>> entrySet = objects.entrySet();
+			Set<Entry<K, Cache.AccessTimeObjectHolder<V>>> entrySet = objects.entrySet();
 			int size = entrySet.size();
 			// ###A###
 //			System.out.println("Start to evict with size=" + size);
 			
-			ArrayList<HolderFreezer<Object,T>> toCheckL = new ArrayList<>(size);
+			ArrayList<HolderFreezer<K, V>> toCheckL = new ArrayList<>(size);
 			// ###B###
-			for (Entry<Object, AccessTimeObjectHolder<T>> entry : entrySet)
+			for (Entry<K, AccessTimeObjectHolder<V>> entry : entrySet)
 			{
 				if (i == size)
 				{
 					break; // Skip new elements that came in between ###A### and ###B###
 				}
 
-				Object key = entry.getKey();
-				AccessTimeObjectHolder<T> holder = entry.getValue();
+				K key = entry.getKey();
+				AccessTimeObjectHolder<V> holder = entry.getValue();
 				long frozenValue = evictionClass.getFreezeValue(key, holder);
-				HolderFreezer<Object,T> frozen = new HolderFreezer<>(key, holder, frozenValue);
+				HolderFreezer<K,V> frozen = new HolderFreezer<>(key, holder, frozenValue);
 
 				toCheckL.add(i, frozen);
 				i++;
 			}
 
 			@SuppressWarnings("unchecked")
-			HolderFreezer<Object, T>[] toCheck = toCheckL.toArray(new HolderFreezer[0]);
-			Arrays.sort(toCheck, evictionClass.evicvtionComparator());			
+			HolderFreezer<K, V>[] toCheck = toCheckL.toArray(new HolderFreezer[0]);
+			Arrays.sort(toCheck, evictionClass.evictionComparator());
 
 			int removedCount = 0;
 //			int notRemovedCount1 = 0;
@@ -374,9 +374,9 @@ public class CacheLimit<T> extends Cache<T>
 			// Important note: Do not re-use the value elemsToRemovePreCheck for elemsToRemove. Other threads
 			// may have added elements or removed some (including the expiration thread)
 			int elemsToRemove = elementsToRemove();
-			for (HolderFreezer<Object, T> entryToRemove : toCheck)
+			for (HolderFreezer<K, V> entryToRemove : toCheck)
 			{
-				Object oldValue = remove(entryToRemove.getKey()); // ***POS_2***
+				V oldValue = remove(entryToRemove.getKey()); // ***POS_2***
 				if (oldValue != null)
 				{
 					/**
@@ -447,7 +447,7 @@ public class CacheLimit<T> extends Cache<T>
 	private synchronized String stopEvictor(long millis)
 	{
 		String errorMsg = null;
-		CacheLimit<T>.EvictionThread evictorRef = evictor;
+		CacheLimit<K, V>.EvictionThread evictorRef = evictor;
 		if ( evictorRef != null )
 		{
 			evictorRef.shutdown();

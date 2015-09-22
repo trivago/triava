@@ -7,15 +7,15 @@ import com.trivago.triava.tcache.core.Builder;
  * 
  * @author cesken
  *
- * @param <T>
+ * @param <K, V>
  */
-public class CacheLimitLFUv2<T> extends CacheLimit<T>
+public class CacheLimitLFUv2<K, V> extends CacheLimit<K, V>
 {
 	private static final long serialVersionUID = 6678178712081760715L;
 
 	public CacheLimitLFUv2(Builder builder)
 	{
-		super(builder.setEvictionClass(new LFUEviction<Object,T>()));
+		super(builder.setEvictionClass(new LFUEviction<K, V>()));
 	}
 
 	/**

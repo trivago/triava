@@ -22,7 +22,7 @@ public class JavaConcurrentHashMap<K,V> implements StorageBackend<K, V>
 	{
 		double loadFactor = 0.75F;
 		int requiredMapSize = (int) (builder.getExpectedMapSize() / loadFactor) + (int)evictionMapSizeFactor;
-		return new ConcurrentHashMap<K, Cache.AccessTimeObjectHolder<V>>(requiredMapSize, (float) loadFactor,
+		return new ConcurrentHashMap<>(requiredMapSize, (float) loadFactor,
 				builder.getMapConcurrencyLevel());
 	}
 

@@ -65,30 +65,30 @@ public class Builder<K,V>
 	 * 
 	 * @return
 	 */
-	public Cache<V> build()
+	public Cache<K, V> build()
 	{
 		if (id == null)
 		{
 			id = "tcache-" + anonymousCacheId.incrementAndGet();
 		}
 
-		final Cache<V> cache;
+		final Cache<K, V> cache;
 		if (evictionClass != null)
 		{
-			cache = new CacheLimit<V>(this);
+			cache = new CacheLimit<>(this);
 		}
 		else
 		{
 			switch (evictionPolicy)
 			{
 				case LFU:
-					cache = new CacheLimitLFUv2<V>(this);
+					cache = new CacheLimitLFUv2<>(this);
 					break;
 				case LRU:
-					cache = new CacheLimitLRU<V>(this);
+					cache = new CacheLimitLRU<>(this);
 					break;
 				case NONE:
-					cache = new Cache<V>(this);
+					cache = new Cache<>(this);
 				default:
 					throw new IllegalArgumentException("Invalid evictionPolicy=" + evictionPolicy);
 			}
@@ -125,7 +125,7 @@ public class Builder<K,V>
 	 * This method is useful for mass-inserts in the Cache, that
 	 * should not expire at the same time (e.g. for resource reasons).
 	 * 
-	 * @param maxIdleTime The minimum time to keep
+	 * @param maxCacheTime The minimum time to keep
 	 * @param interval The size of the interval
 	 * @return This Builder
 	 */

@@ -14,9 +14,8 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
  *
  * @param <K> Key class
  * @param <V> Value class
- * @param <H> Holder class
  */
-public interface EvictionInterface<K,V>
+public interface EvictionInterface<K, V>
 {
 	/**
 	 * Returns the Comparator for the eviction policy. Elements to be evicted earlier have to be sorted to the
@@ -24,7 +23,7 @@ public interface EvictionInterface<K,V>
 	 * 
 	 * @return
 	 */
-	Comparator<? super HolderFreezer<K, V>> evicvtionComparator();
+	Comparator<? super HolderFreezer<K, V>> evictionComparator();
 
 	/**
 	 * Returns a value that is required by the actual implementation for eviction. Implement this if you rely on a
