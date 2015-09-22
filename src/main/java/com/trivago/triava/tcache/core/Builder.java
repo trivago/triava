@@ -8,9 +8,8 @@ import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.eviction.CacheLimit;
-import com.trivago.triava.tcache.eviction.CacheLimitLFUv2;
-import com.trivago.triava.tcache.eviction.CacheLimitLRU;
-//import com.trivago.triava.tcache.storage.GuavaLocalCache;
+import com.trivago.triava.tcache.eviction.LFUEviction;
+import com.trivago.triava.tcache.eviction.LRUEviction;
 import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
 import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
 
@@ -82,13 +81,17 @@ public class Builder<K,V>
 			switch (evictionPolicy)
 			{
 				case LFU:
-					cache = new CacheLimitLFUv2<>(this);
+					cache = new CacheLimit<>(this.setEvictionClass(new LFUEviction<K,V>()));
 					break;
 				case LRU:
-					cache = new CacheLimitLRU<>(this);
+					cache = new CacheLimit<>(this.setEvictionClass(new LRUEviction<K,V>()));
+					break;
+				case CUSTOM:
+					cache = new CacheLimit<>(this);
 					break;
 				case NONE:
 					cache = new Cache<>(this);
+					break;
 				default:
 					throw new IllegalArgumentException("Invalid evictionPolicy=" + evictionPolicy);
 			}

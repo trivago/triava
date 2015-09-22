@@ -676,19 +676,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 
-//	/**
-//	 * Add an existing AccessTimeObjectHolder<T> object to the cache.
-//	 * You can use this when reconstruction a Cache from a serialized form.
-//	 * (NB: Currently this is not in use. It was used for the HotelPool, where snapshots are taken to Memcached.)
-//	 * @param atoh The AccessTimeObjectHolder object.
-//	 */
-//	public void put(Object key, AccessTimeObjectHolder<T> atoh)
-//	{
-//		objects.put(key, atoh);
-//		ensureCleanerIsRunning(atoh.data.getClass().getName());
-//	}
 
-
+	
 	/**
 	 * Returns whether there is capacity for at least one more element. The default implementation always returns true.
 	 * Derived classes that implement a Cache limit (LFU, LRU, ...) can either create free room or
@@ -844,11 +833,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			{
 				cacheHitRatePreviousTimeMillis = now;
 				// Long enough time has passed => calculate new sample
-				HitAndMissDifference stats = statisticsCalculator.updateDifference();
+				HitAndMissDifference stats = statisticsCalculator.tick();
 				
 				// -3- Add the new value to the floating array hitrateLastMeasurements
-				long cacheGets = stats.getHitDifference() + stats.getMissDifference();
-				float hitRate = cacheGets == 0 ? 0f :  (float)stats.getHitDifference() / (float)cacheGets * 100f;
+				long cacheGets = stats.getHits() + stats.getMisses();
+				float hitRate = cacheGets == 0 ? 0f :  (float)stats.getHits() / (float)cacheGets * 100f;
 				hitrateLastMeasurements[hitrateLastMeasurementsCurrentIndex] = hitRate;
 				hitrateLastMeasurementsCurrentIndex =
 						(hitrateLastMeasurementsCurrentIndex + 1) % hitrateLastMeasurements.length;

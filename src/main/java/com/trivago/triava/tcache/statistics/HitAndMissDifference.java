@@ -1,23 +1,35 @@
 package com.trivago.triava.tcache.statistics;
 
 
+/**
+ * Holds a count of cache hits and cache misses.
+ * 
+ * @author cesken
+ *
+ */
 public class HitAndMissDifference
 {
 	private final long hitDifference;
 	private final long missDifference;
 	
-	HitAndMissDifference(long hitDifference, long missDifference)
+	/**
+	 * Constructs an instance with the given hits and misses.
+	 * 
+	 * @param hits
+	 * @param misses
+	 */
+	HitAndMissDifference(long hits, long misses)
 	{
-		this.hitDifference = hitDifference;
-		this.missDifference = missDifference;
+		this.hitDifference = hits;
+		this.missDifference = misses;
 	}
 
-	public long getHitDifference()
+	public long getHits()
 	{
 		return hitDifference;
 	}
 
-	public long getMissDifference()
+	public long getMisses()
 	{
 		return missDifference;
 	}
