@@ -17,8 +17,8 @@ public class StandardStatisticsCalculator implements StatisticsCalculator
 	private final AtomicLong cacheHitCountPrevious  = new AtomicLong();
 	private final AtomicLong cacheMissCountPrevious = new AtomicLong();
 
-	 @Override
-	public HitAndMissDifference updateDifference()
+	@Override
+	public HitAndMissDifference tick()
 	{
 		long hitDifference = 0;
 		long missDifference = 0;

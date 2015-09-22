@@ -1,5 +1,13 @@
 package com.trivago.triava.tcache.statistics;
 
+/**
+ * Implementation for StatisticsCalculator, that does not count and all getters return zero values. 
+ * Target usage of this class is to benchmark the overhead of {@link StandardStatisticsCalculator}
+ * and for measuring the maximum throughput of tCache.
+ * 
+ * @author cesken
+ *
+ */
 public class NullStatisticsCalculator implements StatisticsCalculator
 {
 	static HitAndMissDifference dummyDifference = new HitAndMissDifference(0, 0);
@@ -24,7 +32,7 @@ public class NullStatisticsCalculator implements StatisticsCalculator
 	}
 
 	@Override
-	public HitAndMissDifference updateDifference()
+	public HitAndMissDifference tick()
 	{
 		return dummyDifference;
 	}

@@ -9,7 +9,12 @@ public interface StatisticsCalculator
 	void incrementDropCount();
 
 	// --- Methods for calculating the change --- 
-	HitAndMissDifference updateDifference();
+	/**
+	 * Ends the current measurement interval, and returns the hits and misses since the
+	 * last measurement.
+	 * @return The absolute count of hits and misses since the last measurement
+	 */
+	HitAndMissDifference tick();
 
 	// --- Methods for raw statistics --- 
 	long getHitCount();
