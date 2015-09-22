@@ -22,7 +22,7 @@ public @interface TimeZoneAware
 	 * Independent = Time zone doesn't matter. Method does not use time zone relevant methods or objects.
 	 * </li>
 	 * <li>
-	 * CheckPending = The method makes includes time functionality, but has not yet been checked.
+	 * CheckPending = The method includes time functionality, but has not yet been checked.
 	 * </li>
 	 * </ul>
 	 * 
