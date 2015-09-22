@@ -56,7 +56,7 @@ public class CacheLimit<T> extends Cache<T>
 	// 1 element in the blocking queue is likely enough, but using 2 should definitely decouple reads and writes
 	private final BlockingQueue<Boolean> evictionNotifierQ = new LinkedBlockingQueue<>(2);
 
-	public CacheLimit(String id, long maxIdleTime, long maxCacheTime, int expectedElements)
+	CacheLimit(String id, long maxIdleTime, long maxCacheTime, int expectedElements)
 	{
 		super(id, maxIdleTime, maxCacheTime, expectedElements);
 		 // Start eviction Thread directly, so there is no ramp-up time when the first Eviction will be triggered

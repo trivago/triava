@@ -337,7 +337,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @param maxCacheTime Maximum Cache time in seconds
 	 * @param expectedMapSize
 	 */
-	public Cache(String id, long maxIdleTime, long maxCacheTime, int expectedMapSize)
+	Cache(String id, long maxIdleTime, long maxCacheTime, int expectedMapSize)
 	{
 		this( new Builder<Object,T>(TCacheFactory.standardFactory())
 		.setId(id).setMaxIdleTime(maxIdleTime).setMaxCacheTime(maxCacheTime)

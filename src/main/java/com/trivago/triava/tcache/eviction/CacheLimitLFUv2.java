@@ -26,7 +26,7 @@ public class CacheLimitLFUv2<T> extends CacheLimit<T>
 	 * @param expectedElements
 	 *            Size limit in number of elements
 	 **/
-	public CacheLimitLFUv2(String id, long maxIdleTime, long maxCacheTime, int expectedElements)
+	CacheLimitLFUv2(String id, long maxIdleTime, long maxCacheTime, int expectedElements)
 	{
 		super(id, maxIdleTime, maxCacheTime, expectedElements);
 		evictionClass = new LFUEviction<>(); // TODO Move it to the super() call above
