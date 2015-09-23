@@ -10,7 +10,6 @@ import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.eviction.CacheLimit;
 import com.trivago.triava.tcache.eviction.LFUEviction;
 import com.trivago.triava.tcache.eviction.LRUEviction;
-//import com.trivago.triava.tcache.storage.GuavaLocalCache;
 import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
 import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
 
@@ -65,30 +64,37 @@ public class Builder<K,V>
 	 * 
 	 * @return
 	 */
-	public Cache<V> build()
+	public Cache<K, V> build()
 	{
 		if (id == null)
 		{
 			id = "tcache-" + anonymousCacheId.incrementAndGet();
 		}
 
-		final Cache<V> cache;
-		switch (evictionPolicy)
+		final Cache<K, V> cache;
+		if (evictionClass != null)
 		{
-			case LFU:
-				cache = new CacheLimit<V>(this.setEvictionClass(new LFUEviction<K,V>()));
-				break;
-			case LRU:
-				cache = new CacheLimit<V>(this.setEvictionClass(new LRUEviction<K,V>()));
-				break;
-			case CUSTOM:
-				cache = new CacheLimit<V>(this);
-				break;
-			case NONE:
-				cache = new Cache<V>(this);
-				break;
-			default:
-				throw new IllegalArgumentException("Invalid evictionPolicy=" + evictionPolicy);
+			cache = new CacheLimit<>(this);
+		}
+		else
+		{
+			switch (evictionPolicy)
+			{
+				case LFU:
+					cache = new CacheLimit<>(this.setEvictionClass(new LFUEviction<K,V>()));
+					break;
+				case LRU:
+					cache = new CacheLimit<>(this.setEvictionClass(new LRUEviction<K,V>()));
+					break;
+				case CUSTOM:
+					cache = new CacheLimit<>(this);
+					break;
+				case NONE:
+					cache = new Cache<>(this);
+					break;
+				default:
+					throw new IllegalArgumentException("Invalid evictionPolicy=" + evictionPolicy);
+			}
 		}
 		
 		return cache;
@@ -122,7 +128,7 @@ public class Builder<K,V>
 	 * This method is useful for mass-inserts in the Cache, that
 	 * should not expire at the same time (e.g. for resource reasons).
 	 * 
-	 * @param maxIdleTime The minimum time to keep
+	 * @param maxCacheTime The minimum time to keep
 	 * @param interval The size of the interval
 	 * @return This Builder
 	 */

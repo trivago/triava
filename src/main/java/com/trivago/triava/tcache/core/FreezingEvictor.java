@@ -6,9 +6,9 @@ import com.trivago.triava.tcache.eviction.HolderFreezer;
 import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
- * Convenience class that implements EvictionInterface. The {@link #evicvtionComparator()} returns a default
+ * Convenience class that implements EvictionInterface. The {@link #evictionComparator()} returns a default
  * Comparator, so custom implementations that extend FreezingEvictor only need to implement
- * {@link #getFreezeValue(Object, com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder)}
+ * {@link #getFreezeValue(Object, TCacheHolder)}
  * 
  * @author cesken
  *
@@ -25,7 +25,7 @@ abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 	 * {@link #compareByFreezer(HolderFreezer, HolderFreezer, boolean)} in the own comparator.
 	 */
 	@Override
-	public Comparator<HolderFreezer<K, V>> evicvtionComparator()
+	public Comparator<HolderFreezer<K, V>> evictionComparator()
 	{
 		return comparator;
 	}
@@ -42,8 +42,8 @@ abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 
 
 	/**
-	 * Returns a value for the given key, that may be used by the concrete implementation of the #evicvtionComparator().
-	 * The default comparator returned by FreezingEvictor#evicvtionComparator() chooses keys with smaller values
+	 * Returns a value for the given key, that may be used by the concrete implementation of the #evictionComparator().
+	 * The default comparator returned by FreezingEvictor#evictionComparator() chooses keys with smaller values
 	 * to be evicted sooner than those with bigger values (comparable to {@link Comparator#compare(Object, Object)}).
 	 * While it is recommended to conform to this, it is not required - own implementations may use any other strategy,
 	 * but should document this clearly.
