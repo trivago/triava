@@ -24,6 +24,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatistics;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
+import com.trivago.triava.time.EstimatorTimeSource;
 
 
 /**
@@ -39,14 +40,14 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
  * @since 2009-06-10
  *
  */
-public class Cache<T> implements Thread.UncaughtExceptionHandler
+public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 {
 	protected static TriavaLogger logger = new TriavaNullLogger();
 
-	public static final class AccessTimeObjectHolder<T> implements TCacheHolder<T>
+	public static final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	{
 		// 12 #4 
-		private T data;
+		private V data;
 		// 16 #4
 		private int inputDate; // in milliseconds relative to baseTimeMillis 
 		// 20 #4
@@ -65,7 +66,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		 * @param maxIdleTime Maximum idle time in seconds
 		 * @param maxCacheTime Maximum cache time in seconds 
 		 */
-		public AccessTimeObjectHolder(T data , long maxIdleTime, long maxCacheTime) {
+		public AccessTimeObjectHolder(V data , long maxIdleTime, long maxCacheTime) {
 			setLastAccessTime();
 			this.data = data;
 
@@ -94,23 +95,13 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 			return maxIdleTime;
 		}
 
-		public T get()
+		public V get()
 		{
 			setLastAccessTime();
 			return data;
 		}
 
-		/**
-		 * Return the data, without modifying metadata like access time.
-		 * <p> 
-		 * This is a workaround, as there are currently use cases that iterate the whole cache.
-		 * They should not modify use count or access time.
-		 * <p>
-		 * Future directions: Offer a better method for iteration, like an iterator or a Java 8 stream.
-		 * 
-		 * @return The value of this holder 
-		 */
-		public T peek()
+		public V peek()
 		{
 			return data;
 		}
@@ -127,7 +118,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		
 		private long currentTimeMillisEstimate()
 		{
-			return MillisEstimatorThread.millisEstimate;
+			return millisEstimator.millis();
 		}
 		
 		/**
@@ -152,12 +143,6 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		{
 			return baseTimeMillis + inputDate;
 		}
-
-		@Deprecated
-		public double getIdleTime()
-		{
-			return (currentTimeMillisEstimate() - getLastAccess()) / 1000.0;
-		}
 		
 		public boolean isInvalid()
 		{
@@ -178,74 +163,9 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 
 			return (idleSince > 1000*maxIdleTime);
 		}
-
-//		public int compareTo(AccessTimeObjectHolder<T> o)
-//		{
-//			return (int)(getIdleTime() -  o.getIdleTime());
-//		}
-
 	}
 
-	/**
-	 * A thread that provides the value of System.currentTimeMillis() in 10ms resolution.
-	 * The reason for a background thread is the the high cost of the System.currentTimeMillis() call.
-	 * <p>
-	 * Why do we need it?
-	 * <p>
-	 * Short story: It increases the write throughput to the Cache massively (100% or even 1000%).
-	 *  <p>
-	 * Long stoy: This thread implements a "read-once", "provide-often" scenario: The value is fetched from the operating system
-	 * once, which includes a potentially expensive crossing of the operating system boundary (calling native, levering
-	 * priviledge, register swapping, ...). If you call it thousands or millions of times per second, this has a very noticeable
-	 * effect. Regarding the correctness this means that more writes are done with the same timestamp. For expiration
-	 * this does not have any side effect. For eviction it only effects LRU - more entries would be possible eviction targets -
-	 * but within 10ms it is usually not relevant which entry is evicted first.
-	 *   
-	 * 
-	 * @author cesken
-	 *
-	 */
-	public static class MillisEstimatorThread extends Thread
-	{
-		final static int UPDATE_INTERVAL_MS = 10;
-		volatile static long millisEstimate = System.currentTimeMillis();
-		volatile static long secondsEstimate = millisEstimate /1000;
-
-		private volatile boolean running;  // Must be volatile, as it is modified via cancel() from a different thread
-
-		MillisEstimatorThread()
-		{
-			setName("MillisEstimatorThread-" + UPDATE_INTERVAL_MS + "ms");
-		}
-		
-		public void run()
-		{
-			logger.info("MillisEstimatorThread " + this.getName() + " has entered run()");
-			this.running = true;
-			while (running)
-			{
-				try
-				{
-					sleep(UPDATE_INTERVAL_MS);
-					millisEstimate = System.currentTimeMillis();
-					secondsEstimate = millisEstimate / 1000;
-//					System.out.println("seconds=" + secondsEstimate);
-				}
-				catch (InterruptedException ex)
-				{
-				}
-			}
-			logger.info("MillisEstimatorThread " + this.getName() + " is leaving run()");
-		}
-
-		public void cancel()
-		{
-			this.running = false;
-			this.interrupt();
-		}
-
-	}
-
+	
 	/**
 	 * Thread that removes expired entries.
 	 */
@@ -307,7 +227,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	// max cache time in seconds
 	private final long maxCacheTime;
 	protected int maxCacheTimeSpread;
-	final protected ConcurrentMap<Object,AccessTimeObjectHolder<T>> objects;
+	final protected ConcurrentMap<K,AccessTimeObjectHolder<V>> objects;
 	Random random = new Random(System.currentTimeMillis());
 	
 //	@ObjectSizeCalculatorIgnore
@@ -328,7 +248,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	private volatile boolean shuttingDown = false;
 
 	protected JamPolicy jamPolicy = JamPolicy.WAIT;
-	protected final CacheLoader<Object, T> loader;
+	protected final CacheLoader<K, V> loader;
 
 	
 	/**
@@ -337,9 +257,9 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @param maxCacheTime Maximum Cache time in seconds
 	 * @param expectedMapSize
 	 */
-	public Cache(String id, long maxIdleTime, long maxCacheTime, int expectedMapSize)
+	Cache(String id, long maxIdleTime, long maxCacheTime, int expectedMapSize)
 	{
-		this( new Builder<Object,T>(TCacheFactory.standardFactory())
+		this( new Builder<K, V>(TCacheFactory.standardFactory())
 		.setId(id).setMaxIdleTime(maxIdleTime).setMaxCacheTime(maxCacheTime)
 		.setExpectedMapSize(expectedMapSize) );
 	}
@@ -362,7 +282,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		this.jamPolicy = builder.getJamPolicy();
 		this.loader  = builder.getLoader();
 
-		StorageBackend<Object, T> storageFactory = builder.storageFactory();
+		StorageBackend<K, V> storageFactory = builder.storageFactory();
 		objects = storageFactory.createMap(builder, evictionExtraSpace(builder));
 		
 		if (builder.getStatistics())
@@ -370,6 +290,8 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		else
 			statisticsCalculator = new NullStatisticsCalculator();
 		
+	    activateTimeSource();
+	    
 		builder.getFactory().registerCache(this);
 	}
 
@@ -380,7 +302,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * 
 	 * @return Size factor for the map
 	 */
-	protected int evictionExtraSpace(Builder<Object,T> builder)
+	protected int evictionExtraSpace(Builder<K, V> builder)
 	{
 		return 0;
 	}
@@ -452,7 +374,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 			{
 				thread.join(remainingMillis, nanos);
 //				logger.info("thread.join() returned: thread=" + thread);
-				break; // if we reach this line, the join was succesful 
+				break; // if we reach this line, the join was successful
 			}
 			catch (InterruptedException e)
 			{
@@ -472,7 +394,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 
 
 	/**
-	 * Copied from com.trivago.commons.util.Util.sleepSImple()
+	 * Copied from com.trivago.commons.util.Util.sleepSimple()
 	 * Sleep the given number of milliseconds. This method returns after the given time or if the calling
 	 * thread gets interrupted via InterruptedException. As the method potentially sleeps much shorter than
 	 * wanted due to InterruptedException, you should only call this method when you are prepared to handle
@@ -521,7 +443,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @param pKey
 	 * @param pData
 	 */
-	public void put(Object pKey, T pData)
+	public void put(K pKey, V pData)
 	{
 		put(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread());
 	}
@@ -544,7 +466,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @param pData
 	 * @param pMaxIdleTime
 	 */
-	public void put(Object pKey, T pData, long pMaxIdleTime, long maxCacheTime)
+	public void put(K pKey, V pData, long pMaxIdleTime, long maxCacheTime)
 	{
 		putToMap(pKey, pData, pMaxIdleTime, maxCacheTime, false);
 	}
@@ -562,18 +484,18 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @param maxCacheTime Maximum cache time in seconds
 	 * @return See {@link ConcurrentHashMap#putIfAbsent(Object, Object)}
 	 */
-	public T putIfAbsent(Object pKey, T pData, long pMaxIdleTime, long maxCacheTime)
+	public V putIfAbsent(K pKey, V pData, long pMaxIdleTime, long maxCacheTime)
 	{
-		AccessTimeObjectHolder<T> holder = putToMap(pKey, pData, pMaxIdleTime, maxCacheTime, true);
+		AccessTimeObjectHolder<V> holder = putToMap(pKey, pData, pMaxIdleTime, maxCacheTime, true);
 		if ( holder == null )
 			return null;
 		else
 			return holder.data;
 	}
 	
-	public T putIfAbsent(Object pKey, T pData)
+	public V putIfAbsent(K pKey, V pData)
 	{
-		AccessTimeObjectHolder<T> holder = putToMap(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread(), true);
+		AccessTimeObjectHolder<V> holder = putToMap(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread(), true);
 		
 		if (holder == null)
 		{
@@ -584,7 +506,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	}
 	
 	
-	protected AccessTimeObjectHolder<T> putToMap(Object key, T value, long idleTime, long cacheTime, boolean putIfAbsent)
+	protected AccessTimeObjectHolder<V> putToMap(K key, V value, long idleTime, long cacheTime, boolean putIfAbsent)
 	{
 		return putToMap(key, value, idleTime, cacheTime, putIfAbsent, false);
 	}
@@ -602,7 +524,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @param putIfAbsent Defines the behavior when the key is already present. See method documentation. 
 	 * @return If returnEffectiveHolder is true, the holder object of the object in the Map is returned. If returnEffectiveHolder is false, the returned value is like described in {@link java.util.Map#put(Object, Object)}. 
 	 */
-	protected AccessTimeObjectHolder<T> putToMap(Object key, T data, long idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
+	protected AccessTimeObjectHolder<V> putToMap(K key, V data, long idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
 	{
 		if (shuttingDown)
 		{
@@ -631,13 +553,13 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 			logger.error("Adding object to Cache with infinite lifetime: " + key.toString() + " : " + data.toString());
 		}
 		
-		AccessTimeObjectHolder<T> holder; // holder returned by objects.put*().
-		AccessTimeObjectHolder<T> newHolder; // holder that was created via new. 
-		AccessTimeObjectHolder<T> effectiveHolder; // holder that is effectively in the Cache 
+		AccessTimeObjectHolder<V> holder; // holder returned by objects.put*().
+		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
+		AccessTimeObjectHolder<V> effectiveHolder; // holder that is effectively in the Cache
 		
 		if (putIfAbsent)
 		{
-			newHolder = new AccessTimeObjectHolder<T>(data, idleTime, cacheTime);
+			newHolder = new AccessTimeObjectHolder<V>(data, idleTime, cacheTime);
 			holder = this.objects.putIfAbsent(key, newHolder);
 			
 			/*
@@ -659,7 +581,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		}
 		else
 		{
-			newHolder = new AccessTimeObjectHolder<T>(data, idleTime, cacheTime);
+			newHolder = new AccessTimeObjectHolder<>(data, idleTime, cacheTime);
 			holder = this.objects.put(key, newHolder);
 //			holder = newHolder;  // <<< wrong
 			effectiveHolder = newHolder;
@@ -702,7 +624,6 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * Checks whether the cleaner is running. If not, the cleaner gets started.
-	 * @param pData A name used as part of the name of the Cleaner Thread 
 	 */
 	private void ensureCleanerIsRunning() 
 	{
@@ -725,9 +646,9 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * @throws NullPointerException if key is null
 	 * @throws RuntimeException, if key is not present and the loader threw an Exception
 	 */
-	public T get(Object key) throws RuntimeException
+	public V get(K key) throws RuntimeException
 	{
-		AccessTimeObjectHolder<T> holder = this.objects.get(key);
+		AccessTimeObjectHolder<V> holder = this.objects.get(key);
 
 		boolean loaded = false;
 		if (holder == null && loader != null)
@@ -735,7 +656,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 			// Data not present, but can be loaded
 			try
 			{
-				T loadedValue = loader.load(key);
+				V loadedValue = loader.load(key);
 				holder = putToMap(key, loadedValue, defaultMaxIdleTime, cacheTimeSpread(), false, true);
 				loaded = true;
 				// ##LOADED_MISS_COUNT##
@@ -774,7 +695,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 		return holder.get();
 	}
 
-	protected void incrementUseCount(AccessTimeObjectHolder<T> holder)
+	protected void incrementUseCount(AccessTimeObjectHolder<V> holder)
 	{
 		// The increment below is obviously not thread-safe, but it is good enough for our purpose (eviction statistics).
 		// We spare synchronization code, and the holder can be more light-weight (not using AtomicInteger).
@@ -811,7 +732,8 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 
 	private long cacheHitRatePreviousTimeMillis = System.currentTimeMillis();
 //	@ObjectSizeCalculatorIgnore
-	private MillisEstimatorThread millisEsitimator = null; 
+	protected static EstimatorTimeSource millisEstimator = null; 
+	protected static Object millisEstimatorLock = new Object(); 
 
 	/**
 	 * Returns the Cache hit rate. The returned value is the average of the last n measurements (2012-10-16: n=5).
@@ -885,15 +807,25 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	    this.cleaner.setUncaughtExceptionHandler(this);
 	    this.cleaner.start();
 	    
-	    if (millisEsitimator == null)
-	    {
-	    	millisEsitimator  = new MillisEstimatorThread();
-		    millisEsitimator.setPriority(Thread.MAX_PRIORITY);
-		    millisEsitimator.setDaemon(true);
-		    millisEsitimator.start();	
-	    }
-	    
 	    logger.info(this.id + " Cache started, timeout: " + this.defaultMaxIdleTime);
+	}
+
+
+	/**
+	 * Instantiates the TimeSource, if it is not yet there.
+	 */
+	private void activateTimeSource()
+	{
+		synchronized (millisEstimatorLock)
+		{			
+		    if (millisEstimator == null)
+		    {
+		    	millisEstimator  = new EstimatorTimeSource(10, logger);
+			    millisEstimator.setPriority(Thread.MAX_PRIORITY);
+			    millisEstimator.setDaemon(true);
+			    millisEstimator.start();	
+		    }
+		}
 	}
 	
 	private void stopCleaner()
@@ -904,7 +836,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	private synchronized String stopCleaner(long millis)
 	{
 		String errorMsg = null;
-		Cache<T>.CleanupThread cleanerRef = cleaner;
+		Cache<K, V>.CleanupThread cleanerRef = cleaner;
 		if ( cleanerRef != null )
 		{
 			cleanerRef.cancel();
@@ -936,10 +868,10 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	private void cleanUp()
 	{
 		int removedEntries = 0;
-	    for (Iterator<Entry<Object, AccessTimeObjectHolder<T>>> iter = this.objects.entrySet().iterator(); iter.hasNext(); )
+	    for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = this.objects.entrySet().iterator(); iter.hasNext(); )
 	    {
-	    	Entry<Object,AccessTimeObjectHolder<T>> entry = iter.next();
-	    	AccessTimeObjectHolder<T> holder = entry.getValue();
+	    	Entry<K,AccessTimeObjectHolder<V>> entry = iter.next();
+	    	AccessTimeObjectHolder<V> holder = entry.getValue();
 	    	
 	    	if (holder.isInvalid())
 	    	{
@@ -972,9 +904,9 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * remove object with given key
 	 * @param pKey
 	 */
-	public Object remove(Object pKey)
+	public V remove(K pKey)
 	{
-		AccessTimeObjectHolder<T> holder = (AccessTimeObjectHolder<T>) this.objects.remove(pKey);
+		AccessTimeObjectHolder<V> holder = this.objects.remove(pKey);
 		return removeHolder(holder);
 	}
 
@@ -989,9 +921,9 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 *     
 	 * @param key
 	 */
-	public void expireUntil(Object key, int maxDelay, TimeUnit timeUnit)
+	public void expireUntil(K key, int maxDelay, TimeUnit timeUnit)
 	{
-		AccessTimeObjectHolder<T> holder = (AccessTimeObjectHolder<T>) this.objects.get(key);
+		AccessTimeObjectHolder<V> holder = this.objects.get(key);
 		if (holder == null)
 		{
 			return;
@@ -1009,14 +941,14 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	}
 
 	
-	protected Object removeHolder(AccessTimeObjectHolder<T> holder)
+	protected V removeHolder(AccessTimeObjectHolder<V> holder)
 	{
 		if(holder == null)
 		{
 			return null;
 		}
 		
-		T oldData = holder.get();
+		V oldData = holder.get();
 		
 		holder.release();
 		
@@ -1029,7 +961,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 *
 	 * @return Collection of all AccessTimeHolder<T> Objects. The collection is unmodifiable.
 	 */
-	public Collection<AccessTimeObjectHolder<T>> getAccessTimeHolderObjects()
+	public Collection<AccessTimeObjectHolder<V>> getAccessTimeHolderObjects()
 	{
 		return Collections.unmodifiableCollection(objects.values());
 	}
@@ -1039,7 +971,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * 
 	 * @return The keys as a Collection
 	 */
-	public Collection<Object> keySet()
+	public Collection<K> keySet()
 	{
 		// The backing map is a ConcurrentMap, so there should not be any ConcurrentModificationException.
 		return Collections.unmodifiableCollection(objects.keySet());
@@ -1051,7 +983,7 @@ public class Cache<T> implements Thread.UncaughtExceptionHandler
 	 * 
 	 * @see java.util.concurrent.ConcurrentMap#containsKey(Object)
 	 */
-	public boolean containsKey(Object key)
+	public boolean containsKey(K key)
 	{
 		return this.objects.containsKey(key);
 	}
