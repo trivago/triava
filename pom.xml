@@ -4,7 +4,7 @@
   <groupId>com.trivago</groupId>
   <artifactId>triava</artifactId>
   <packaging>jar</packaging>
-  <version>0.3.2</version>
+  <version>0.3.3</version>
   <name>triava</name>
   <url>http://maven.apache.org</url>
   <dependencies>
@@ -51,10 +51,6 @@
           <goals>
             <goal>jar</goal>
           </goals>
-            <configuration>
-<!-- TODO Fix javadocs, then remove the additionalparam -->
-                <additionalparam>-Xdoclint:none</additionalparam>
-            </configuration>
 
         </execution>
       </executions>
