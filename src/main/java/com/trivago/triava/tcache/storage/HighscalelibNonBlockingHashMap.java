@@ -9,7 +9,7 @@ import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 
 /**
  * Implements a storage that uses the Highscale libs. It is only implemented for performance tests.
- * The instanciation is done fully via reflection, for avoiding compile-time dependencies to 3rd-party libraries.
+ * The instantiation is done fully via reflection, for avoiding compile-time dependencies to 3rd-party libraries.
  *  
  * @author cesken
  *
