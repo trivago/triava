@@ -23,9 +23,9 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
  */
 public class TCacheFactory
 {
-	private static final CopyOnWriteArrayList<Cache<?>> CacheInstances = new CopyOnWriteArrayList<Cache<?>>();
+	private static final CopyOnWriteArrayList<Cache<?, ?>> CacheInstances = new CopyOnWriteArrayList<>();
 
-	static TCacheFactory standardFactory = new TCacheFactory();
+	static final TCacheFactory standardFactory = new TCacheFactory();
 	
 	/**
 	 * Returns the standard factory. Library code should not use this method, but create a new TCacheFactory instance for managing its own
@@ -37,9 +37,9 @@ public class TCacheFactory
 		return standardFactory;
 	}
 	
-	public <K,V>Builder<K,V> builder()
+	public <K,V> Builder<K,V> builder()
 	{
-		return new Builder<K,V>(this);
+		return new Builder<>(this);
 	}
 	
 	
@@ -47,7 +47,7 @@ public class TCacheFactory
 	 * Registers a Cache to this factory. Registered caches will be used for bulk operations like {@link #shutdownAll()}. 
 	 * @param cache
 	 */
-	public void registerCache(Cache<?> cache)
+	public void registerCache(Cache<?, ?> cache)
 	{
 		// Hint: "cache" cannot escape. It is safely published, as it is put in a concurrent collection
 		CacheInstances.add(cache);
@@ -59,7 +59,7 @@ public class TCacheFactory
 	 */
 	public void shutdownAll()
 	{
-		for (Cache<?> cache : CacheInstances)
+		for (Cache<?, ?> cache : CacheInstances)
 		{
 			cache.shutdown();
 		}
@@ -74,7 +74,7 @@ public class TCacheFactory
 	public Map<String,CacheSizeInfo> reportAllCacheSizes(ObjectSizeCalculatorInterface objectSizeCalculator)
 	{
 		Map<String,CacheSizeInfo> infoMap = new HashMap<>();
-		for (Cache<?> cache : CacheInstances)
+		for (Cache<?, ?> cache : CacheInstances)
 		{
 			infoMap.put(cache.id(), cache.reportSize(objectSizeCalculator));
 		}
@@ -82,12 +82,12 @@ public class TCacheFactory
 	}
 	
 	/**
-	 * Returns the list of Caches that have been registered in this factory.
+	 * Returns the list of Caches that have been registered via {@link #registerCache(Cache)}.
 	 * @return The cache list
 	 */
-	public List<Cache<?>> instances()
+	public List<Cache<?, ?>> instances()
 	{
-		return new ArrayList<Cache<?>>(CacheInstances);
+		return new ArrayList<>(CacheInstances);
 	}
 
 }
