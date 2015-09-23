@@ -13,7 +13,7 @@ import com.trivago.triava.tcache.core.FreezingEvictor;
 public class LRUEviction<K,V> extends FreezingEvictor<K,V> 
 {
 	/**
-	 * @return The  last access time
+	 * @return The last access time
 	 */
 	@Override
 	public long getFreezeValue(K key, TCacheHolder<V> holder)
