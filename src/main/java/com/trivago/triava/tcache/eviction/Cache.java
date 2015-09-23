@@ -101,6 +101,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			return data;
 		}
 
+		/**
+		 * Return the data, without modifying metadata like access time.
+		 * <p> 
+		 * This is a workaround, as there are currently use cases that iterate the whole cache.
+		 * They should not modify use count or access time.
+		 * <p>
+		 * Future directions: Offer a better method for iteration, like an iterator or a Java 8 stream.
+		 * 
+		 * @return The value of this holder 
+		 */
 		public V peek()
 		{
 			return data;
