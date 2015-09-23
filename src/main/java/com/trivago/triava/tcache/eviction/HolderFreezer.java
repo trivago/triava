@@ -1,6 +1,5 @@
 package com.trivago.triava.tcache.eviction;
 
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 
 /**
  * Freezes all statistics that may change
@@ -24,7 +23,7 @@ public class HolderFreezer<K, V>
 		this.frozenValue = frozenValue;
 	}
 
-	public Object getKey()
+	public K getKey()
 	{
 		return key;
 	}
