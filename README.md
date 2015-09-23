@@ -3,7 +3,8 @@ The triava project contains several of trivago's core libraries for Java-based p
 
   
 # Building:
-triava has no dependencies apart from Java 7. The following will build everything, including Javadoc and a source jar.
+triava has no dependencies apart from Java 7. The following will build everything, including Javadoc and a source jar:
+
 `mvn package`
 
 Inside the target/ folder, 3 files will be generated. For example for version 1.0:
