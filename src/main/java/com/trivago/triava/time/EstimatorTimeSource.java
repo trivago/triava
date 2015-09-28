@@ -52,6 +52,10 @@ public class EstimatorTimeSource extends Thread implements TimeSource
 		this.logger = logger;
 		this.UPDATE_INTERVAL_MS = updateIntervalMillis;
 		setName("MillisEstimatorThread-" + UPDATE_INTERVAL_MS + "ms");
+	    setPriority(Thread.MAX_PRIORITY);
+	    setDaemon(true);
+	    start();
+
 	}
 	
 	public void run()
