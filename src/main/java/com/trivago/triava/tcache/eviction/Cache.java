@@ -280,7 +280,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * Construct a Cache, using the given configuration from the Builder.
 	 * @param builder
 	 */
-	public Cache(Builder builder)
+	public Cache(Builder<K,V> builder)
 	{
 		this.id = builder.getId();
 		this.maxCacheTime = builder.getMaxCacheTime();
