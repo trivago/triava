@@ -25,7 +25,7 @@ public class CacheExample
 		exampleCachePutWithEvictionLRU(factory);
 		exampleCachePutWithEvictionLFU(factory);
 		
-		for (Cache<?> cache : factory.instances())
+		for (Cache<?, ?> cache : factory.instances())
 		{
 			System.out.println(cache.statistics());
 		}
@@ -36,27 +36,27 @@ public class CacheExample
 
 	private static void exampleCachePut(TCacheFactory factory)
 	{
-		Builder<Integer, String> builder = factory.<Integer,String>builder();
+		Builder<Integer, String> builder = factory.builder();
 		builder.setId("exampleCachePut").setExpectedMapSize(10);
-		Cache<String> cache = builder.build();
+		Cache<Integer, String> cache = builder.build();
 		
 		putElements(cache,10);
 	}
 
 	private static void exampleCachePutWithEvictionLRU(TCacheFactory factory)
 	{
-		Builder<Integer, String> builder = factory.<Integer,String>builder();
+		Builder<Integer, String> builder = factory.builder();
 		builder.setId("exampleCachePutWithEvictionLRU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LRU);
-		Cache<String> cache = builder.build();
+		Cache<Integer, String> cache = builder.build();
 		
 		putElements(cache,10);
 	}
 	
 	private static void exampleCachePutWithEvictionLFU(TCacheFactory factory)
 	{
-		Builder<Integer, String> builder = factory.<Integer,String>builder();
+		Builder<Integer, String> builder = factory.builder();
 		builder.setId("exampleCachePutWithEvictionLFU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LFU);
-		Cache<String> cache = builder.build();
+		Cache<Integer, String> cache = builder.build();
 		
 		putElements(cache,10);
 	}
@@ -66,7 +66,7 @@ public class CacheExample
 	 * @param cache
 	 * @param count
 	 */
-	private static void putElements(Cache<String> cache, int count)
+	private static void putElements(Cache<Integer, String> cache, int count)
 	{
 		System.out.println("--- " + cache.id() + "---");
 		for (int i=0; i<count; i++)
@@ -89,16 +89,16 @@ public class CacheExample
 
 	private static void exampleCacheGetWithoutLoader(TCacheFactory factory)
 	{
-		Builder<Integer, String> builder = factory.<Integer,String>builder();
+		Builder<Integer, String> builder = factory.builder();
 		builder.setId("exampleCacheGetWithoutLoader");
-		Cache<String> cache = builder.build();
+		Cache<Integer, String> cache = builder.build();
 		
 		getElements(cache);
 	}
 
 
 
-	private static void getElements(Cache<String> cache)
+	private static void getElements(Cache<Integer, String> cache)
 	{
 		System.out.println("--- " + cache.id() + "---");
 		for (int i=0; i<10; i++)
@@ -113,9 +113,9 @@ public class CacheExample
 
 	private static void exampleCacheGetWithLoader(TCacheFactory factory)
 	{
-		Builder<Integer, String> builder = factory.<Integer,String>builder();
+		Builder<Integer, String> builder = factory.builder();
 		builder.setId("exampleCacheGetWithLoader").setLoader(new IntToStringLoader());
-		Cache<String> cache = builder.build();
+		Cache<Integer, String> cache = builder.build();
 		
 		getElements(cache);
 	}
