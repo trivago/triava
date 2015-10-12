@@ -2,6 +2,7 @@ package com.trivago.triava.tcache.core;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.trivago.triava.annotations.Beta;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
@@ -86,6 +87,12 @@ public class Builder<K,V>
 				case LRU:
 					cache = new CacheLimit<>(this.setEvictionClass(new LRUEviction<K,V>()));
 					break;
+//				case CLOCK:
+//					throw new UnsupportedOperationException("Experimental option is not activated: eviciton.CLOCK");
+//					break;
+					// ClockEviction requires a TimeSource, but it may not be active yet (or even worse will change)
+					// => either we need to activate the TimeSource here, or introduce an "Expiration Context" that provides the TimeSource
+//					cache = new CacheLimit<>(this.setEvictionClass(new ClockEviction<K,V>()));
 				case CUSTOM:
 					cache = new CacheLimit<>(this);
 					break;
@@ -128,8 +135,8 @@ public class Builder<K,V>
 	 * This method is useful for mass-inserts in the Cache, that
 	 * should not expire at the same time (e.g. for resource reasons).
 	 * 
-	 * @param maxCacheTime The minimum time to keep
-	 * @param interval The size of the interval
+	 * @param maxCacheTime The minimum time to keep in seconds
+	 * @param interval The size of the interval in seconds
 	 * @return This Builder
 	 */
 	public Builder<K,V> setMaxCacheTime(long maxCacheTime, int interval)
@@ -140,16 +147,28 @@ public class Builder<K,V>
 	}
 
 	/**
-	 * Sets the time when a cache entry expires. All entries put in the cache use this, unless an explicit expiration time is set in the put() operation.
-	 * @param maxCacheTime The time to keep
+	 * Sets the default expiration time for entries in this cache. All entries use this time, unless it is
+	 * added using a put method that allows overriding the expiration time, like
+	 * {@link Cache#put(K, V, long, long)}.
+	 * 
+	 * @param maxCacheTime
+	 *            The time to keep the value in seconds
 	 * @return This Builder
 	 */
-	public Builder<K,V> setMaxCacheTime(long maxCacheTime)
+	public Builder<K, V> setMaxCacheTime(long maxCacheTime)
 	{
 		this.maxCacheTime = maxCacheTime;
 		return this;
 	}
 
+	/**
+	 * Sets the expected number of elements to be stored. Cache instances with eviction policy will start evicting
+	 * after reaching {@link #expectedMapSize}. Cache instances of unlimited size
+	 * {@link EvictionPolicy.NONE} will use this value only as a hint
+	 * for initially sizing the underlying storage structures.
+	 * 
+	 * @param expectedMapSize The expected number of elements to be stored
+	 */
 	public Builder<K,V> setExpectedMapSize(int expectedMapSize)
 	{
 		this.expectedMapSize = expectedMapSize;
@@ -157,10 +176,10 @@ public class Builder<K,V>
 	}
 
 	/**
-	 * Sets the expected concurrency level. In other words, the number of Threads that concurrently write to the Cache.
+	 * Sets the expected concurrency level. In other words, the number of application Threads that concurrently write to the Cache.
 	 * The underlying ConcurrentMap will use the concurrencyLevel to tune its internal data structures for concurrent
 	 * usage. For example, the Java ConcurrentHashMap uses this value as-is.
-	 * Default is 16, and the minimum is 8.
+	 * Default is 14, and the minimum is 8.
 	 * <p>
 	 * If not set, the default concurrencyLevel is 16, which should usually rarely create thread contention.
 	 * If running with 12 cores (24 with hyperthreading) chances are not too high for contention.
@@ -171,6 +190,9 @@ public class Builder<K,V>
 	 * actually run. As concurrencyLevel is 16, threads will usually rarely block. But in case of unlucky hash
 	 * bucket distribution or if too many Threads get suspended during holding a lock, issues could arise. If the
 	 * underlying ConcurrentMap uses unfair locks, it might even lead to thread starvation.
+	 * 
+	 * @param concurrencyLevel The excpected number of application Threads that concurrently write to the Cache
+	 * @return This Builder
 	 */
 	public Builder<K,V> setConcurrencyLevel(int concurrencyLevel)
 	{
@@ -179,6 +201,15 @@ public class Builder<K,V>
 		return this;
 	}
 
+	/**
+	 * Sets the eviction policy, for example LFU or LRU. 
+	 * <p>
+	 * If you want to use a custom eviction strategy,
+	 * use {@link #setEvictionClass(EvictionInterface)} instead.
+	 *  
+	 * @param evictionPolicy
+	 * @return This Builder
+	 */
 	public Builder<K,V> setEvictionPolicy(EvictionPolicy evictionPolicy)
 	{
 		this.evictionPolicy = evictionPolicy;
@@ -186,12 +217,57 @@ public class Builder<K,V>
 		return this;
 	}
 
+	/**
+	 * Sets a custom eviction policy. This is useful if the value V holds sensible information that can be used for
+	 * eviction. For example if V is a Session class, it could hold information about the user: Guest users may be evicted
+	 * before registered users, and the last chosen should be premium users.
+	 * <p>
+	 * If you want to use a standard eviction strategy like LFU or LRU,
+	 * use {@link #setEvictionPolicy(EvictionPolicy)} instead.
+	 *  
+	 * @param clazz The instance that implements the eviction policy
+	 * @return This Builder
+	 */
+	public Builder<K,V> setEvictionClass(EvictionInterface<K, V> clazz)
+	{
+		this.evictionPolicy = EvictionPolicy.CUSTOM;
+		this.evictionClass = clazz;
+		return this;
+	}
+
+	/**
+	 * @return the evictionClass. null if there is no custom class
+	 */
+	public EvictionInterface<K, V> getEvictionClass()
+	{
+		return evictionClass;
+	}
+
+
+	/**
+	 * Set the StorageBackend for the underlying ConcurrentMap. If this method is not called,
+	 * ConcurrentHashMap will be used.
+	 *  
+	 * @param hashImplementation
+	 * @return
+	 * 
+	 */
+	@Beta(comment="To be replaced by a method to set a StorageBackend")
 	public Builder<K,V> setHashImplementation(HashImplementation hashImplementation)
 	{
 		this.hashImplementation = hashImplementation;
 		return this;
 	}
 
+	/**
+	 * Sets the policy, how a Thread that calls put() will behave the cache is full.
+	 * Either the Thread will WAIT or DROP the element and not put it in the cache.
+	 * The default is WAIT. The Jam Policy has no effect on caches of unlimited size
+	 * {@link EvictionPolicy.NONE}.
+	 * 
+	 * @param jamPolicy
+	 * @return
+	 */
 	public Builder<K,V> setJamPolicy(JamPolicy jamPolicy)
 	{
 		this.jamPolicy = jamPolicy;
@@ -322,7 +398,6 @@ public class Builder<K,V>
 		return jamPolicy;
 	}
 
-	// unchecked, as the corresponding setter is generics type-safe
 	public CacheLoader<K, V> getLoader()
 	{
 		return (CacheLoader<K, V>) loader;
@@ -333,20 +408,4 @@ public class Builder<K,V>
 		this.loader = loader;
 		return this;
 	}
-
-	public Builder<K,V> setEvictionClass(EvictionInterface<K, V> clazz)
-	{
-		this.evictionPolicy = EvictionPolicy.CUSTOM;
-		this.evictionClass = clazz;
-		return this;
-	}
-
-	/**
-	 * @return the evictionClass. null if there is no custom class
-	 */
-	public EvictionInterface<K, V> getEvictionClass()
-	{
-		return evictionClass;
-	}
-
 }
