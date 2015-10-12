@@ -13,6 +13,23 @@ triava-1.0.jar triava-1.0-sources.jar triava-1.0-javadoc.jar
 # Usage:
 To start, look at the examples folder http://git.trivago.trv/srt/triava/tree/master/src/examples/java/com/trivago/examples
 
+## Usage in Maven: pom.xml
+```
+  <dependencies>
+    <dependency>
+      <groupId>com.trivago</groupId>
+      <artifactId>triava</artifactId>
+      <version>0.3.3</version>
+    </dependency>
+  </dependencies>
+```
+
+## Usage in Gradle: build.gradle
+```
+dependencies {
+	compile 'com.trivago:triava:0.3.3'
+}
+```
 
 # Examples:
 http://git.trivago.trv/srt/triava/tree/master/src/examples/java/com/trivago/examples
