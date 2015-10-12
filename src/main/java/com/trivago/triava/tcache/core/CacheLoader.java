@@ -1,5 +1,12 @@
 package com.trivago.triava.tcache.core;
 
+/**
+ * A CacheLoader implements on-the-fly retrieval of values which are not yet in the Cache.  
+ * @author cesken
+ *
+ * @param <K>
+ * @param <V>
+ */
 public interface CacheLoader<K, V>
 {
 	/**
