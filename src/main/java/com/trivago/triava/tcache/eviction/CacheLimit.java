@@ -9,6 +9,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.trivago.triava.annotations.ObjectSizeCalculatorIgnore;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.EvictionInterface;
@@ -29,8 +30,8 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	 * FREE_PERCENTAGE defines how much elements to free.
 	 * Percentage relates to evictionStartAt. 
 	 */
-	private static final int FREE_PERCENTAGE = 10;
-	private static final float EVICTION_SPACE_PERCENT = 15; // TODO cesken Move to 10%. Tests with bb show that it is OK.
+	private static final int FREE_PERCENTAGE = 10; // Future directions: Move to instance. Add to Builder.
+	private static final float EVICTION_SPACE_PERCENT = 15; // Future directions: Move to instance. Add to Builder.
 	
 	// --- FEATURE_ExtraParEvictionSpace START ----------
 	private static final boolean FEATURE_ExtraParEvictionSpace = false;
@@ -43,7 +44,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 
 	protected EvictionInterface<K, V> evictionClass = null;
 
-//	@ObjectSizeCalculatorIgnore
+	@ObjectSizeCalculatorIgnore(reason="Thread contains a classloader, which would lead to measuring the whole Heap")
 	private volatile transient EvictionThread evictor = null;
 	
 	protected final AtomicLong evictionCount  = new AtomicLong();	
@@ -56,14 +57,8 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	// 1 element in the blocking queue is likely enough, but using 2 should definitely decouple reads and writes
 	private final BlockingQueue<Boolean> evictionNotifierQ = new LinkedBlockingQueue<>(2);
 
-	CacheLimit(String id, long maxIdleTime, long maxCacheTime, int expectedElements)
-	{
-		super(id, maxIdleTime, maxCacheTime, expectedElements);
-		 // Start eviction Thread directly, so there is no ramp-up time when the first Eviction will be triggered
-		ensureEvictionThreadIsRunning(); 
-	}
 
-	public CacheLimit(Builder builder)
+	public CacheLimit(Builder<K, V> builder)
 	{
 		super(builder);
 		if (builder.getEvictionClass() == null)
@@ -99,6 +94,11 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		return full;
 	}
 	
+	/**
+	 * Returns whether the cache is overfull. We declare the Cache full, when it has reached the 
+	 * blocking position.
+	 * @return true, if the cache is overfull
+	 */
 	protected boolean isOverfull()
 	{
 		// maxElements = expectedElements from the configuration. NOT how we sized the ConcurrentMap. 
@@ -114,7 +114,6 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	}
 
 
-//	@SuppressWarnings("unused")
 	private static final boolean logInternalExtendedData()
 	{
 		return LOG_INTERNAL_EXTENDED_DATA;
@@ -168,7 +167,6 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		long plannedSizeLong = userDataElements + extraEvictionSpace;
 		blockStartAt = (int)Math.min(plannedSizeLong, Integer.MAX_VALUE); 
 		
-//		blockStartAt = plannedSize;
 		evictNormallyElements = (int)((double)userDataElements * FREE_PERCENTAGE / 100D);
 		evictUntilAtLeast = userDataElements - evictNormallyElements;
 		if (LOG_INTERNAL_DATA)
@@ -225,6 +223,11 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		return removeCount1 < 0 ? 0 : removeCount1;
 	}
 
+	/**
+	 * Returns a reference to the EvictionThread, starting the thread if it is not running.
+	 * 
+	 * @return A non null reference to the EvictionThread
+	 */
 	private EvictionThread ensureEvictionThreadIsRunning()
 	{
 		EvictionThread eThread = evictor;
@@ -302,6 +305,11 @@ public class CacheLimit<K, V> extends Cache<K, V>
 				finally
 				{
 					evictionIsRunning = false;
+					/**
+					 * In case of an Exception, there is no "evictionNotifierDone.notifyAll();".
+					 * Threads waiting on evictionNotifierDone may be stuck forever, or at least until the next
+					 * put() operation starts another eviction cycle via evictionNotifierQ. 
+					 */
 				}
 
 			} // while running
@@ -315,9 +323,9 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		protected void evict()
 		{
 			counterEvictionsRounds++;
+			evictionClass.beforeEviction();
 			evictWithFreezer();
-//			evictOld();
-//			evictH();
+			evictionClass.afterEviction();
 		}
 		
 		protected void evictWithFreezer()
@@ -329,8 +337,10 @@ public class CacheLimit<K, V> extends Cache<K, V>
 				 * Check, if eviction makes sense. Rationale: In a concurrent situation, threads may enqueue
 				 * an additional "eviction request".
 				 * 
-				 * This thread: evictionNotifierQ.clear();  // get rid of further notifications (if any)
+				 * This thread: evictionNotifierQ.clear(); // get rid of further notifications (if any)
+				 * 
 				 * Other thread: evictionNotifierQ.offer(Boolean.TRUE);
+				 * 
 				 * This thread: evictionIsRunning = true;
 				 * 
 				 * In that case, if we wouldn't check at the beginning of this method, we would first go
@@ -342,17 +352,17 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			
 			int i=0;
 			Set<Entry<K, Cache.AccessTimeObjectHolder<V>>> entrySet = objects.entrySet();
-			int size = entrySet.size();
 			// ###A###
-//			System.out.println("Start to evict with size=" + size);
-			
+			int size = entrySet.size();
+
 			ArrayList<HolderFreezer<K, V>> toCheckL = new ArrayList<>(size);
-			// ###B###
 			for (Entry<K, AccessTimeObjectHolder<V>> entry : entrySet)
 			{
 				if (i == size)
 				{
-					break; // Skip new elements that came in between ###A### and ###B###
+					// Skip new elements that came in between ###A### and ###B###
+					// This is required, as entrySet reflects changes made to the map.
+					break;
 				}
 
 				K key = entry.getKey();
@@ -363,51 +373,40 @@ public class CacheLimit<K, V> extends Cache<K, V>
 				toCheckL.add(i, frozen);
 				i++;
 			}
+			// ###B###
 
 			@SuppressWarnings("unchecked")
 			HolderFreezer<K, V>[] toCheck = toCheckL.toArray(new HolderFreezer[0]);
 			Arrays.sort(toCheck, evictionClass.evictionComparator());
 
 			int removedCount = 0;
-//			int notRemovedCount1 = 0;
 			
-			// Important note: Do not re-use the value elemsToRemovePreCheck for elemsToRemove. Other threads
-			// may have added elements or removed some (including the expiration thread)
+			// Important note: We do not re-use the value elemsToRemovePreCheck. Other threads may have added
+			// elements or removed some (eviction + expiration thread). Even though the size is
+			// a moving goal, we want to be as close as possible to the true value. So lets call
+			// elementsToRemove() again.
 			int elemsToRemove = elementsToRemove();
 			for (HolderFreezer<K, V> entryToRemove : toCheck)
 			{
-				V oldValue = remove(entryToRemove.getKey()); // ***POS_2***
+				V oldValue = remove(entryToRemove.getKey()); // ###C###
 				if (oldValue != null)
 				{
 					/**
-					 * This code path guarantees that the cache entry was removed by us (the EvictionThread).
-					 * This means we count only what has not "magically" disappeared between ***POS_1*** and
-					 * ***POS_2***. Actually the reasons for disappearing are not magical at all: Most notably
-					 * objects can disappear because they expire, see the CleanupThread in the base class.
-					 * Also if someone calls #remove(), the entry can disappear.
+					 * By evaluating the remove() return value we know that the cache entry was removed by us
+					 * (the EvictionThread). This means we count only what has not "magically" disappeared
+					 * between ###A### and ###C###. Actually the reasons for disappearing are not magical at
+					 * all: Most notably objects can disappear because they expire, see the CleanupThread in
+					 * the base class. Also if someone calls #remove(), the entry can disappear.
 					 */
 					++removedCount;
 					if (removedCount >= elemsToRemove)
 						break;
 				}
-//				else
-//				{
-//					notRemovedCount1++;
-//				}
+				// else: Removed in the meantime by some other means: delete API call, eviction, expiration
 			}
 			
 			evictionCount.addAndGet(removedCount);			
 			evictionRateCounter.registerEvents(millisEstimator.seconds(), removedCount);
-			
-//			if (LOG_INTERNAL_DATA && logInternalExtendedData())
-//				System.out.println("removed=" +removedCount + ", notRemoved=" + notRemovedCount1);
-			
-			//
-			// long afterFree = ObjectSizeCalculator.getObjectSize(this);
-			// long saved = beforeFree - afterFree;
-			//
-			// logger.debug("Cache " + this + " requires " + ObjectSizeCalculator.getObjectSize(this) +
-			// "byte (we just LFU-cleaned " + saved + "byte");
 		}
 
 

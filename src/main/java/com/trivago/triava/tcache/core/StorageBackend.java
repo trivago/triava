@@ -2,8 +2,15 @@ package com.trivago.triava.tcache.core;
 
 import java.util.concurrent.ConcurrentMap;
 
-import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.TCacheHolder;
 
+/**
+ * The basic interface for providing a storage backend that holds the values of  
+ * @author cesken
+ *
+ * @param <K>
+ * @param <V>
+ */
 public interface StorageBackend<K,V>
 {
 	/**
@@ -13,7 +20,7 @@ public interface StorageBackend<K,V>
 	 * 
 	 * @param builder The configuration parameter for the Map
 	 * @param sizeFactor Sizing factor to take into account
-	 * @return An instance of the sorage.
+	 * @return An instance of the storage.
 	 */
-	ConcurrentMap<K, Cache.AccessTimeObjectHolder<V>> createMap(Builder<K,V> builder, double sizeFactor);
+	ConcurrentMap<K, ? extends TCacheHolder<V>> createMap(Builder<K,V> builder, double sizeFactor);
 }

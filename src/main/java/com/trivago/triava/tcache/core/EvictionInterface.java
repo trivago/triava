@@ -7,8 +7,9 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Eviction interface, that can operate on 4 values: Meta data, key, value and a "frozen value". Values that could
- * change during an eviction run (like use count) must be "frozen" instead of used directly. Thus
- * typical implementations will extend FreezingEvictor, instead of directly implementing EvictionInterface. 
+ * change during an eviction run (like use count) must be "frozen" instead of used directly. 
+ * Typical implementations will extend {@link FreezingEvictor} instead of directly implementing EvictionInterface,
+ * as the former already implements the {@link #evictionComparator()}. 
  * 
  * @author cesken
  *
@@ -35,4 +36,14 @@ public interface EvictionInterface<K, V>
 	 * @return
 	 */
 	long getFreezeValue(K key, TCacheHolder<V> holder);
+	
+	/**
+	 * Called each time before an eviction cycle is being started.
+	 */
+	void beforeEviction();
+	
+	/**
+	 * Called each time after an eviction cycle has ended.
+	 */
+	void afterEviction();
 }

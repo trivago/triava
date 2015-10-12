@@ -30,9 +30,10 @@ import com.trivago.triava.time.TimeSource;
 
 /**
  * A Cache that supports expiration based on expiration time and idle time.
- * The Cache is unbounded, and never evicts. For bounded Caches, use subclasses like CacheLimitLFUv2, which
- * implement eviction strategies.
- * This Cache class is built for maximum throughput and scalability. The basic limitations are those of the
+ * The Cache can be of unbounded or bounded size. In the latter case, eviction is done using the selected strategy, for example
+ * LFU, LRU, Clock or an own implemented custom eviction strategy (value-type aware).
+ * This Cache class is built for maximum throughput and scalability, while allowing 
+ * . The basic limitations are those of the
  * underlying ConcurrentMap implementation, as no further data structures are maintained. This is also true for
  * the subclasses that allow evictions.
  * 
@@ -47,6 +48,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	public static final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	{
+		// offset #field-size
+		// 0 #12
+		// Object header
 		// 12 #4 
 		private V data;
 		// 16 #4
@@ -60,7 +64,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		// 32 #4
 		private int useCount = 0; // Not fully thread safe, on purpose. See #incrementUseCount() for the reason.
 		// 36
-//		private String key;
 		
 		/**
 		 * @param data
@@ -121,11 +124,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		{
 			lastAccess = (int)(currentTimeMillisEstimate() - baseTimeMillis);;
 		}
-		
-//		private long currentTimeSecondsEstimate()
-//		{
-//			return MillisEstimatorThread.secondsEstimate;
-//		}
 		
 		private long currentTimeMillisEstimate()
 		{
@@ -293,8 +291,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		this.jamPolicy = builder.getJamPolicy();
 		this.loader  = builder.getLoader();
 
-		StorageBackend<K, V> storageFactory = builder.storageFactory();
-		objects = storageFactory.createMap(builder, evictionExtraSpace(builder));
+		objects = createBackingMap(builder);
 		
 		if (builder.getStatistics())
 			statisticsCalculator = new StandardStatisticsCalculator();
@@ -304,6 +301,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    activateTimeSource();
 	    
 		builder.getFactory().registerCache(this);
+	}
+
+
+	@SuppressWarnings("unchecked") // Avoid warning for the "generics cast" in the last line
+	private ConcurrentMap<K, AccessTimeObjectHolder<V>> createBackingMap(Builder<K, V> builder)
+	{
+		StorageBackend<K, V> storageFactory = builder.storageFactory();
+		ConcurrentMap<K, ? extends TCacheHolder<V>> map = storageFactory.createMap(builder, evictionExtraSpace(builder));
+		return (ConcurrentMap<K,AccessTimeObjectHolder<V>>)map;
 	}
 
 	/**
@@ -825,7 +831,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	/**
 	 * Instantiates the TimeSource, if it is not yet there.
 	 */
-	private void activateTimeSource()
+	protected TimeSource activateTimeSource()
 	{
 		synchronized (millisEstimatorLock)
 		{			
@@ -834,6 +840,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		    	millisEstimator  = new EstimatorTimeSource(10, logger);
 		    }
 		}
+		
+		return millisEstimator;
 	}
 	
 	private void stopCleaner()
@@ -909,13 +917,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 	
 	/**
-	 * remove object with given key
-	 * @param pKey
+	 * Removes the object with given key, and return the value that was stored for it.
+	 * Returns null if there was no value for the key stored.
+	 * 
+	 * @param key
+	 * @return The value that was stored for the given key or null 
 	 */
-	public V remove(K pKey)
+	public V remove(K key)
 	{
-		AccessTimeObjectHolder<V> holder = this.objects.remove(pKey);
-		return removeHolder(holder);
+		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
+		return releaseHolder(holder);
 	}
 
 	/**
@@ -949,14 +960,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 	
-	protected V removeHolder(AccessTimeObjectHolder<V> holder)
+	/**
+	 * Frees the data in the holder, and returns the value stored by the holder.
+	 * 
+	 * @param holder
+	 * @return
+	 */
+	protected V releaseHolder(AccessTimeObjectHolder<V> holder)
 	{
 		if(holder == null)
 		{
 			return null;
 		}
 		
-		V oldData = holder.get();
+		V oldData = holder.peek();
 		
 		holder.release();
 		

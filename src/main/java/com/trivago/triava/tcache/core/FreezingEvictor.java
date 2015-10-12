@@ -30,6 +30,22 @@ abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 		return comparator;
 	}
 
+	/**
+	 * Default implementation for {@link EvictionInterface#beforeEviction()}. It does nothing.
+	 */
+	@Override
+	public void beforeEviction()
+	{	
+	}
+	
+	/**
+	 * Default implementation for {@link EvictionInterface#afterEviction()}. It does nothing.
+	 */
+	@Override
+	public void afterEviction()
+	{	
+	}
+
 	private class StandardComparator implements Comparator<HolderFreezer<K,V>>
 	{
 		@Override

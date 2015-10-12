@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.StorageBackend;
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Implements a storage that uses the Highscale libs. It is only implemented for performance tests.
@@ -19,7 +19,7 @@ import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 public class HighscalelibNonBlockingHashMap<K,V> implements StorageBackend<K, V>
 {
 	@Override
-	public ConcurrentMap<K, AccessTimeObjectHolder<V>> createMap(Builder<K,V> builder, double evictionMapSizeFactor)
+	public ConcurrentMap<K, TCacheHolder<V>> createMap(Builder<K,V> builder, double evictionMapSizeFactor)
 	{
 		try
 		{
@@ -33,7 +33,7 @@ public class HighscalelibNonBlockingHashMap<K,V> implements StorageBackend<K, V>
 			int requiredMapSize = (int) (builder.getExpectedMapSize() / loadFactor) + (int)evictionMapSizeFactor;
 	
 			@SuppressWarnings({ "unchecked", "rawtypes" })
-			ConcurrentMap<K, AccessTimeObjectHolder<V>> inst = (ConcurrentMap) cons.newInstance(requiredMapSize);
+			ConcurrentMap<K, TCacheHolder<V>> inst = (ConcurrentMap) cons.newInstance(requiredMapSize);
 			return inst;
 		}
 		catch (Exception exc)

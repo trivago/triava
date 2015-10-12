@@ -4,7 +4,9 @@ import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheLoader;
+import com.trivago.triava.tcache.core.FreezingEvictor;
 import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Examples for creating various types of Caches. Demonstrated features are put() and get() operations,
@@ -16,7 +18,10 @@ public class CacheExample
 {
 	public static void main(String[] args)
 	{
+		
 		TCacheFactory factory = TCacheFactory.standardFactory();
+//		Builder<Integer, String> builder = factory.builder();
+//		Cache<Integer, String> cache = builder.build();
 //		Cache.setLogger(new TriavaConsoleLogger());  // For some logs to the console, uncomment this line
 		
 		exampleCacheGetWithLoader(factory);
@@ -131,4 +136,28 @@ public class CacheExample
 		}
 		
 	}
+	
+	/**
+	 * Example for a custom eviction implementation.
+	 */
+	static class CustomerClassEvictor extends FreezingEvictor<Integer, CustomerType>
+	{
+		@Override
+		public long getFreezeValue(Integer userId, TCacheHolder<CustomerType> customerType)
+		{
+			return customerType.peek().getPriority();
+		}
+	}
+	
+	enum CustomerType
+	{
+		Guest(0), Registered(5), Premium(9);
+		
+		public int getPriority() { return priority;	}
+
+		int priority;
+		CustomerType(int priority) { this.priority = priority; };
+		
+	}
+
 }
