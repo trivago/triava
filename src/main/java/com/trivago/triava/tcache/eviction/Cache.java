@@ -158,8 +158,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			long millisNow = currentTimeMillisEstimate();
 			if (maxCacheTime > 0L)
 			{
-				long cacheDuationMillis = millisNow - getInputDate();
-				if (cacheDuationMillis > 1000*maxCacheTime)
+				long cacheDurationMillis = millisNow - getInputDate();
+				// SRT-23661 maxCacheTime explicitly converted to long, to avoid overrun due to "1000*"
+				if (cacheDurationMillis > 1000L*(long)maxCacheTime) 
 				{
 					return true;
 				}
@@ -170,7 +171,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 			long idleSince = millisNow - getLastAccess();
 
-			return (idleSince > 1000*maxIdleTime);
+			// SRT-23661 maxIdleTime explicitly converted to long, to avoid overrun due to "1000*"
+			return (idleSince > 1000L*(long)maxIdleTime);
 		}
 	}
 
