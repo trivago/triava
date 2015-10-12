@@ -5,7 +5,7 @@ package com.trivago.triava.tcache.util;
  * size in bytes. It is used in {@link com.trivago.triava.tcache.eviction.Cache#reportSize(ObjectSizeCalculatorInterface)}.
  * As reportSize() can take a serious amount of time, the number of elements is stored twice: Once before
  * the actual byte count is calculated, and one after. This makes it easier to see whether important changes
- * took place during calaculation, like expiration, eviction or a mass-insert of elements.
+ * took place during calculation, like expiration, eviction or a mass-insert of elements.
  *  
  * @author cesken
  *

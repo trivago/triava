@@ -72,6 +72,7 @@ public class EstimatorTimeSource extends Thread implements TimeSource
 			try
 			{
 				sleep(UPDATE_INTERVAL_MS);
+				// Future directions: Get the time from SystemTimeSource or any other TimeSource (decorator style)
 				millisEstimate = System.currentTimeMillis();
 				secondsEstimate = millisEstimate / 1000;
 			}
