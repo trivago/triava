@@ -90,8 +90,8 @@ public class Builder<K,V>
 //				case CLOCK:
 //					throw new UnsupportedOperationException("Experimental option is not activated: eviciton.CLOCK");
 //					break;
-					// ClockEviction requires a TimeSource, but it may not be active yet (or even worse will change)
-					// => either we need to activate the TimeSource here, or introduce an "Expiration Context" that provides the TimeSource
+//					// ClockEviction requires a TimeSource, but it may not be active yet (or even worse will change)
+//					// => either we need to activate the TimeSource here, or introduce an "Expiration Context" that provides the TimeSource
 //					cache = new CacheLimit<>(this.setEvictionClass(new ClockEviction<K,V>()));
 				case CUSTOM:
 					cache = new CacheLimit<>(this);
