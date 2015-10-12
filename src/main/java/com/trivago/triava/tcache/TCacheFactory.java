@@ -12,10 +12,10 @@ import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 
 /**
- * The TCacheFactory allows to create Cache instances, and also supplies administrative methods for the
- * managed caches, like shutting down all registered Caches. The preferred way of obtaining an instance for application
- * code is a call to {@link #standardFactory()}. Library code should create a new TCacheFactory instance, so it can manage its own
- * Cache collection.  
+ * The TCacheFactory allows to create Cache instances via {@link #builder()}, and also supplies administrative methods for the
+ * managed caches, like shutting down all registered Caches. The preferred way of obtaining a TCacheFactory
+ * instance for application code is a call to {@link #standardFactory()}. Library code should create a new
+ * TCacheFactory instance, so it can manage its own Cache collection.
  * 
  * @author cesken
  * @since 2015-03-10
@@ -26,25 +26,33 @@ public class TCacheFactory
 	private static final CopyOnWriteArrayList<Cache<?, ?>> CacheInstances = new CopyOnWriteArrayList<>();
 
 	static final TCacheFactory standardFactory = new TCacheFactory();
-	
+
 	/**
-	 * Returns the standard factory. Library code should not use this method, but create a new TCacheFactory instance for managing its own
-	 * Cache collection.  
+	 * Returns the standard factory. The factory can produce Builder instances via {@link #builder()}.
+	 * <br>
+	 * Library code should not use this method, but create a new TCacheFactory
+	 * instance for managing its own Cache collection.
+	 * 
 	 * @return The standard cache factory.
 	 */
 	public static TCacheFactory standardFactory()
 	{
 		return standardFactory;
 	}
-	
-	public <K,V> Builder<K,V> builder()
+
+	/**
+	 * Returns a Builder 
+	 * @return A Builder
+	 */
+	public <K, V> Builder<K, V> builder()
 	{
 		return new Builder<>(this);
 	}
-	
-	
+
 	/**
-	 * Registers a Cache to this factory. Registered caches will be used for bulk operations like {@link #shutdownAll()}. 
+	 * Registers a Cache to this factory. Registered caches will be used for bulk operations like
+	 * {@link #shutdownAll()}.
+	 * 
 	 * @param cache
 	 */
 	public void registerCache(Cache<?, ?> cache)
@@ -54,8 +62,8 @@ public class TCacheFactory
 	}
 
 	/**
-	 * Shuts down all Cache instances, which were registered via {@link #registerCache(Cache)}.
-	 * It waits until all cleaners have stopped.
+	 * Shuts down all Cache instances, which were registered via {@link #registerCache(Cache)}. It waits until
+	 * all cleaners have stopped.
 	 */
 	public void shutdownAll()
 	{
@@ -64,25 +72,27 @@ public class TCacheFactory
 			cache.shutdown();
 		}
 	}
-	
+
 	/**
-	 * Reports size of all Cache instances, which were registered via {@link #registerCache(Cache)}.
-	 * Using this method can create high load, and may require particular permissions, depending on the used object size calculator. 
-	 * <p> 
+	 * Reports size of all Cache instances, which were registered via {@link #registerCache(Cache)}. Using
+	 * this method can create high load, and may require particular permissions, depending on the used object
+	 * size calculator.
+	 * <p>
 	 * <b>USE WITH CARE!!!</b>
 	 */
-	public Map<String,CacheSizeInfo> reportAllCacheSizes(ObjectSizeCalculatorInterface objectSizeCalculator)
+	public Map<String, CacheSizeInfo> reportAllCacheSizes(ObjectSizeCalculatorInterface objectSizeCalculator)
 	{
-		Map<String,CacheSizeInfo> infoMap = new HashMap<>();
+		Map<String, CacheSizeInfo> infoMap = new HashMap<>();
 		for (Cache<?, ?> cache : CacheInstances)
 		{
 			infoMap.put(cache.id(), cache.reportSize(objectSizeCalculator));
 		}
 		return infoMap;
 	}
-	
+
 	/**
 	 * Returns the list of Caches that have been registered via {@link #registerCache(Cache)}.
+	 * 
 	 * @return The cache list
 	 */
 	public List<Cache<?, ?>> instances()
