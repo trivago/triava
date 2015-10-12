@@ -1,6 +1,5 @@
 package com.trivago.triava.tcache.statistics;
 
-import com.trivago.triava.tcache.eviction.Cache;
 
 
 
