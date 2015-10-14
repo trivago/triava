@@ -25,6 +25,7 @@ import com.trivago.triava.logging.TriavaNullLogger;
  * A TimeSource that provides the value of System.currentTimeMillis() in the given millisecond precision.
  * Target use case for this class is to reduce the overhead of System.currentTimeMillis() or
  * System.nanoTime(), when being called very frequently (thousands or million times per second).
+ * An own TimeSource can be given, that can replace System.currentTimeMillis().
  * <p>
  * This implementation uses a background thread to regularly fetch the current time from
  * System.currentTimeMillis(). The value is cached and returned in all methods returning a time. Caching is
@@ -43,34 +44,40 @@ import com.trivago.triava.logging.TriavaNullLogger;
 public class EstimatorTimeSource extends Thread implements TimeSource
 {
 	final int UPDATE_INTERVAL_MS;
-	private volatile long millisEstimate = System.currentTimeMillis();
-	private volatile long secondsEstimate = millisEstimate / 1000;
+	private volatile long millisEstimate;
+	private volatile long secondsEstimate;
 
 	private volatile boolean running; // volatile. Modified via cancel() from a different thread
 	private final TriavaLogger logger;
+	private final TimeSource timeSource; 
 
 	/**
-	 * Creates a TimeSource with the given update interval.
+	 * Creates a TimeSource with the given update interval, that uses the system time as TimeSource.
 	 * 
 	 * @param updateIntervalMillis
 	 *            Update interval, which defines the approximate precision
 	 */
 	public EstimatorTimeSource(int updateIntervalMillis)
 	{
-		this(updateIntervalMillis, new TriavaNullLogger());
+		this(new SystemTimeSource(), updateIntervalMillis, new TriavaNullLogger());
 	}
 
 	/**
-	 * Creates a TimeSource with the given update interval.
+	 * Creates a TimeSource with the given update interval. The time is estimated on base of the given
+	 * parentTimeSource, so the precision is not better than this and the parentTimeSource. 
 	 * 
+	 * @param parentTimeSource The TimeSource to estimate
 	 * @param updateIntervalMillis
 	 *            Update interval, which defines the approximate precision
 	 * @param logger
 	 *            A non-null triava logger
 	 */
-	public EstimatorTimeSource(int updateIntervalMillis, TriavaLogger logger)
+	public EstimatorTimeSource(TimeSource parentTimeSource, int updateIntervalMillis, TriavaLogger logger)
 	{
 		this.logger = logger;
+		this.timeSource = parentTimeSource;
+		setTimeFields();
+		
 		this.UPDATE_INTERVAL_MS = updateIntervalMillis;
 		setName("MillisEstimatorThread-" + UPDATE_INTERVAL_MS + "ms");
 		setPriority(Thread.MAX_PRIORITY);
@@ -88,15 +95,19 @@ public class EstimatorTimeSource extends Thread implements TimeSource
 			try
 			{
 				sleep(UPDATE_INTERVAL_MS);
-				// Future directions: Get the time from SystemTimeSource or any other TimeSource (decorator style)
-				millisEstimate = System.currentTimeMillis();
-				secondsEstimate = millisEstimate / 1000;
+				setTimeFields();
 			}
 			catch (InterruptedException ex)
 			{
 			}
 		}
 		logger.info("MillisEstimatorThread " + this.getName() + " is leaving run()");
+	}
+
+	private void setTimeFields()
+	{
+		millisEstimate = timeSource.millis();
+		secondsEstimate = millisEstimate / 1000;
 	}
 
 	private void cancel()

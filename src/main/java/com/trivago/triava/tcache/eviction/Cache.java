@@ -41,6 +41,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 import com.trivago.triava.time.EstimatorTimeSource;
+import com.trivago.triava.time.SystemTimeSource;
 import com.trivago.triava.time.TimeSource;
 
 
@@ -855,7 +856,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		{			
 		    if (millisEstimator == null)
 		    {
-		    	millisEstimator  = new EstimatorTimeSource(10, logger);
+		    	millisEstimator  = new EstimatorTimeSource(new SystemTimeSource(), 10, logger);
 		    }
 		}
 		

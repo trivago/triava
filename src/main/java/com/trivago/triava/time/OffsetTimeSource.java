@@ -47,7 +47,7 @@ public class OffsetTimeSource implements TimeSource
 		if (parentTimeSource == null)
 			throw new NullPointerException("parentTimeSource must not be null");
 		this.parentTimeSource = parentTimeSource;
-		this.offsetMillis = startTimeMillis - getMillisFromSource();
+		this.offsetMillis = startTimeMillis - parentTimeSource.millis();
 	}
 
 	private long getMillisFromSource()
