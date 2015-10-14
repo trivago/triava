@@ -20,7 +20,40 @@ public @interface InjectionUnsafe
 		ForwardedToUnsafeService
 	}
 
+	/**
+	 * The risk, if an attack would succeed
+	 */
+	enum Risk
+	{
+		Low, Mid, High
+	}
+
+	/**
+	 * The likelyhood of a successful attack 
+	 */
+	enum Exploitability
+	{
+		/**
+		 * An exploit is easy to perform.
+		 */
+		Easy,
+		
+		/**
+		 * Exploit code or instructions are already known
+		 */
+		ExploitCodeExists,
+
+		/**
+		 * Even with full knowledge of all facts, like version numbers, it is hard to perform an attack.
+		 * For example because it requires a vast amount of requests or a microsecond-precise timing over
+		 * networks.
+		 */
+		Difficult 
+	}
+	
 	String comment() default "";
+	Exploitability exploitability();
+	Risk risk();
 
 	/**
 	 * @return Why the field or method is injection <b>unsafe</b>.
