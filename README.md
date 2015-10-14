@@ -31,5 +31,9 @@ dependencies {
 }
 ```
 
+## License
+Licensed under the Apache License, Version 2.0
+
+
 # Examples:
 http://git.trivago.trv/srt/triava/tree/master/src/examples/java/com/trivago/examples
