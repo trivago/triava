@@ -50,30 +50,6 @@ public class TimeSourceExample
 		compareTimeSources("System", "Offset", tsToday, tsYesterday);
 	}
 
-	private static void compareTimeSources(String ts1name, String ts2name, TimeSource ts1, TimeSource ts2)
-	{
-		System.out.println("--- " + ts1name + " vs " + ts2name + " START ---");
-		for (int i=0; i<30; i++)
-		{
-			long ts1millis = ts1.millis();
-			long ts2millis = ts2.millis();
-			long millisDiff = ts1millis - ts2millis;
-			System.out.printf("diff=%5d %s %d %s %d%n",  millisDiff, ts1name, ts1millis, ts2name, ts2millis);
-			//+  ", " + ts1name + "=" + today + ", " + ts2name + "=" + yesterday
-			try
-			{
-				Thread.sleep(25);
-			}
-			catch (InterruptedException e)
-			{
-				e.printStackTrace();
-			}
-		}
-		System.out.println("--- " + ts1name + " vs " + ts2name + " END ---");
-		System.out.println();
-	}
-
-	
 	/**
 	 * Demonstrates the difference between estimated time and real time
 	 */
@@ -98,5 +74,31 @@ public class TimeSourceExample
 		
 	}
 
+	/**
+	 * Shows the time and time differences between two TimeSource implementations 
+	 */
+	private static void compareTimeSources(String ts1name, String ts2name, TimeSource ts1, TimeSource ts2)
+	{
+		System.out.println("--- " + ts1name + " vs " + ts2name + " START ---");
+		for (int i=0; i<30; i++)
+		{
+			long ts1millis = ts1.millis();
+			long ts2millis = ts2.millis();
+			long millisDiff = ts1millis - ts2millis;
+			System.out.printf("diff=%5d %s %d %s %d%n",  millisDiff, ts1name, ts1millis, ts2name, ts2millis);
+			try
+			{
+				Thread.sleep(25);
+			}
+			catch (InterruptedException e)
+			{
+				e.printStackTrace();
+			}
+		}
+		System.out.println("--- " + ts1name + " vs " + ts2name + " END ---");
+		System.out.println();
+	}
+
+	
 
 }
