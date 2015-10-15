@@ -11,7 +11,7 @@ Inside the target/ folder, 3 files will be generated. For example for version 1.
 triava-1.0.jar triava-1.0-sources.jar triava-1.0-javadoc.jar
 
 # Usage:
-To start, look at the examples folder http://git.trivago.trv/srt/triava/tree/master/src/examples/java/com/trivago/examples
+To start, look at the examples folder https://github.com/trivago/triava/tree/master/src/examples/java/com/trivago/examples
 
 ## Usage in Maven: pom.xml
 ```
@@ -36,4 +36,4 @@ Licensed under the Apache License, Version 2.0
 
 
 # Examples:
-http://git.trivago.trv/srt/triava/tree/master/src/examples/java/com/trivago/examples
+https://github.com/trivago/triava/tree/master/src/examples/java/com/trivago/examples
