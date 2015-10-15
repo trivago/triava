@@ -7,8 +7,11 @@ triava has no dependencies apart from Java 7. The following will build everythin
 
 `mvn package`
 
-Inside the target/ folder, 3 files will be generated. For example for version 1.0:
-triava-1.0.jar triava-1.0-sources.jar triava-1.0-javadoc.jar
+This will create three artefacts in the target/ folder:
+
+- triava-<version>.jar
+- triava-<version>-sources.jar
+- triava-<version>-javadoc.jar
 
 ## Usage:
 To start, look at the [examples folder](./src/examples/java/com/trivago/examples).
