@@ -9,9 +9,9 @@ triava has no dependencies apart from Java 7. The following will build everythin
 
 This will create three artefacts in the target/ folder:
 
-- triava-<version>.jar
-- triava-<version>-sources.jar
-- triava-<version>-javadoc.jar
+- triava-[version].jar
+- triava-[version]-sources.jar
+- triava-[version]-javadoc.jar
 
 ## Usage:
 To start, look at the [examples folder](./src/examples/java/com/trivago/examples).
