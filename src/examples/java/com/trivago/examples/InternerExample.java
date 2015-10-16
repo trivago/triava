@@ -17,7 +17,7 @@
 package com.trivago.examples;
 
 import com.trivago.triava.collections.HashInterner;
-import com.trivago.triava.collections.InternerInterface;
+import com.trivago.triava.collections.Interner;
 
 /**
  * Examples for creating and using an Interner.
@@ -35,7 +35,7 @@ public class InternerExample
 
 	private static void internOnce()
 	{
-		InternerInterface<Integer> intInterner = new HashInterner<>();
+		Interner<Integer> intInterner = new HashInterner<>();
 		for (int i = 0; i < 20; i++)
 		{
 			intInterner.get(1_000_000 * i);
@@ -45,7 +45,7 @@ public class InternerExample
 
 	private static void internMultiround()
 	{
-		InternerInterface<Integer> intInterner = new HashInterner<>();
+		Interner<Integer> intInterner = new HashInterner<>();
 		for (int round = 0; round < 1000; round++)
 		{
 			for (int i = 0; i < 20; i++)

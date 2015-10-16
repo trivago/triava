@@ -53,7 +53,7 @@ package com.trivago.triava.collections;
  * @param <T>
  *            The type to intern
  */
-public interface InternerInterface<T>
+public interface Interner<T>
 {
 
 	/**

@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Hash based implementation of {@link InternerInterface}. 
+ * Hash based implementation of {@link Interner}. 
  * Identity is determined via {@link #equals(Object)} and {@link #hashCode()}, thus stored instances
  * must guarantee that hashCode is consistent with equals. This implementation can return different object
  * references in the case of two concurrent {@link #get(Object)} calls
@@ -39,7 +39,7 @@ import java.util.concurrent.ConcurrentMap;
  * @since 2012-08-10
  * 
  */
-public class HashInterner<T> implements InternerInterface<T>
+public class HashInterner<T> implements Interner<T>
 {
 	// The implementation uses a ConcurrentMap, so we do not need to synchronize.
 	private final ConcurrentMap<T, T> interningMap;
