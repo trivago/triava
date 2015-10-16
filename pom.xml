@@ -4,9 +4,40 @@
   <groupId>com.trivago</groupId>
   <artifactId>triava</artifactId>
   <packaging>jar</packaging>
-  <version>0.3.4</version>
-  <name>triava</name>
-  <url>http://maven.apache.org</url>
+  <version>0.3.8</version>
+	<name>triava</name>
+	<url>https://github.com/trivago/triava</url>
+	<description>The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more. </description>
+	<organization>
+		<name>trivago</name>
+		<url>http://trivago.com/</url>
+	</organization>
+	<issueManagement>
+		<url>https://github.com/trivago/triava/issues</url>
+	</issueManagement>
+
+	<licenses>
+		<license>
+			<name>The Apache License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<name>trivago</name>
+			<email>info@trivago.com</email>
+			<organization>trivago</organization>
+			<organizationUrl>http://trivago.com/</organizationUrl>
+		</developer>
+	</developers>
+	  
+	<scm>
+		<connection>scm:git:git@github.com:trivago/triava.git</connection>
+		<developerConnection>scm:git:git@github.com:trivago/triava.git</developerConnection>
+		<url>git@github.com:trivago/triava.git</url>
+	</scm>
+
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -14,6 +45,13 @@
       <version>3.8.1</version>
       <scope>test</scope>
     </dependency>
+  <!--
+	<dependency>
+		<groupId>javax.cache</groupId>
+		<artifactId>cache-api</artifactId>
+		<version>1.0.0</version>
+	</dependency>
+-->
   </dependencies>
 
   <build>
@@ -58,4 +96,5 @@
 
     </plugins>
   </build>
+  
 </project>
