@@ -16,6 +16,9 @@
 
 package com.trivago.examples;
 
+import java.sql.Date;
+import java.text.SimpleDateFormat;
+
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.time.EstimatorTimeSource;
 import com.trivago.triava.time.OffsetTimeSource;
@@ -31,10 +34,13 @@ import com.trivago.triava.time.TimeSource;
  */
 public class TimeSourceExample
 {
-	static final long Y2000 = 946684800;
+	static final long Y2000 = 946684800_000L; // Year 2000 new year midnight
+	static final long DAY_LENGTH_MILLIS = 86400_000;
+	
 	public static void main(String[] args)
 	{
 		offsetTimeSource();
+		offsetY2000TimeSource();
 		estimatorTimeSource();
 		chainedTimeSource();
 	}
@@ -45,9 +51,20 @@ public class TimeSourceExample
 	private static void offsetTimeSource()
 	{
 		TimeSource tsToday = new SystemTimeSource();
-		TimeSource tsYesterday = new OffsetTimeSource(tsToday.millis() - 86400, tsToday);
+		TimeSource tsYesterday = new OffsetTimeSource(tsToday.millis() - DAY_LENGTH_MILLIS, tsToday);
 		
 		compareTimeSources("System", "Offset", tsToday, tsYesterday);
+	}
+
+	/**
+	 * Demonstrate to move the time back to a fixed date
+	 */
+	private static void offsetY2000TimeSource()
+	{
+		TimeSource tsToday = new SystemTimeSource();
+		TimeSource tsYesterday = new OffsetTimeSource(Y2000, tsToday);
+		
+		compareTimeSources("System", "Y2000", tsToday, tsYesterday);
 	}
 
 	/**
@@ -67,11 +84,10 @@ public class TimeSourceExample
 	private static void chainedTimeSource()
 	{
 		TimeSource tsNow = new SystemTimeSource();
-		TimeSource tsMinus1Day = new OffsetTimeSource(tsNow.millis() - 86400, tsNow); // yesterday = - 24h
+		TimeSource tsMinus1Day = new OffsetTimeSource(tsNow.millis() - DAY_LENGTH_MILLIS, tsNow); // yesterday = - 24h
 		TimeSource tsMinus1DayEst = new EstimatorTimeSource(tsMinus1Day, 100, new TriavaNullLogger()); // -24h and estimating
 		
 		compareTimeSources("System", "Chained", tsNow, tsMinus1DayEst);
-		
 	}
 
 	/**
@@ -80,15 +96,18 @@ public class TimeSourceExample
 	private static void compareTimeSources(String ts1name, String ts2name, TimeSource ts1, TimeSource ts2)
 	{
 		System.out.println("--- " + ts1name + " vs " + ts2name + " START ---");
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss.SSS");
 		for (int i=0; i<30; i++)
 		{
 			long ts1millis = ts1.millis();
 			long ts2millis = ts2.millis();
+			String ts1date = sdf.format(new Date(ts1millis));
+			String ts2date = sdf.format(new Date(ts2millis));
 			long millisDiff = ts1millis - ts2millis;
-			System.out.printf("diff=%5d %s %d %s %d%n",  millisDiff, ts1name, ts1millis, ts2name, ts2millis);
+			System.out.printf("diff=%5d %s %s %s %s%n",  millisDiff, ts1name, ts1date.toString(), ts2name, ts2date.toString());
 			try
 			{
-				Thread.sleep(25);
+				Thread.sleep(75);
 			}
 			catch (InterruptedException e)
 			{
