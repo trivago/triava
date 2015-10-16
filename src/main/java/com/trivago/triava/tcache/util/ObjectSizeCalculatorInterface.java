@@ -31,8 +31,8 @@ public interface ObjectSizeCalculatorInterface
 	 * Calculates the deep memory footprint of {@code obj} in bytes, i.e. the memory taken by the 
 	 * object graph using {@code obj} as a starting node of that graph. 
 	 * 
-	 * @param obj
-	 * @return
+	 * @param obj The object to measure
+	 * @return The size in byte
 	 */
 	long calculateObjectSizeDeep(Object obj);
 }

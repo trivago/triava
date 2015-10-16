@@ -165,7 +165,7 @@ public class Builder<K,V>
 	/**
 	 * Sets the default expiration time for entries in this cache. All entries use this time, unless it is
 	 * added using a put method that allows overriding the expiration time, like
-	 * {@link Cache#put(K, V, long, long)}.
+	 * {@link Cache#put(Object, Object, long, long)}.
 	 * 
 	 * @param maxCacheTime
 	 *            The time to keep the value in seconds
@@ -180,7 +180,7 @@ public class Builder<K,V>
 	/**
 	 * Sets the expected number of elements to be stored. Cache instances with eviction policy will start evicting
 	 * after reaching {@link #expectedMapSize}. Cache instances of unlimited size
-	 * {@link EvictionPolicy.NONE} will use this value only as a hint
+	 * {@link EvictionPolicy}.NONE will use this value only as a hint
 	 * for initially sizing the underlying storage structures.
 	 * 
 	 * @param expectedMapSize The expected number of elements to be stored
@@ -279,7 +279,7 @@ public class Builder<K,V>
 	 * Sets the policy, how a Thread that calls put() will behave the cache is full.
 	 * Either the Thread will WAIT or DROP the element and not put it in the cache.
 	 * The default is WAIT. The Jam Policy has no effect on caches of unlimited size
-	 * {@link EvictionPolicy.NONE}.
+	 * {@link EvictionPolicy}}.NONE.
 	 * 
 	 * @param jamPolicy
 	 * @return

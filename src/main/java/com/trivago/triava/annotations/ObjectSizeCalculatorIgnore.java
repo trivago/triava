@@ -23,7 +23,7 @@ import java.lang.annotation.RetentionPolicy;
 * A flag annotation to tag fields which should not get counted in the ObjectSizeCalculator.
 * This annotation is to be used with a modified ObjectSizeCalculator from
 * https://github.com/twitter/commons/pull/373.  It must be set with
-* ObjectSizeCalculator#setIgnoreFieldAnnotation(Class<? extends Annotation> annotation).
+* ObjectSizeCalculator#setIgnoreFieldAnnotation(Class&lt;? extends Annotation&gt; annotation).
 * <p>
 * Target use is to ignore object
 * references not of interest. For example one can annotate Thread instances, to avoid

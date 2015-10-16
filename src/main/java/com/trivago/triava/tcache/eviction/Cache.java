@@ -55,11 +55,11 @@ import com.trivago.triava.time.TimeSource;
  * the subclasses that allow evictions.
  * 
  * @author Christian Esken
- * @author mpolacek
  * @since 2009-06-10
  *
  */
 public class Cache<K, V> implements Thread.UncaughtExceptionHandler
+//, javax.cache.Cache
 {
 	protected static TriavaLogger logger = new TriavaNullLogger();
 
@@ -679,8 +679,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * 
 	 * @param key
 	 * @return The value
-	 * @throws NullPointerException if key is null
-	 * @throws RuntimeException, if key is not present and the loader threw an Exception
+	 * @throws RuntimeException if key is not present and the loader threw an Exception.
+	 * @throws NullPointerException if key is null.
 	 */
 	public V get(K key) throws RuntimeException
 	{
@@ -1000,10 +1000,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 	
 	/**
-	 * Retrieve reference to AccessTimeHolder<T> objects as an unmodifiable Collection.
+	 * Retrieve reference to AccessTimeHolder&lt;T&gt; objects as an unmodifiable Collection.
 	 * You can use this when you want to serialize the complete Cache. 
 	 *
-	 * @return Collection of all AccessTimeHolder<T> Objects. The collection is unmodifiable.
+	 * @return Collection of all AccessTimeHolder&lt;T&gt; Objects. The collection is unmodifiable.
 	 */
 	public Collection<AccessTimeObjectHolder<V>> getAccessTimeHolderObjects()
 	{

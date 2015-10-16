@@ -38,7 +38,8 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
  * 
  * @author cesken
  *
- * @param <K, V>
+ * @param K Key type
+ * @param V Value type
  */
 public class CacheLimit<K, V> extends Cache<K, V>
 {

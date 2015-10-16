@@ -54,6 +54,8 @@ public class HashInterner<T> implements InternerInterface<T>
 	
 	/**
 	 * Creates an Interner with expectedElements as sizing hint for the underlying Map.
+	 * 
+	 * @param expectedElements The expected number of elements
 	 */
 	public HashInterner(int expectedElements)
 	{
@@ -85,7 +87,6 @@ public class HashInterner<T> implements InternerInterface<T>
 
 	/**
 	 * Returns the number of elements this instance has interned.
-	 * @return
 	 */
 	public int size()
 	{

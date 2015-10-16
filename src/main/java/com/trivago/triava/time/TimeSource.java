@@ -40,18 +40,19 @@ public interface TimeSource
 	 * Returns the time in the given time unit. It is recommended for unsupported TimeUnit values to throw
 	 * an UnsupportedOperation exception.
 	 * 
+	 * @param timeUnit The time unit for the return value 
 	 * @return time in milliseconds since epoch
 	 */
-	long time(TimeUnit tu);
+	long time(TimeUnit timeUnit);
 	
 	/**
-	 * Returns the time in seconds. Convenience method, with the same effect as {@link #time(TimeUnit.SECONDS)}
+	 * Returns the time in seconds. Convenience method, with the same effect as passing TimeUnit.SECONDS to {@link #time(TimeUnit)}
 	 * @return time in seconds since epoch
 	 */
 	long seconds();
 	
 	/**
-	 * Returns the time in milliseconds. Convenience method, with the same effect as {@link #time(TimeUnit.MILLISECONDS)}
+	 * Returns the time in milliseconds. Convenience method, with the same effect as passing TimeUnit.MILLISECONDS {@link #time(TimeUnit)}
 	 * @return time in milliseconds since epoch
 	 */
 	long millis();
