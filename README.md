@@ -22,15 +22,17 @@ To start, look at the [examples folder](./src/examples/java/com/trivago/examples
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.3.3</version>
+      <version>0.4.0</version>
     </dependency>
   </dependencies>
 ```
 
+triava in [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
+
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.3.3'
+	compile 'com.trivago:triava:0.4.0'
 }
 ```
 
