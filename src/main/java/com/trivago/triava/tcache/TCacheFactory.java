@@ -30,7 +30,7 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 /**
  * The TCacheFactory allows to create Cache instances via {@link #builder()}, and also supplies administrative methods for the
  * managed caches, like shutting down all registered Caches. The preferred way of obtaining a TCacheFactory
- * instance for application code is a call to {@link #standardFactory()}. Library code should create a new
+ * instance for application code is a call to {@link #standardFactory()}. Library code should instantiate a new
  * TCacheFactory instance, so it can manage its own Cache collection.
  * 
  * @author cesken
@@ -39,7 +39,7 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
  */
 public class TCacheFactory
 {
-	private static final CopyOnWriteArrayList<Cache<?, ?>> CacheInstances = new CopyOnWriteArrayList<>();
+	private final CopyOnWriteArrayList<Cache<?, ?>> CacheInstances = new CopyOnWriteArrayList<>();
 
 	static final TCacheFactory standardFactory = new TCacheFactory();
 
