@@ -40,6 +40,7 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 public class TCacheFactory
 {
 	private final CopyOnWriteArrayList<Cache<?, ?>> CacheInstances = new CopyOnWriteArrayList<>();
+	private final Object factoryLock = new Object();
 
 	static final TCacheFactory standardFactory = new TCacheFactory();
 
@@ -70,11 +71,24 @@ public class TCacheFactory
 	 * {@link #shutdownAll()}.
 	 * 
 	 * @param cache
+	 *  @throws IllegalStateException If a cache with the same id is already registered in this factory.
 	 */
 	public void registerCache(Cache<?, ?> cache)
 	{
-		// Hint: "cache" cannot escape. It is safely published, as it is put in a concurrent collection
-		CacheInstances.add(cache);
+		String id = cache.id();
+		synchronized (factoryLock)
+		{
+			for (Cache<?, ?> registeredCache : CacheInstances)
+			{
+				if (registeredCache.id().equals(id))
+				{
+					throw new IllegalStateException("Cache with the same id is already registered: " + id);
+				}
+			}
+
+			CacheInstances.add(cache);			
+			// Hint: "cache" cannot escape. It is safely published, as it is put in a concurrent collection
+		}
 	}
 
 	/**
