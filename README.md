@@ -27,7 +27,12 @@ To start, look at the [examples folder](./src/examples/java/com/trivago/examples
   </dependencies>
 ```
 
-triava in [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
+#### Maven Central
+triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
+
+Maintainers can upload new versions to Maven Central Staging:
+`mvn clean deploy -P release` 
+
 
 ### Usage in Gradle: build.gradle
 ```
