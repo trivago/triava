@@ -100,7 +100,7 @@ public class EstimatorTimeSource extends Thread implements TimeSource
 			catch (InterruptedException ex)
 			{
 				// Ignore: The only valid way to exit the loop and end this Thread is a call
-				// to shutdown(). In that case "running == false", and the surround loop will exit.
+				// to shutdown(). In that case "running == false", and the surrounding loop will exit.
 			}
 		}
 		logger.info("MillisEstimatorThread " + this.getName() + " is leaving run()");
