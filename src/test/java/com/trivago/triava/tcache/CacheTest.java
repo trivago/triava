@@ -47,7 +47,8 @@ public class CacheTest
 	@AfterClass
 	public static void tearDown()
 	{
-		TCacheFactory.standardFactory().close();
+		// Not closing, as there is another unit test that also uses the TCacheFactory.standardFactory() 
+		//TCacheFactory.standardFactory().close();
 	}
 	
 	@Before
