@@ -68,7 +68,7 @@ public interface Interner<T>
 	 * <p>
 	 * Implementations must be thread-safe.
 	 * 
-	 * @param value
+	 * @param value The value to intern
 	 * @return The shared instance, or null for a null value
 	 */
 	public T get(T value);

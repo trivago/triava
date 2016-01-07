@@ -86,7 +86,7 @@ public class HashInterner<T> implements Interner<T>
 	}
 
 	/**
-	 * Returns the number of elements this instance has interned.
+	 * @return Returns the number of elements this instance has interned.
 	 */
 	public int size()
 	{
