@@ -360,6 +360,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		shutdownPrivate();
 	}
 
+	public boolean isClosed()
+	{
+		return shuttingDown;
+	}
+	
 	final static long MAX_SHUTDOWN_WAIT_MILLIS = 100; // 100 ms
 
 	/**
