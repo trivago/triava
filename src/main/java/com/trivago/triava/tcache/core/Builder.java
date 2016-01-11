@@ -18,6 +18,8 @@ package com.trivago.triava.tcache.core;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.cache.configuration.Configuration;
+
 import com.trivago.triava.annotations.Beta;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
@@ -38,7 +40,7 @@ import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
  * @param <K> Key type
  * @param <V> Value type
  */
-public class Builder<K,V>
+public class Builder<K,V> implements Configuration<K, V>
 {
 	static final AtomicInteger anonymousCacheId = new AtomicInteger();
 
@@ -423,5 +425,26 @@ public class Builder<K,V>
 	{
 		this.loader = loader;
 		return this;
+	}
+
+	@Override
+	public Class<K> getKeyType()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Class<V> getValueType()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public boolean isStoreByValue()
+	{
+		// TODO Auto-generated method stub
+		return false;
 	}
 }

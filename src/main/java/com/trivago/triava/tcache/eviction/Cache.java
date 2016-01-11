@@ -59,7 +59,6 @@ import com.trivago.triava.time.TimeSource;
  *
  */
 public class Cache<K, V> implements Thread.UncaughtExceptionHandler
-//, javax.cache.Cache
 {
 	protected static TriavaLogger logger = new TriavaNullLogger();
 
@@ -269,7 +268,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * Even counting with "int" would be enough (2.147.483.647), as we would get no overrun within roughly 35 weeks.
 	 * If we have 10 times the load this would still be enough for 3,5 weeks with int, and "infinitely" more with long.
 	 */
-	final StatisticsCalculator statisticsCalculator;
+	StatisticsCalculator statisticsCalculator = null;
 
 	private float[] hitrateLastMeasurements = new float[5];
 	int hitrateLastMeasurementsCurrentIndex = 0;
@@ -278,7 +277,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	protected JamPolicy jamPolicy = JamPolicy.WAIT;
 	protected final CacheLoader<K, V> loader;
 
-	
+	final TCacheJSR107<K, V> tCacheJSR107;
+
 	/**
 	 * constructor with default cache time and expected map size.
 	 * @param maxIdleTime Maximum idle time in seconds
@@ -312,11 +312,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 		objects = createBackingMap(builder);
 		
-		if (builder.getStatistics())
-			statisticsCalculator = new StandardStatisticsCalculator();
-		else
-			statisticsCalculator = new NullStatisticsCalculator();
+		enableStatistics(builder.getStatistics());
 		
+		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
 	    activateTimeSource();
 	    
 		builder.getFactory().registerCache(this);
@@ -492,7 +490,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	
 	Random randomCacheTime = new Random(System.currentTimeMillis());
 	
-	private long cacheTimeSpread()
+	long cacheTimeSpread()
 	{
 		if (maxCacheTimeSpread == 0)
 			return maxCacheTime;
@@ -639,7 +637,29 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 
+	public boolean replace(K key, V value)
+	{
+		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
+		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread());
+		AccessTimeObjectHolder<V> oldValue = this.objects.replace(key, newHolder);
 
+		return (oldValue != null);
+	}
+	
+	public boolean replace(K key, V oldValue, V newValue)
+	{
+		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
+		AccessTimeObjectHolder<V> oldHolder; // holder for the object in the Cache
+		oldHolder = objects.get(key);
+		if (oldHolder == null)
+			return false; // Not in backing store => cannot replace
+		
+		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread());
+		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
+
+		return replaced;
+		
+	}
 	
 	/**
 	 * Returns whether there is capacity for at least one more element. The default implementation always returns true.
@@ -947,6 +967,32 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * @param key
 	 * @return The value that was stored for the given key or null 
 	 */
+	public boolean remove(K key, V value)
+	{
+		AccessTimeObjectHolder<V> holder = objects.get(key);
+		if (holder == null)
+			return false;
+
+		// TODO JSR107 This implementation is not checked for for operating ATOMICALLY.    
+		V holderValue = holder.peek();
+		if (!holderValue.equals(value))
+			return false;
+
+		boolean removed = this.objects.remove(key, holderValue);
+		if (removed)
+		{
+			releaseHolder(holder);
+		}
+		return removed;
+	}
+
+	/**
+	 * Removes the object with given key, and return the value that was stored for it.
+	 * Returns null if there was no value for the key stored.
+	 * 
+	 * @param key
+	 * @return The value that was stored for the given key or null 
+	 */
 	public V remove(K key)
 	{
 		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
@@ -1071,5 +1117,29 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		logger.info(cacheSizeInfo.toString());
 		
 		return cacheSizeInfo;
+	}
+
+
+	public javax.cache.Cache<K, V> jsr107cache()
+	{
+		return tCacheJSR107;
+	}
+
+
+	public void enableStatistics(boolean enable)
+	{
+		boolean currentlyEnabled = !(statisticsCalculator instanceof NullStatisticsCalculator);
+		if (enable)
+		{
+			if (currentlyEnabled)
+				return; // No change => Do not create new statisticsCalculator as it would discard the old statistics.
+			else
+				statisticsCalculator = new StandardStatisticsCalculator();
+		}
+		else
+		{
+			statisticsCalculator = new NullStatisticsCalculator();
+		}
+		
 	}
 }

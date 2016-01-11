@@ -27,6 +27,10 @@ import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.cache.CacheManager;
+import javax.cache.configuration.Configuration;
+import javax.cache.spi.CachingProvider;
+
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
@@ -42,7 +46,7 @@ import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
  * @since 2015-03-10
  *
  */
-public class TCacheFactory implements Closeable
+public class TCacheFactory implements Closeable, CacheManager
 {
 	final CopyOnWriteArrayList<Cache<?, ?>> CacheInstances = new CopyOnWriteArrayList<>();
 	final Object factoryLock = new Object();
@@ -167,8 +171,9 @@ public class TCacheFactory implements Closeable
 			{
 				if (registeredCache.id().equals(cacheName))
 				{
-					// TODO cesken JSR-107 mandates the order clear(), close(), but this means, that new entries
+					// JSR-107 mentions the order clear(), close(), but this means, that new entries
 					// could get added between clear and close. Thus my shutdown() does a close(), clear() sequence.
+					// For practical purposes it should be the same, and also conform to the Cache-TCK.
 					registeredCache.shutdown(); 
 					CacheInstances.remove(index);
 					break;
@@ -274,6 +279,93 @@ public class TCacheFactory implements Closeable
 		{
 			throw new IllegalStateException("CacheManager " + uri + " is already closed"); // JSR-107 compliance
 		}
+	}
+
+	@Override
+	public <K, V, C extends Configuration<K, V>> javax.cache.Cache<K, V> createCache(String cacheName, C configuration)
+			throws IllegalArgumentException
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void enableManagement(String arg0, boolean arg1)
+	{
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void enableStatistics(String cacheName, boolean enable)
+	{
+		Cache<Object, Object> tCache = getTCache(cacheName);
+		if (tCache != null)
+		{
+			tCache.enableStatistics(enable);
+		}
+	}
+	
+	public <K, V> Cache<K, V> getTCache(String cacheName)
+	{
+		for (Cache<?, ?> registeredCache : CacheInstances)
+		{
+			if (registeredCache.id().equals(cacheName))
+			{
+				Cache<K, V> tcache = (Cache<K, V>) registeredCache;
+				return tcache;
+			}
+		}
+
+		return null;
+	}
+
+	@Override
+	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName)
+	{
+		for (Cache<?, ?> registeredCache : CacheInstances)
+		{
+			if (registeredCache.id().equals(cacheName))
+			{
+				javax.cache.Cache<?, ?> jsr107cacheTypeless = registeredCache.jsr107cache();
+				// TODO JSR107 Do a type check here for K and V. Throw IllegalArgumentException if they do not match
+				javax.cache.Cache<K, V> jsr107cache = (javax.cache.Cache<K, V>) jsr107cacheTypeless;
+				return jsr107cache;
+			}
+		}
+
+		return null;
+	}
+
+	@Override
+	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName, Class<K> arg1, Class<V> arg2)
+	{
+		return getCache(cacheName); // TODO JSR107 Do a type check here
+	}
+
+	@Override
+	public Iterable<String> getCacheNames()
+	{
+		List<String> cacheNames = new ArrayList<>(CacheInstances.size());
+		for (Cache<?, ?> cache : CacheInstances)
+		{
+			cacheNames.add(cache.id());
+		}
+		return cacheNames;
+	}
+
+	@Override
+	public CachingProvider getCachingProvider()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public <T> T unwrap(Class<T> arg0)
+	{
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
 
