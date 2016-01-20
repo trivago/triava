@@ -1,10 +1,10 @@
 package com.trivago.triava.tcache.util;
 
+import java.lang.management.ManagementFactory;
 import java.util.Set;
 
 import javax.cache.CacheException;
 import javax.management.MBeanServer;
-import javax.management.MBeanServerFactory;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
@@ -22,7 +22,10 @@ import com.trivago.triava.tcache.eviction.TCacheJSR107;
  */
 public abstract class TCacheMBean
 {
-	private final static MBeanServer mBeanServer = MBeanServerFactory.createMBeanServer();
+// JSR107 RI creates its own MBeanServer. There was a discussion on the JSR107 ML about this.
+// At the moment TCache will register on the PlatformMBeanServer
+//	private final static MBeanServer mBeanServer = MBeanServerFactory.createMBeanServer();
+	private final static MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 	
 	abstract public String objectNameType();
 	abstract public Object getMBean(TCacheJSR107<?, ?> jsr107cache);
