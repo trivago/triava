@@ -16,6 +16,16 @@
 
 package com.trivago.triava.tcache.statistics;
 
+/**
+ * The StatisticsCalculator interface contains methods for easy statistics management.
+ * There are three types of methods: First the incrementX() methods that increase the
+ * corresponding counter. Second, the getX() methods that return the raw statistic counts.
+ * Third, the tick() method, that returns the count difference between the last tick and the
+ * current tick.
+ * 
+ * @author cesken
+ *
+ */
 public interface StatisticsCalculator
 {
 	// --- Methods for counting --- 
@@ -23,6 +33,7 @@ public interface StatisticsCalculator
 	void incrementMissCount();
 	void incrementPutCount();
 	void incrementDropCount();
+	void incrementRemoveCount();
 
 	// --- Methods for calculating the change --- 
 	/**
@@ -37,5 +48,6 @@ public interface StatisticsCalculator
 	long getMissCount();
 	long getPutCount();
 	long getDropCount();
+	long getRemoveCount();
 	
 }

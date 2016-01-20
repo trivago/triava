@@ -17,6 +17,13 @@
 package com.trivago.triava.tcache.statistics;
 
 /**
+ * The statistics interface contains setters for Cache statistics.
+ * Standard application code will not need to implement this interface, as
+ * they can call {@link com.trivago.triava.tcache.eviction.Cache#statistics()}
+ * to retrieve the current Cache Statistics.
+ * <p>  
+ * A reason to implement this instead of using TCacheStatistics is to
+ * allow to write adapters to existing statistics systems. 
  * 
  * @author cesken
  *
@@ -26,11 +33,12 @@ public interface TCacheStatisticsInterface
 	void setHitCount(long count);
 	void setMissCount(long count);
 	void setPutCount(long count);
+	void setRemoveCount(long removeCount);	
 	void setEvictionCount(long count);
 	void setEvictionRounds(long count);
 	void setEvictionHalts(long count);
 	void setEvictionRate(long rate);
 	void setHitRatio(float count);
 	void setElementCount(long count);
-	void setDropCount(long dropCount);	
+	void setDropCount(long dropCount);
 }

@@ -16,14 +16,20 @@
 
 package com.trivago.triava.tcache.statistics;
 
+import java.io.Serializable;
+
 
 
 
 /**
  * Hold statistics for tCache, for example number of elements and hit count.
  */
-public class TCacheStatistics implements TCacheStatisticsInterface
+public class TCacheStatistics implements TCacheStatisticsInterface, Serializable
 {
+	/**
+	 * Must be Serializable due to JSR107 requirements (MXBean)
+	 */
+	private static final long serialVersionUID = 4437080071261415107L;
 	private String id;
 	private float hitRatio; 
 	/**
@@ -37,6 +43,7 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 	private long hitCount;
 	private long missCount;
 	private long putCount;
+	private long removeCount;
 	private long dropCount;
 	private long evictionCount;
 	private long elementCount;
@@ -87,6 +94,18 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 	{
 		this.putCount = putCount;
 	}
+
+	public long getRemoveCount()
+	{
+		return removeCount;
+	}
+	
+	@Override
+	public void setRemoveCount(long removeCount)
+	{
+		this.removeCount = removeCount;
+	}
+
 
 	public long getEvictionCount()
 	{
@@ -151,6 +170,8 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 		builder.append(missCount);
 		builder.append(", putCount=");
 		builder.append(putCount);
+		builder.append(", removeCount=");
+		builder.append(removeCount);
 		builder.append(", dropCount=");
 		builder.append(dropCount);
 		builder.append(", evictionCount=");
@@ -202,6 +223,4 @@ public class TCacheStatistics implements TCacheStatisticsInterface
 	{
 		this.id = id;
 	}	
-
-	
 }

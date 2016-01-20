@@ -28,6 +28,7 @@ public class StandardStatisticsCalculator implements StatisticsCalculator
 	private final AtomicLong cacheHitCount  = new AtomicLong();
 	private final AtomicLong cacheMissCount = new AtomicLong();
 	private final AtomicLong cachePutCount = new AtomicLong();
+	private final AtomicLong cacheRemoveCount = new AtomicLong();
 	private final AtomicLong cacheDropCount = new AtomicLong();
 
 	private final AtomicLong cacheHitCountPrevious  = new AtomicLong();
@@ -110,6 +111,18 @@ public class StandardStatisticsCalculator implements StatisticsCalculator
 	public long getDropCount()
 	{
 		return cacheDropCount.get();
+	}
+
+	@Override
+	public void incrementRemoveCount()
+	{
+		cacheRemoveCount.incrementAndGet();
+	}
+
+	@Override
+	public long getRemoveCount()
+	{
+		return cacheRemoveCount.get();
 	}
 
 }

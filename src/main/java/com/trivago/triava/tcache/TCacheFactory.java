@@ -32,6 +32,7 @@ import javax.cache.configuration.Configuration;
 import javax.cache.spi.CachingProvider;
 
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.core.Builder.PropsType;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
@@ -54,13 +55,15 @@ public class TCacheFactory implements Closeable, CacheManager
 	final private URI uri;
 	AtomicInteger uriSeqno = new AtomicInteger();
 	final ClassLoader classloader;
-	Properties properties = new Properties();
+	final Properties properties;
 
 	static final TCacheFactory standardFactory = new TCacheFactory();
 
 	public TCacheFactory()
 	{
 		classloader = Thread.currentThread().getContextClassLoader();
+		properties = defaultProperties();
+
 		int seqno = uriSeqno.incrementAndGet();
 		String uriString = "tcache:/manager-" + seqno;
 		try
@@ -73,6 +76,20 @@ public class TCacheFactory implements Closeable, CacheManager
 		}
 	}
 	
+	public TCacheFactory(URI uri, ClassLoader classLoader)
+	{
+		this.classloader = classLoader;
+		this.uri = uri;
+		properties = defaultProperties();
+	}
+
+	public TCacheFactory(URI uri, ClassLoader classLoader, Properties properties)
+	{
+		this.classloader = classLoader;
+		this.uri = uri;
+		this.properties = new Properties(properties);
+	}
+
 	/**
 	 * Returns the standard factory. The factory can produce Builder instances via {@link #builder()}.
 	 * <br>
@@ -85,6 +102,14 @@ public class TCacheFactory implements Closeable, CacheManager
 	{
 		return standardFactory;
 	}
+
+	private Properties defaultProperties()
+	{
+		// A new builder holds the default properties
+		Builder<?, ?> builder = new Builder<>(null);
+		return builder.asProperties(PropsType.CacheManager);
+	}
+
 
 	/**
 	 * Returns a Builder 
@@ -290,20 +315,48 @@ public class TCacheFactory implements Closeable, CacheManager
 	}
 
 	@Override
-	public void enableManagement(String arg0, boolean arg1)
+	public void enableManagement(String cacheName, boolean enable)
 	{
-		// TODO Auto-generated method stub
+		Cache<Object, Object> tCache = getTCacheWithChecks(cacheName);
+		if (tCache != null)
+		{
+			tCache.enableManagement(enable);
+		}
 		
 	}
 
 	@Override
 	public void enableStatistics(String cacheName, boolean enable)
 	{
-		Cache<Object, Object> tCache = getTCache(cacheName);
+		Cache<Object, Object> tCache = getTCacheWithChecks(cacheName);
 		if (tCache != null)
 		{
 			tCache.enableStatistics(enable);
 		}
+	}
+	
+	/**
+	 * Returns the Cache with the given name
+	 * 
+	 * @param cacheName
+	 * @return A reference to the Cache, or null if it is not present in this CacheManager
+	 * 
+	 * @throws IllegalStateException - if the CacheManager or Cache isClosed()
+	 * @throws NullPointerException - if cacheName is null
+	 * @throws SecurityException - when the operation could not be performed due to the current security settings
+	 */
+	private <K, V> Cache<K, V> getTCacheWithChecks(String cacheName)
+	{
+		if (isClosed())
+		{
+			throw new IllegalStateException();
+		}
+		if (cacheName == null)
+		{
+			throw new NullPointerException();
+		}
+		
+		return getTCache(cacheName);
 	}
 	
 	public <K, V> Cache<K, V> getTCache(String cacheName)

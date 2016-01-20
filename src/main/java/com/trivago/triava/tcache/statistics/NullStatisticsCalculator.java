@@ -48,6 +48,11 @@ public class NullStatisticsCalculator implements StatisticsCalculator
 	}
 
 	@Override
+	public void incrementRemoveCount()
+	{
+	}
+
+	@Override
 	public HitAndMissDifference tick()
 	{
 		return dummyDifference;
@@ -73,6 +78,12 @@ public class NullStatisticsCalculator implements StatisticsCalculator
 
 	@Override
 	public long getDropCount()
+	{
+		return 0;
+	}
+
+	@Override
+	public long getRemoveCount()
 	{
 		return 0;
 	}

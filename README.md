@@ -44,7 +44,10 @@ dependencies {
 ## Changes ##
 - v0.4.0 Initial version. Production ready.
 - v0.9.0 Finalizing package structure. Move existing unit tests to triava project.
-- v0.9.1 Refactoring TCacheFactory for JSR107 compliance, adding 5 methods including destroyCache().
+- v0.9.1 Implementing JSR107 compliance (work in progress)
+    - MXBean support: Configuration and Statistics
+    - Added CacheManager.destroyCache()
+    - Added JSR methods ...replace...() methods.
 
 ## License
 Licensed under the Apache License, Version 2.0

@@ -1,3 +1,19 @@
+/*********************************************************************************
+ * Copyright 2015-present trivago GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **********************************************************************************/
+
 package com.trivago.triava.tcache.eviction;
 
 import java.util.HashMap;
@@ -13,7 +29,9 @@ import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
 
+import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 
 public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 {
@@ -79,7 +97,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			return null;
 		}
 		
-		return holder.peek(); // TODO JSR107 check statistics effect
+		return holder.peek(); // TCK-WORK JSR107 check statistics effect
 	}
 
 	@Override
@@ -89,10 +107,9 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	}
 
 	@Override
-	public V getAndReplace(K arg0, V arg1)
+	public V getAndReplace(K key, V value)
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return tcache.getAndReplace(key, value);
 	}
 
 	@Override
@@ -115,15 +132,15 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	}
 
 	@Override
-	public <T> T invoke(K arg0, EntryProcessor<K, V, T> arg1, Object... arg2) throws EntryProcessorException
+	public <T> T invoke(K key, EntryProcessor<K, V, T> entryProcessor, Object... args) throws EntryProcessorException
 	{
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public <T> Map<K, EntryProcessorResult<T>> invokeAll(Set<? extends K> arg0, EntryProcessor<K, V, T> arg1,
-			Object... arg2)
+	public <T> Map<K, EntryProcessorResult<T>> invokeAll(Set<? extends K> keys, EntryProcessor<K, V, T> entryProcessor,
+			Object... args)
 	{
 		// TODO Auto-generated method stub
 		return null;
@@ -230,6 +247,17 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		// TODO Auto-generated method stub
 		return null;
+	}
+
+	TCacheConfigurationBean configurationBean = new TCacheConfigurationBean();
+	public Object getCacheConfigMBean()
+	{
+		return configurationBean;
+	}
+
+	public Object getCacheStatisticsMBean()
+	{
+		return new TCacheStatisticsBean(tcache, tcache.statisticsCalculator);
 	}
 
 }

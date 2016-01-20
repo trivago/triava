@@ -38,8 +38,10 @@ import com.trivago.triava.tcache.statistics.StandardStatisticsCalculator;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
+import com.trivago.triava.tcache.statistics.TCacheStatisticsMBean;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
+import com.trivago.triava.tcache.util.TCacheConfigurationMBean;
 import com.trivago.triava.time.EstimatorTimeSource;
 import com.trivago.triava.time.SystemTimeSource;
 import com.trivago.triava.time.TimeSource;
@@ -48,11 +50,31 @@ import com.trivago.triava.time.TimeSource;
 /**
  * A Cache that supports expiration based on expiration time and idle time.
  * The Cache can be of unbounded or bounded size. In the latter case, eviction is done using the selected strategy, for example
- * LFU, LRU, Clock or an own implemented custom eviction strategy (value-type aware).
- * This Cache class is built for maximum throughput and scalability, while allowing 
- * . The basic limitations are those of the
- * underlying ConcurrentMap implementation, as no further data structures are maintained. This is also true for
- * the subclasses that allow evictions.
+ * LFU, LRU, Clock or an own implemented custom eviction strategy (value-type aware). You can retrieve either instance by using
+ * a Builder:
+ * <pre>
+ * // Build native TCache instance
+ * Builder&lt;String, Integer&gt; builder = TCacheFactory.standardFactory().builder();
+ * builder.setXYZ(value);
+ * Cache&lt;String, Integer&gt; cache = builder.build();
+ * javax.cache.Cache&lt;String, Integer&gt; jsr107cache = tcache.jsr107cache();
+ * </pre>
+ * The last line above is optional, to get a JSR107 compliant Cache instance. Alternatively that could also be created via the JSR107 API:
+ * <pre>
+ * // Build JSR107 Cache instance
+ * CachingProvider cachingProvider = Caching.getCachingProvider();
+ * CacheManager cacheManager = cachingProvider.getCacheManager();
+ * MutableConfiguration<String, Integer> config = new MutableConfiguration<>()
+ *   .setXYZ(value); // Configure
+ * javax.cache.Cache&lt;String, Integer&gt; cache = cacheManager.createCache("simpleCache", config);  // Build
+ * </pre>
+ * 
+ * <p>
+ * Implementation note:
+ * This Cache class is built for maximum throughput and scalability, by executing CPU intensive tasks like evictions in
+ * separate Threads.
+ * The basic limitations are those of the underlying ConcurrentMap implementation, as no further data
+ * structures are maintained. This is also true for the subclasses that allow evictions.
  * 
  * @author Christian Esken
  * @since 2009-06-10
@@ -122,12 +144,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 
 		/**
-		 * Return the data, without modifying metadata like access time.
-		 * <p> 
-		 * This is a workaround, as there are currently use cases that iterate the whole cache.
-		 * They should not modify use count or access time.
-		 * <p>
-		 * Future directions: Offer a better method for iteration, like an iterator or a Java 8 stream.
+		 * Return the data, without modifying statistics or any other metadata like access time.
 		 * 
 		 * @return The value of this holder 
 		 */
@@ -300,6 +317,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	public Cache(Builder<K,V> builder)
 	{
 		this.id = builder.getId();
+		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
 		this.maxCacheTime = builder.getMaxCacheTime();
 		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
 		this.defaultMaxIdleTime = builder.getMaxIdleTime();
@@ -314,7 +332,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		
 		enableStatistics(builder.getStatistics());
 		
-		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
 	    activateTimeSource();
 	    
 		builder.getFactory().registerCache(this);
@@ -331,7 +348,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * Returns a size factor for the map for the specific eviction strategy of this Cache. The default implementation
-	 * returns 1, as it does not evict. Values bigger than 1 mean to size the underlying ConcurrentMap bigger, if
+	 * returns 0, as it does not evict. Values bigger than 1 mean to size the underlying ConcurrentMap bigger, if
 	 * it requires that.
 	 * 
 	 * @return Size factor for the map
@@ -639,11 +656,24 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	public boolean replace(K key, V value)
 	{
+		V oldValue = getAndReplace(key, value);
+		return (oldValue != null);
+	}
+
+	/**
+	 * TCK-WORK JSR107 check statistics effect
+	 * 
+	 * @param key
+	 * @param value
+	 * @return
+	 */
+	public V getAndReplace(K key, V value)
+	{
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread());
 		AccessTimeObjectHolder<V> oldValue = this.objects.replace(key, newHolder);
 
-		return (oldValue != null);
+		return oldValue == null ? null : oldValue.peek();
 	}
 	
 	public boolean replace(K key, V oldValue, V newValue)
@@ -776,6 +806,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		cacheStatistic.setHitRatio(getCacheHitrate());
 		cacheStatistic.setElementCount(objects.size());
 		cacheStatistic.setPutCount(statisticsCalculator.getPutCount());
+		cacheStatistic.setRemoveCount(statisticsCalculator.getRemoveCount());
 		cacheStatistic.setDropCount(statisticsCalculator.getDropCount());
 		return cacheStatistic;
 	}
@@ -800,6 +831,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * Returns the Cache hit rate. The returned value is the average of the last n measurements (2012-10-16: n=5).
 	 * Implementation note: This method should be called in regular intervals, because it also updates
 	 * its "hit rate statistics array".
+	 * 
+	 * Future direction: This method overlaps functionality, which is now provided by SlidingWindowCounter.
+	 * Thus migrate the hit rate to use SlidingWindowCounter.
 	 * 
 	 * @return The Cache hit rate in percent (0-100)
 	 */
@@ -973,7 +1007,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		if (holder == null)
 			return false;
 
-		// TODO JSR107 This implementation is not checked for for operating ATOMICALLY.    
+		// WORK TCK JSR107 This implementation is not yet checked for for operating ATOMICALLY.    
 		V holderValue = holder.peek();
 		if (!holderValue.equals(value))
 			return false;
@@ -982,6 +1016,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		if (removed)
 		{
 			releaseHolder(holder);
+			statisticsCalculator.incrementRemoveCount();
 		}
 		return removed;
 	}
@@ -1074,7 +1109,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 
 	/**
-	 * Returns true if this map contains a mapping for the specified key.
+	 * Returns true if this Cache contains a mapping for the specified key.
 	 * 
 	 * @see java.util.concurrent.ConcurrentMap#containsKey(Object)
 	 */
@@ -1120,7 +1155,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
-	public javax.cache.Cache<K, V> jsr107cache()
+	public TCacheJSR107<K, V> jsr107cache()
 	{
 		return tCacheJSR107;
 	}
@@ -1128,18 +1163,78 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	public void enableStatistics(boolean enable)
 	{
-		boolean currentlyEnabled = !(statisticsCalculator instanceof NullStatisticsCalculator);
+		boolean currentlyEnabled = statisticsCalculator != null && !(statisticsCalculator instanceof NullStatisticsCalculator);
 		if (enable)
 		{
 			if (currentlyEnabled)
+			{
 				return; // No change => Do not create new statisticsCalculator as it would discard the old statistics.
+			}
 			else
+			{
 				statisticsCalculator = new StandardStatisticsCalculator();
+				TCacheStatisticsMBean.instance().register(this);
+			}
 		}
 		else
 		{
 			statisticsCalculator = new NullStatisticsCalculator();
+			TCacheStatisticsMBean.instance().unregister(this);
 		}
 		
 	}
+
+
+	public void enableManagement(boolean enable)
+	{
+		if (enable)
+		{
+			TCacheConfigurationMBean.instance().register(this);
+		}
+		else
+		{
+			TCacheConfigurationMBean.instance().unregister(this);
+		}
+	}
+
+//	public static final class TCacheJSR106Holder<K, V> implements javax.cache.Cache.Entry<K, V>
+//	{
+//		final K key;
+//		final TCacheHolder<V> holder;
+//		
+//		
+//		public TCacheJSR106Holder(K key, TCacheHolder<V> holder)
+//		{
+//			this.key = key;
+//			this.holder = holder;
+//		}
+//
+//		@Override
+//		public K getKey()
+//		{
+//			return key;
+//		}
+//
+//		@Override
+//		public V getValue()
+//		{
+//			return holder.peek();
+//		}
+//
+//
+//		@Override
+//		public <T> T unwrap(Class<T> clazz)
+//		{
+//			if (!(clazz.isAssignableFrom(TCacheHolder.class)))
+//				throw new IllegalArgumentException("Cannot unwrap to unsupported Class " + clazz);
+//			
+//			
+//			@SuppressWarnings("unchecked")
+//			T holderCast = (T)holder;
+//			return holderCast;
+//		}
+//		
+//	}
+
+
 }

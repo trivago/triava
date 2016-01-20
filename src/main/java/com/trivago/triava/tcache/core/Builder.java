@@ -16,6 +16,7 @@
 
 package com.trivago.triava.tcache.core;
 
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.cache.configuration.Configuration;
@@ -42,6 +43,8 @@ import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
  */
 public class Builder<K,V> implements Configuration<K, V>
 {
+	private static final long serialVersionUID = -4430382287782891844L;
+
 	static final AtomicInteger anonymousCacheId = new AtomicInteger();
 
 	long MAX_IDLE_TIME = 1800; // 30 minutes
@@ -404,7 +407,6 @@ public class Builder<K,V> implements Configuration<K, V>
 //			case PerfTestGuavaLocalCache:
 //				return new GuavaLocalCache<K, V>();
 			case HighscalelibNonBlockingHashMap:
-				// throw new IllegalArgumentException("NonBlockingHashMap not yet implemented");
 				return new HighscalelibNonBlockingHashMap<K, V>();
 			default:
 				return null;
@@ -447,4 +449,36 @@ public class Builder<K,V> implements Configuration<K, V>
 		// TODO Auto-generated method stub
 		return false;
 	}
+
+	public enum PropsType { CacheManager, Cache }; // should be package-private
+	/**
+	 * Returns a representation of the Configuration as Properties.
+	 * The returned properties are a private copy for the caller and thus not shared amongst different callers.
+	 * Changes to the returned Properties have no effect on the Cache.
+	 * 
+	 * @param propsType If PropsType.CacheManager, the Cache specific properties (cacheName, cacheLoaderClass) are excluded
+	 * @return The current configuration
+	 */
+	public Properties asProperties(PropsType propsType)
+	{
+		boolean propsForCache = propsType == PropsType.Cache;
+		Properties props = new Properties();
+		
+		if (propsForCache)
+			props.setProperty("cacheName", id);
+		props.setProperty("maxIdleTime", Long.toString(maxIdleTime));
+		props.setProperty("maxCacheTime", Long.toString(maxCacheTime));
+		props.setProperty("maxCacheTimeSpread", Long.toString(maxCacheTimeSpread));
+		props.setProperty("expectedMapSize", Integer.toString(expectedMapSize));
+		props.setProperty("concurrencyLevel", Integer.toString(concurrencyLevel));
+		props.setProperty("evictionPolicy", evictionPolicy.toString());
+		props.setProperty("hashMapClass", hashImplementation.toString());
+		props.setProperty("jamPolicy", jamPolicy.toString());
+		props.setProperty("statistics", Boolean.toString(statistics));
+		if (propsForCache)
+			props.setProperty("cacheLoaderClass", loader == null ? "null" : loader.getClass().getName());
+		
+		return props;
+	}
+
 }
