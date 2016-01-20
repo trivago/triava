@@ -16,7 +16,18 @@
 
 package com.trivago.triava.tcache;
 
+/**
+ * The JamPolicy defines behavior when there is a jam in the cache.
+ * A jam is the situation when the cache is (over)full and a new element should be put into the cache.
+ * The Cache.put() method will either wait for free space (WAIT) or not add the new element (DROP).
+ * 
+ * @author cesken
+ *
+ */
 public enum JamPolicy
 {
-	DROP, WAIT
+	/** Drop new element when adding an element and the cache is full */
+	DROP,
+	/** Wait for free space when adding an element and the cache is full */
+	WAIT
 }
