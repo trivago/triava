@@ -28,8 +28,8 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
  * 
  * @author cesken
  *
- * @param <K>
- * @param <V>
+ * @param <K> The key class
+ * @param <V> The value class
  */
 abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 {

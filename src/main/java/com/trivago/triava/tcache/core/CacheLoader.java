@@ -20,16 +20,18 @@ package com.trivago.triava.tcache.core;
  * A CacheLoader implements on-the-fly retrieval of values which are not yet in the Cache.  
  * @author cesken
  *
- * @param <K>
- * @param <V>
+ * @param <K> The key class
+ * @param <V> The value class
  */
 public interface CacheLoader<K, V>
 {
 	/**
-	 * Computes or retrieves the value corresponding to {@code key}.
+	 * Computes or retrieves the value corresponding to {@code key}. Failures to load the
+	 * value must throw an Exception.
 	 *
 	 * @param key the non-null key whose value should be loaded
 	 * @return the value associated with {@code key}; <b>must not be null</b>
+	 * @throws Exception The cause if loading the value has failed 
 	 */
     V load(K key) throws Exception;
 }

@@ -29,8 +29,8 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
  *  
  * @author cesken
  *
- * @param <K>
- * @param <V>
+ * @param <K> The key class
+ * @param <V> The value class
  */
 public class HighscalelibNonBlockingHashMap<K,V> implements StorageBackend<K, V>
 {

@@ -64,7 +64,7 @@ import com.trivago.triava.time.TimeSource;
  * // Build JSR107 Cache instance
  * CachingProvider cachingProvider = Caching.getCachingProvider();
  * CacheManager cacheManager = cachingProvider.getCacheManager();
- * MutableConfiguration<String, Integer> config = new MutableConfiguration<>()
+ * MutableConfiguration&lt;String, Integer&gt; config = new MutableConfiguration&lt;&gt;()
  *   .setXYZ(value); // Configure
  * javax.cache.Cache&lt;String, Integer&gt; cache = cacheManager.createCache("simpleCache", config);  // Build
  * </pre>
@@ -104,7 +104,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		// 36
 		
 		/**
-		 * @param data
+		 * Construct a holder
+		 * 
+		 * @param data The value to store in this holder
 		 * @param maxIdleTime Maximum idle time in seconds
 		 * @param maxCacheTime Maximum cache time in seconds 
 		 */
@@ -312,7 +314,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * Construct a Cache, using the given configuration from the Builder.
-	 * @param builder
+	 * @param builder The builder containing the configuration
 	 */
 	public Cache(Builder<K,V> builder)
 	{
@@ -348,10 +350,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * Returns a size factor for the map for the specific eviction strategy of this Cache. The default implementation
-	 * returns 0, as it does not evict. Values bigger than 1 mean to size the underlying ConcurrentMap bigger, if
-	 * it requires that.
-	 * 
-	 * @return Size factor for the map
+	 * returns 0, as it does not use any extra space.
+	 *
+	 * @param builder The builder containing the configuration
+	 * @return The number of extra elements required in the storage Map.
 	 */
 	protected int evictionExtraSpace(Builder<K, V> builder)
 	{
@@ -409,7 +411,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * will continue running until the given thread has stopped or the timeout has passed.
 	 * 
 	 * @param thread The target thread
-	 * @param millis
+	 * @param millis The number of milliseconds to wait
+	 * @param nanos The number of nanoseconds to wait
 	 * @return true if the thread is not running, false if it is alive.
 	 */
 	public boolean joinSimple(Thread thread, long millis, int nanos)
@@ -479,7 +482,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * 
-	 * @return MAx idle time in seconds
+	 * @return The maximum idle time in seconds 
 	 */
 	public long getDefaultMaxIdleTime()
 	{
@@ -496,12 +499,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * Add an object to the cache under the given key, using the default idle time and default cache time.
-	 * @param pKey
-	 * @param pData
+	 * @param key The key
+	 * @param value The value
 	 */
-	public void put(K pKey, V pData)
+	public void put(K key, V value)
 	{
-		put(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread());
+		put(key, value, this.defaultMaxIdleTime, cacheTimeSpread());
 	}
 	
 	
@@ -517,14 +520,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 
 	/**
-	 * Add an object to the cache under the given key with the given cache time in seconds
-	 * @param pKey
-	 * @param pData
-	 * @param pMaxIdleTime
+	 * Add an object to the cache under the given key with the given idle and cache times.
+	 * @param key The key
+	 * @param value The value
+	 * @param maxIdleTime The idle time in seconds
+	 * @param maxCacheTime The cache time in seconds
 	 */
-	public void put(K pKey, V pData, long pMaxIdleTime, long maxCacheTime)
+	public void put(K key, V value, long maxIdleTime, long maxCacheTime)
 	{
-		putToMap(pKey, pData, pMaxIdleTime, maxCacheTime, false);
+		putToMap(key, value, maxIdleTime, maxCacheTime, false);
 	}
 
 	/**
@@ -534,24 +538,33 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * is a treated as a read operation and thus updates the hit or miss counters. Rationale is that the
 	 * putIfAbsent() result is usually evaluated by the caller.
 	 * 
-	 * @param pKey
-	 * @param pData
+	 * @param key The key
+	 * @param value The value
 	 * @param pMaxIdleTime Maximum idle time in seconds
 	 * @param maxCacheTime Maximum cache time in seconds
 	 * @return See {@link ConcurrentHashMap#putIfAbsent(Object, Object)}
 	 */
-	public V putIfAbsent(K pKey, V pData, long pMaxIdleTime, long maxCacheTime)
+	public V putIfAbsent(K key, V value, long pMaxIdleTime, long maxCacheTime)
 	{
-		AccessTimeObjectHolder<V> holder = putToMap(pKey, pData, pMaxIdleTime, maxCacheTime, true);
+		AccessTimeObjectHolder<V> holder = putToMap(key, value, pMaxIdleTime, maxCacheTime, true);
 		if ( holder == null )
 			return null;
 		else
 			return holder.data;
 	}
 	
-	public V putIfAbsent(K pKey, V pData)
+	/**
+	 * The same like {@link #putIfAbsent(Object, Object, long, long)}, but uses
+	 * the default idle and cache times. The cache time will use the cache time spread if this cache
+	 * is configured to use it.
+	 * 
+	 * @param key The key
+	 * @param value The value
+	 * @return See {@link ConcurrentHashMap#putIfAbsent(Object, Object)}
+	 */
+	public V putIfAbsent(K key, V value)
 	{
-		AccessTimeObjectHolder<V> holder = putToMap(pKey, pData, this.defaultMaxIdleTime, cacheTimeSpread(), true);
+		AccessTimeObjectHolder<V> holder = putToMap(key, value, this.defaultMaxIdleTime, cacheTimeSpread(), true);
 		
 		if (holder == null)
 		{
@@ -1155,12 +1168,24 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
+	/**
+	 * Returns a JSR107 compliant view on this Cache. The returned instance is a view of the native tCache,
+	 * so any operation on it or this will be visible by the other instance. 
+	 * 
+	 * @return A JSR107 compliant view on this Cache 
+	 */
 	public TCacheJSR107<K, V> jsr107cache()
 	{
 		return tCacheJSR107;
 	}
 
 
+	/**
+	 * Enables or disables statistics. If enabled, the statistics are available both via {@link #statistics()} and also
+	 * by JSR107 compliant MXBeans. Disabling statistics will discard all statistics.
+	 *  
+	 * @param enable true for enabling statistics.
+	 */
 	public void enableStatistics(boolean enable)
 	{
 		boolean currentlyEnabled = statisticsCalculator != null && !(statisticsCalculator instanceof NullStatisticsCalculator);

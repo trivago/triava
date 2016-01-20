@@ -24,8 +24,8 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
  * The basic interface for providing a storage backend that holds the values of  
  * @author cesken
  *
- * @param <K>
- * @param <V>
+ * @param <K> The key class
+ * @param <V> The value class
  */
 public interface StorageBackend<K,V>
 {

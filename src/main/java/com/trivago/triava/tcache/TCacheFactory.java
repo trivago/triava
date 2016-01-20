@@ -277,6 +277,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	 * <b>USE WITH CARE!!!</b>
 	 * 
 	 * @param objectSizeCalculator An implementation that can calculate the deep size of an Object tree 
+	 * @return A map with the cacheName as key and the CacheSizeInfo as value
 	 */
 	public Map<String, CacheSizeInfo> reportAllCacheSizes(ObjectSizeCalculatorInterface objectSizeCalculator)
 	{
