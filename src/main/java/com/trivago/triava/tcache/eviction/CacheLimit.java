@@ -345,6 +345,11 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			evictionClass.afterEviction();
 		}
 		
+		/**
+		 * Evict optimally according to eviction policy by inspecting ALL Cache entries.
+		 * The values to be compared are frozen, so that comparisons
+		 * are consistent during the eviction.  
+		 */
 		protected void evictWithFreezer()
 		{
 			int elemsToRemovePreCheck = elementsToRemove();
@@ -360,7 +365,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 				 * 
 				 * This thread: evictionIsRunning = true;
 				 * 
-				 * In that case, if we wouldn't check at the beginning of this method, we would first go
+				 * For the case described above: If we wouldn't check at the beginning of this method, we would first go
 				 * through the entrySet() (which can be very expensive due to CHM locking) only to find out
 				 * shortly after that there is no work to do.
 				 */
