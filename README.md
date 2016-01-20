@@ -3,7 +3,7 @@
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
 ## Building:
-triava has no dependencies apart from Java 7. The following will build everything, including Javadoc and a source jar:
+triava requires Java 7 and depends on the JSR107 API javax.cache:cache-api:1.0.0. Dependencies are resolved by Maven. The following will build everything, including Javadoc and a source jar:
 
 `mvn package`
 
