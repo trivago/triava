@@ -540,4 +540,110 @@ public class Builder<K,V> implements Configuration<K, V>
 
 	}
 
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + concurrencyLevel;
+		result = prime * result + ((evictionClass == null) ? 0 : evictionClass.hashCode());
+		result = prime * result + ((evictionPolicy == null) ? 0 : evictionPolicy.hashCode());
+		result = prime * result + expectedMapSize;
+		result = prime * result + ((factory == null) ? 0 : factory.hashCode());
+		result = prime * result + ((hashImplementation == null) ? 0 : hashImplementation.hashCode());
+		result = prime * result + ((id == null) ? 0 : id.hashCode());
+		result = prime * result + ((jamPolicy == null) ? 0 : jamPolicy.hashCode());
+		result = prime * result + ((keyType == null) ? 0 : keyType.hashCode());
+		result = prime * result + ((loader == null) ? 0 : loader.hashCode());
+		result = prime * result + mapConcurrencyLevel;
+		result = prime * result + (int) (maxCacheTime ^ (maxCacheTime >>> 32));
+		result = prime * result + maxCacheTimeSpread;
+		result = prime * result + (int) (maxIdleTime ^ (maxIdleTime >>> 32));
+		result = prime * result + (statistics ? 1231 : 1237);
+		result = prime * result + ((valueType == null) ? 0 : valueType.hashCode());
+		result = prime * result + ((writeMode == null) ? 0 : writeMode.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		if (! (obj instanceof Builder))
+			return false;
+
+		Builder<?,?> other = (Builder<?,?>) obj;
+		if (concurrencyLevel != other.concurrencyLevel)
+			return false;
+		if (evictionClass == null)
+		{
+			if (other.evictionClass != null)
+				return false;
+		}
+		else if (!evictionClass.equals(other.evictionClass))
+			return false;
+		if (evictionPolicy != other.evictionPolicy)
+			return false;
+		if (expectedMapSize != other.expectedMapSize)
+			return false;
+		if (factory == null)
+		{
+			if (other.factory != null)
+				return false;
+		}
+		else if (!factory.equals(other.factory))
+			return false;
+		if (hashImplementation != other.hashImplementation)
+			return false;
+		if (id == null)
+		{
+			if (other.id != null)
+				return false;
+		}
+		else if (!id.equals(other.id))
+			return false;
+		if (jamPolicy != other.jamPolicy)
+			return false;
+		if (keyType == null)
+		{
+			if (other.keyType != null)
+				return false;
+		}
+		else if (!keyType.equals(other.keyType))
+			return false;
+		if (loader == null)
+		{
+			if (other.loader != null)
+				return false;
+		}
+		else if (!loader.equals(other.loader))
+			return false;
+		if (mapConcurrencyLevel != other.mapConcurrencyLevel)
+			return false;
+		if (maxCacheTime != other.maxCacheTime)
+			return false;
+		if (maxCacheTimeSpread != other.maxCacheTimeSpread)
+			return false;
+		if (maxIdleTime != other.maxIdleTime)
+			return false;
+		if (statistics != other.statistics)
+			return false;
+		if (valueType == null)
+		{
+			if (other.valueType != null)
+				return false;
+		}
+		else if (!valueType.equals(other.valueType))
+			return false;
+		if (writeMode != other.writeMode)
+			return false;
+		return true;
+	}
+
+	
 }
