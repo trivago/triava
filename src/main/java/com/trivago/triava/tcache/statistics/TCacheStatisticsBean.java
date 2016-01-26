@@ -62,7 +62,7 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 		}
 		else
 		{
-			return 100F * getCacheGets() / getCacheGets();
+			return 100F * getCacheHits() / getCacheGets();
 		}
 	}
 
