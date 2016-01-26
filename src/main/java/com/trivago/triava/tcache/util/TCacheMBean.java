@@ -5,6 +5,7 @@ import java.util.Set;
 
 import javax.cache.CacheException;
 import javax.management.MBeanServer;
+import javax.management.MBeanServerFactory;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
@@ -22,14 +23,32 @@ import com.trivago.triava.tcache.eviction.TCacheJSR107;
  */
 public abstract class TCacheMBean
 {
-// JSR107 RI creates its own MBeanServer. There was a discussion on the JSR107 ML about this.
-// At the moment TCache will register on the PlatformMBeanServer
-//	private final static MBeanServer mBeanServer = MBeanServerFactory.createMBeanServer();
-	private final static MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+	private final static MBeanServer mBeanServer;
 	
 	abstract public String objectNameType();
 	abstract public Object getMBean(TCacheJSR107<?, ?> jsr107cache);
 
+	static
+	{
+		/**
+		 *  JSR107 RI creates its own MBeanServer. There was a discussion on the JSR107 ML about this.
+		 *  There is also a ticket that indicates a JSR107 compliant implementation should
+		 *  inspect the system property "org.jsr107.tck.management.agentId":
+		 *      https://github.com/jsr107/jsr107tck/issues/83
+		 *      
+		 *  tCache follows the logic in the ticket in the implementation and either registers
+		 *  on the PlatformMBeanServer or creates one with the domain from the system property.
+		 */
+		String agentId = System.getProperty("org.jsr107.tck.management.agentId");
+		if (agentId == null)
+		{
+			mBeanServer = ManagementFactory.getPlatformMBeanServer();
+		}
+		else
+		{
+			mBeanServer = MBeanServerFactory.createMBeanServer(agentId);
+		}
+	}
 	public void register(Cache<?,?> cache)
 	{
 		TCacheJSR107<?, ?> jsr107cache = cache.jsr107cache();
@@ -39,7 +58,8 @@ public abstract class TCacheMBean
 		{
 			// Do not register twice. Actually this contains a race condition due to a
 			// check-then-act "isRegistered() => registerMBean()" action, but it should not be
-			// a problem for us. Either it happens during 
+			// a problem for us, because there are never two caches with the same name alive at the
+			// same time.
 			return;
 		}
 		
