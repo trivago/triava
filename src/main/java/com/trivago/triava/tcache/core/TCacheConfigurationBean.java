@@ -18,9 +18,16 @@ package com.trivago.triava.tcache.core;
 
 import javax.cache.management.CacheMXBean;
 
-// TODO cesken Implement
-public class TCacheConfigurationBean implements CacheMXBean
+import com.trivago.triava.tcache.eviction.Cache;
+
+public class TCacheConfigurationBean<K,V> implements CacheMXBean
 {
+	final Cache<K, V> tcache;
+	
+	public TCacheConfigurationBean(Cache<K, V> tcache)
+	{
+		this.tcache = tcache;
+	}
 
 	@Override
 	public String getKeyType()
@@ -39,36 +46,31 @@ public class TCacheConfigurationBean implements CacheMXBean
 	@Override
 	public boolean isReadThrough()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return false; // tCache is single-level Cache => always false
 	}
 
 	@Override
 	public boolean isWriteThrough()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return false; // tCache is single-level Cache => always false
 	}
 
 	@Override
 	public boolean isStoreByValue()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return tcache.isStoreByValue();
 	}
 
 	@Override
 	public boolean isStatisticsEnabled()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return tcache.isStatisticsEnabled();
 	}
 
 	@Override
 	public boolean isManagementEnabled()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return tcache.isManagementEnabled();
 	}
 
 }

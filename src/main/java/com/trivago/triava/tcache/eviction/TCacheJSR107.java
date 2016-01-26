@@ -38,11 +38,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 {
 	final Cache<K,V> tcache;
 	final CacheManager cacheManager;
-	
+	final TCacheConfigurationBean<K,V> configurationBean;
+
 	TCacheJSR107(Cache<K,V> tcache, CacheManager cacheManager)
 	{
 		this.tcache = tcache;
 		this.cacheManager = cacheManager;
+		this.configurationBean = new TCacheConfigurationBean<K,V>(tcache);
 	}
 	
 	@Override
@@ -254,7 +256,6 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		return cacheCasted;
 	}
 
-	TCacheConfigurationBean configurationBean = new TCacheConfigurationBean();
 	public Object getCacheConfigMBean()
 	{
 		return configurationBean;

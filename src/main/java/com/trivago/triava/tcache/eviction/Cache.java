@@ -274,6 +274,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 	final private String id;
+	final Builder<K,V> builder; // A reference to the Builder that created this Cache
 	private final static long baseTimeMillis = System.currentTimeMillis();
 	// idle time in seconds
 	private final long defaultMaxIdleTime;
@@ -326,6 +327,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	public Cache(Builder<K,V> builder)
 	{
 		this.id = builder.getId();
+		this.builder = builder;
 		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
 		this.maxCacheTime = builder.getMaxCacheTime();
 		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
@@ -857,6 +859,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	final static long CACHE_HITRATE_MAX_VALIDITY_MILLIS = 1*60*1000; // 1 Minute
 
 	private long cacheHitRatePreviousTimeMillis = System.currentTimeMillis();
+	private boolean managementEnabled = false;
 //	@ObjectSizeCalculatorIgnore
 	protected static TimeSource millisEstimator = null; 
 	protected static Object millisEstimatorLock = new Object(); 
@@ -1211,7 +1214,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public void enableStatistics(boolean enable)
 	{
-		boolean currentlyEnabled = statisticsCalculator != null && !(statisticsCalculator instanceof NullStatisticsCalculator);
+		boolean currentlyEnabled = isStatisticsEnabled();
 		if (enable)
 		{
 			if (currentlyEnabled)
@@ -1243,6 +1246,25 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		{
 			TCacheConfigurationMBean.instance().unregister(this);
 		}
+		managementEnabled = enable;
+	}
+
+	public boolean isStoreByValue()
+	{
+		return builder.isStoreByValue();
+	}
+
+
+	public boolean isStatisticsEnabled()
+	{
+		boolean currentlyEnabled = statisticsCalculator != null && !(statisticsCalculator instanceof NullStatisticsCalculator);
+		return currentlyEnabled;
+	}
+
+
+	public boolean isManagementEnabled()
+	{
+		return managementEnabled;
 	}
 
 //	public static final class TCacheJSR106Holder<K, V> implements javax.cache.Cache.Entry<K, V>
