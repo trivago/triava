@@ -243,6 +243,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	*
 	 current security settings
 	*/
+	@Override
 	public void close()
 	{
 		for (Cache<?, ?> cache : CacheInstances)
@@ -264,6 +265,7 @@ public class TCacheFactory implements Closeable, CacheManager
 		close();
 	}
 
+	@Override
 	public boolean isClosed()
 	{
 		return closed;
@@ -317,6 +319,7 @@ public class TCacheFactory implements Closeable, CacheManager
 			throw new NullPointerException("cacheName is null"); // JSR-107 compliance
 		}
 
+		// Create a new Builder, this will copy the configuration.
 		Builder<K,V> builder = new Builder<>(this, configuration);
 		Cache<K, V> tcache = builder.build();
 		return tcache.jsr107cache();
@@ -325,7 +328,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	@Override
 	public void enableManagement(String cacheName, boolean enable)
 	{
-		Cache<Object, Object> tCache = getTCacheWithChecks(cacheName);
+		Cache<?, ?> tCache = getTCacheWithChecks(cacheName);
 		if (tCache != null)
 		{
 			tCache.enableManagement(enable);
@@ -336,7 +339,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	@Override
 	public void enableStatistics(String cacheName, boolean enable)
 	{
-		Cache<Object, Object> tCache = getTCacheWithChecks(cacheName);
+		Cache<?, ?> tCache = getTCacheWithChecks(cacheName);
 		if (tCache != null)
 		{
 			tCache.enableStatistics(enable);
@@ -353,7 +356,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	 * @throws NullPointerException - if cacheName is null
 	 * @throws SecurityException - when the operation could not be performed due to the current security settings
 	 */
-	private <K, V> Cache<K, V> getTCacheWithChecks(String cacheName)
+	private Cache<?, ?> getTCacheWithChecks(String cacheName)
 	{
 		if (isClosed())
 		{
@@ -367,14 +370,13 @@ public class TCacheFactory implements Closeable, CacheManager
 		return getTCache(cacheName);
 	}
 	
-	public <K, V> Cache<K, V> getTCache(String cacheName)
+	public Cache<?, ?> getTCache(String cacheName)
 	{
 		for (Cache<?, ?> registeredCache : CacheInstances)
 		{
 			if (registeredCache.id().equals(cacheName))
 			{
-				Cache<K, V> tcache = (Cache<K, V>) registeredCache;
-				return tcache;
+				return registeredCache;
 			}
 		}
 
