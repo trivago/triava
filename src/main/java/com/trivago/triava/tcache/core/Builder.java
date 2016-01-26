@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.cache.configuration.Configuration;
 
 import com.trivago.triava.annotations.Beta;
+import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
@@ -47,7 +48,7 @@ public class Builder<K,V> implements Configuration<K, V>
 
 	static final AtomicInteger anonymousCacheId = new AtomicInteger();
 
-	long MAX_IDLE_TIME = 1800; // 30 minutes
+	static long MAX_IDLE_TIME = 1800; // DEFAULT: 30 minutes
 	private String id;
 	private long maxIdleTime = MAX_IDLE_TIME; // 30 minutes
 	private long maxCacheTime = 3600; // 60 minutes
@@ -62,14 +63,30 @@ public class Builder<K,V> implements Configuration<K, V>
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = true;
 	private CacheLoader<K, V> loader = null;
+	private CacheWriteMode writeMode = null;
+	Class<K> keyType = null; // TODO JSR107 implement
+	Class<V> valueType = null; // TODO JSR107 implement
 
 	/**
-	 * During migration work, we will also have a public constructor
+	 * Native Builder
 	 */
 	public Builder(TCacheFactory factory)
 	{
+		writeMode = CacheWriteMode.Identity;
 		this.factory = factory;
 	}
+
+	/**
+	 * Builder that takes a JSR107 Configuration object to define defaults
+	 */
+	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
+	{
+		writeMode = CacheWriteMode.Clone; // JSR107 default is to copy objects.
+		this.factory = factory;
+		
+		copyBuilder(configuration, this);
+	}
+
 
 	/**
 	 * Builds a Cache from the parameters that were set. evictionType defines the eviction policy. Any not
@@ -428,26 +445,23 @@ public class Builder<K,V> implements Configuration<K, V>
 		this.loader = loader;
 		return this;
 	}
-
-	@Override
+	
+	@Override // JSR107
 	public Class<K> getKeyType()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return keyType;
 	}
 
-	@Override
+	@Override // JSR107
 	public Class<V> getValueType()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return valueType;
 	}
 
-	@Override
+	@Override // JSR107
 	public boolean isStoreByValue()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return writeMode == CacheWriteMode.Clone;
 	}
 
 	public enum PropsType { CacheManager, Cache }; // should be package-private
@@ -477,8 +491,53 @@ public class Builder<K,V> implements Configuration<K, V>
 		props.setProperty("statistics", Boolean.toString(statistics));
 		if (propsForCache)
 			props.setProperty("cacheLoaderClass", loader == null ? "null" : loader.getClass().getName());
+		props.setProperty("writeMode", writeMode.toString());
 		
 		return props;
+	}
+
+	/**
+	 * Copies the non-null values from source to target
+	 * 
+	 * @param configuration The source builder
+	 * @param target The target builder
+	 */
+	private void copyBuilder(Configuration<K, V> configuration, Builder<K, V> target)
+	{
+		if (configuration.getClass().isAssignableFrom(Builder.class))
+		{
+			Builder<K, V> sourceB = (Builder<K, V>)configuration;
+			// tCache native configuration
+			if (sourceB.id != null)
+				target.id = sourceB.id;
+			target.maxIdleTime = sourceB.maxIdleTime;
+			target.maxCacheTime = sourceB.maxCacheTime;
+			target.maxCacheTimeSpread = sourceB.maxCacheTimeSpread;
+			target.expectedMapSize = sourceB.expectedMapSize;
+			target.concurrencyLevel = sourceB.concurrencyLevel;
+			if (sourceB.evictionPolicy != null)
+				target.evictionPolicy = sourceB.evictionPolicy;
+			if (sourceB.hashImplementation != null)
+				target.hashImplementation = sourceB.hashImplementation;
+			if (sourceB.jamPolicy != null)
+				target.jamPolicy = sourceB.jamPolicy;
+			target.statistics = sourceB.statistics;
+			if (sourceB.loader != null)
+				target.loader = sourceB.loader;
+
+		
+			if (sourceB.writeMode != null)
+				target.writeMode = sourceB.writeMode;
+		}
+		else
+		{
+			// JSR107 configuration
+			boolean storeByValue = configuration.isStoreByValue();
+			target.writeMode = storeByValue ? CacheWriteMode.Clone : CacheWriteMode.Identity;
+		}
+		target.keyType = configuration.getKeyType();
+		target.valueType = configuration.getValueType();
+
 	}
 
 }
