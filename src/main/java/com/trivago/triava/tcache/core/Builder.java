@@ -35,7 +35,9 @@ import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
 import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
 
 /**
- * A builder to create Cache instances.
+ * A Builder to create Cache instances. A Builder instance must be retrieved via a TCacheFactory,
+ * to guarantee each created Cache will be registered in a CacheManager (Hint: The TCacheFactory
+ * implements CacheManager). 
  * 
  * @author cesken
  *
@@ -63,21 +65,35 @@ public class Builder<K,V> implements Configuration<K, V>
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = true;
 	private CacheLoader<K, V> loader = null;
-	private CacheWriteMode writeMode = null;
+	private CacheWriteMode writeMode = CacheWriteMode.Identity;
 	Class<K> keyType = null; // TODO JSR107 implement
 	Class<V> valueType = null; // TODO JSR107 implement
 
 	/**
-	 * Native Builder
+	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
+	 * The native Builder by default uses a STORE_BY_REFERENCE model instead of the JSR107 default of STORE_BY_VALUE. 
+	 * <p>
+	 * Any Cache created by {@link #build()} is registered in the given factory/CacheManager. 
+	 * 
+	 * @param factory The associated managing TCacheFactory/CacheManager 
 	 */
 	public Builder(TCacheFactory factory)
 	{
-		writeMode = CacheWriteMode.Identity;
 		this.factory = factory;
 	}
 
 	/**
-	 * Builder that takes a JSR107 Configuration object to define defaults
+	 * A Builder that is target for usage in JSR107 scenarios.
+	 * It takes a JSR107 Configuration object to define defaults, including the
+	 * default of STORE_BY_VALUE. Defaults for this Builder are taken from the given
+	 * configuration, which can be a plain JSR107 Configuration or a Builder itself. The
+	 * given configuration is copied, so subsequent changes to the original object will have
+	 * no effect on this Builder or any Cache created from it.
+	 * <p>
+	 * Any Cache created by {@link #build()} is registered in the given factory/CacheManager. 
+	 * 
+	 * @param factory The associated managing TCacheFactory/CacheManager 
+	 * @param configuration Cache Configuration, which can also be a Builder
 	 */
 	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
 	{
@@ -101,7 +117,9 @@ public class Builder<K,V> implements Configuration<K, V>
 	 * 
 	 * </pre>
 	 * 
-	 * @return
+	 * Any Cache created by {@link #build()} is registered in the associated factory/CacheManager. 
+	 * 
+	 * @return The Cache
 	 */
 	public Cache<K, V> build()
 	{
