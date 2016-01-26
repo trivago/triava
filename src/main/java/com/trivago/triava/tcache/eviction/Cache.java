@@ -977,6 +977,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			}
 		}
 		
+		cleaner = null;
+
 		return errorMsg;
 	}
 	
