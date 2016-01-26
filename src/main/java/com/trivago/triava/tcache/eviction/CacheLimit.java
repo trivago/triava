@@ -488,9 +488,9 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	 * Shuts down the Eviction thread.
 	 */
 	@Override
-	public void shutdown()
+	public void shutdownCustomImpl()
 	{
-		super.shutdown();
+		super.shutdownCustomImpl();
 		
 		String errorMsg = stopEvictor(MAX_SHUTDOWN_WAIT_MILLIS);
 		if (errorMsg != null)

@@ -233,13 +233,17 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			{
 				try
 				{
+					// About stopping: If interruption takes place between the lines above (while running)
+					// and the line below (sleep), the interruption gets lost and a full sleep will be done.
+					// TODO If that sleep is long (like 30s), and the shutdown Thread waits until this Thread is stopped,
+					//   the shutdown Thread will wait very long.
 					sleep(cleanUpIntervalMillis);
 					this.failedCounter = 0;
+					cleanUp();
 					if (Thread.interrupted())
 					{
 						throw new InterruptedException();
 					}
-					cleanUp();
 				}
 				catch (InterruptedException ex)
 				{
@@ -258,6 +262,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			logger.info("CleanupThread " + this.getName() + " is leaving run()");
 		}
 		
+		/**
+		 * Interrupts the {@link CleanupThread} and marks it for stopping
+		 */
 		public void cancel()
 		{
 			this.running = false;
@@ -372,10 +379,22 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * Can be overridden by implementations, if they require a custom clean up.
 	 * In overridden, super.shutdown() must be called.
 	 */
-	public void shutdown()
+	public final void shutdown()
 	{
+		shuttingDown = true;
+		shutdownCustomImpl();
 		shutdownPrivate();
 	}
+
+	/**
+	 * Shuts down the implementation specific parts. This method is called as part of {@link #shutdown()}.
+	 * The Cache is at this point already treated as closed, and {@link #isClosed()} will return true.
+	 * The default implementation does nothing.
+	 */
+	void shutdownCustomImpl()
+	{
+	}
+
 
 	public boolean isClosed()
 	{
@@ -385,12 +404,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	final static long MAX_SHUTDOWN_WAIT_MILLIS = 100; // 100 ms
 
 	/**
-	 * Shuts down this Cache. It removes all cache entries, stops the cleaner and makes sure no new entries
+	 * Shuts down this Cache. The steps are:
+	 * Disable MBeans, remove all cache entries, stop the cleaner.
 	 * can be placed in the Cache. 
 	 */
 	private void shutdownPrivate()
 	{	
-		shuttingDown = true;
+		enableStatistics(false);
+		enableManagement(false);
 		String errorMsg = stopAndClear(MAX_SHUTDOWN_WAIT_MILLIS);
 		if (errorMsg != null)
 		{
