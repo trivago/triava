@@ -51,7 +51,7 @@ public class CacheExample
 			System.out.println(cache.statistics());
 		}
 		
-		factory.shutdownAll();
+		factory.close();
 	}
 
 
