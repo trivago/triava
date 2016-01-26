@@ -311,8 +311,15 @@ public class TCacheFactory implements Closeable, CacheManager
 	public <K, V, C extends Configuration<K, V>> javax.cache.Cache<K, V> createCache(String cacheName, C configuration)
 			throws IllegalArgumentException
 	{
-		// TODO Auto-generated method stub
-		return null;
+		assertNotClosed();
+		if (cacheName == null)
+		{
+			throw new NullPointerException("cacheName is null"); // JSR-107 compliance
+		}
+
+		Builder<K,V> builder = new Builder<>(this, configuration);
+		Cache<K, V> tcache = builder.build();
+		return tcache.jsr107cache();
 	}
 
 	@Override
