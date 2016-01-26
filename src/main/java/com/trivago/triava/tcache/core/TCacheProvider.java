@@ -17,6 +17,8 @@
 package com.trivago.triava.tcache.core;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import javax.cache.CacheManager;
@@ -27,7 +29,8 @@ import com.trivago.triava.tcache.TCacheFactory;
 
 public class TCacheProvider implements CachingProvider
 {
-	TCacheProvider()
+	List<CacheManager> cacheManagers = new ArrayList<>();
+	public TCacheProvider()
 	{
 	}
 
