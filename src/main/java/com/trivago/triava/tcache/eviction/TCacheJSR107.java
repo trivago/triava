@@ -32,6 +32,7 @@ import javax.cache.processor.EntryProcessorResult;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
+import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 
 public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 {
@@ -243,10 +244,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	}
 
 	@Override
-	public <T> T unwrap(Class<T> arg0)
+	public <T> T unwrap(Class<T> clazz)
 	{
-		// TODO Auto-generated method stub
-		return null;
+		if (!(clazz.isAssignableFrom(Cache.class)))
+			throw new IllegalArgumentException("Cannot unwrap Cache to unsupported Class " + clazz);
+		
+		@SuppressWarnings("unchecked")
+		T cacheCasted = (T)tcache;
+		return cacheCasted;
 	}
 
 	TCacheConfigurationBean configurationBean = new TCacheConfigurationBean();
@@ -257,7 +262,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 	public Object getCacheStatisticsMBean()
 	{
-		return new TCacheStatisticsBean(tcache, tcache.statisticsCalculator);
+		return new TCacheStatisticsBean(tcache, tcache.statisticsCalculator, StatisticsAveragingMode.JSR107);
 	}
 
 }
