@@ -32,14 +32,6 @@ public class TCacheStatistics implements TCacheStatisticsInterface, Serializable
 	private static final long serialVersionUID = 4437080071261415107L;
 	private String id;
 	private float hitRatio; 
-	/**
-	 * @return the hitRatio
-	 */
-	public float getHitRatio()
-	{
-		return hitRatio;
-	}
-
 	private long hitCount;
 	private long missCount;
 	private long putCount;
@@ -126,6 +118,14 @@ public class TCacheStatistics implements TCacheStatisticsInterface, Serializable
 	public void setEvictionRate(long evictionRate)
 	{
 		this.evictionRate = evictionRate;
+	}
+
+	/**
+	 * @return the hitRatio
+	 */
+	public float getHitRatio()
+	{
+		return hitRatio;
 	}
 
 	@Override

@@ -28,11 +28,15 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	
 	final private StatisticsCalculator statistics;
 	final private Cache<?,?> tcache;
+	final private StatisticsAveragingMode averagingMode; 
 	
-	public TCacheStatisticsBean(Cache<?,?> tcache, StatisticsCalculator statisticsCalculator)
+	public enum StatisticsAveragingMode { JSR107, PER_MINUTE } 
+	
+	public TCacheStatisticsBean(Cache<?,?> tcache, StatisticsCalculator statisticsCalculator, StatisticsAveragingMode averagingMode)
 	{
 		this.tcache = tcache;
 		this.statistics = statisticsCalculator;
+		this.averagingMode = averagingMode;
 	}
 
 	@Override
@@ -51,8 +55,15 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	@Override
 	public float getCacheHitPercentage()
 	{
-		TCacheStatistics statistics2 = tcache.statistics();
-		return statistics2.getHitRatio();
+		if (averagingMode == StatisticsAveragingMode.PER_MINUTE)
+		{
+			TCacheStatistics statistics2 = tcache.statistics();
+			return statistics2.getHitRatio();
+		}
+		else
+		{
+			return 100F * getCacheGets() / getCacheGets();
+		}
 	}
 
 	@Override
@@ -64,7 +75,15 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	@Override
 	public float getCacheMissPercentage()
 	{
-		return 1F - getCacheHitPercentage();
+		if (averagingMode == StatisticsAveragingMode.PER_MINUTE)
+		{
+			TCacheStatistics statistics2 = tcache.statistics();
+			return 100F - statistics2.getHitRatio();
+		}
+		else
+		{
+			return 100F * getCacheMisses() / getCacheGets();
+		}
 	}
 
 	@Override
