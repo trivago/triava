@@ -321,6 +321,7 @@ public class TCacheFactory implements Closeable, CacheManager
 
 		// Create a new Builder, this will copy the configuration.
 		Builder<K,V> builder = new Builder<>(this, configuration);
+		builder.setId(cacheName);
 		Cache<K, V> tcache = builder.build();
 		return tcache.jsr107cache();
 	}
@@ -425,10 +426,14 @@ public class TCacheFactory implements Closeable, CacheManager
 	}
 
 	@Override
-	public <T> T unwrap(Class<T> arg0)
+	public <T> T unwrap(Class<T> clazz)
 	{
-		// TODO Auto-generated method stub
-		return null;
+		if (!(clazz.isAssignableFrom(TCacheFactory.class)))
+			throw new IllegalArgumentException("Cannot unwrap CacheManager to unsupported Class " + clazz);
+		
+		@SuppressWarnings("unchecked")
+		T thisCasted = (T)this;
+		return thisCasted;
 	}
 	
 
