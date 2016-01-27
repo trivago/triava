@@ -185,6 +185,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		blockStartAt = (int)Math.min(plannedSizeLong, Integer.MAX_VALUE); 
 		
 		evictNormallyElements = (int)((double)userDataElements * FREE_PERCENTAGE / 100D);
+		evictNormallyElements = Math.max(1, evictNormallyElements); // evict always 1 or more
 		evictUntilAtLeast = userDataElements - evictNormallyElements;
 		if (LOG_INTERNAL_DATA)
 		{
