@@ -45,6 +45,7 @@ public class CacheExample
 		exampleCachePut(factory);
 		exampleCachePutWithEvictionLRU(factory);
 		exampleCachePutWithEvictionLFU(factory);
+		exampleCacheEnableMBeans(factory);
 		
 		for (Cache<?, ?> cache : factory.instances())
 		{
@@ -60,6 +61,23 @@ public class CacheExample
 		Builder<Integer, String> builder = factory.builder();
 		builder.setId("exampleCachePut").setExpectedMapSize(10);
 		Cache<Integer, String> cache = builder.build();
+		
+		putElements(cache,10);
+	}
+
+	/**
+	 * Demonstrates how to enable MBeans for the native tCache implementation.
+	 * Alternatively, you could use a JSR107 CacheManager to enable the MBeans
+	 */
+	private static void exampleCacheEnableMBeans(TCacheFactory factory)
+	{
+		Builder<Integer, String> builder = factory.builder();
+		builder.setId("exampleCacheEnableMBeans").setExpectedMapSize(10);
+		Cache<Integer, String> cache = builder.build();
+		// Configuration MBean
+		cache.enableManagement(true);
+		// Statistics MBean. Actually any Cache by default has statistics enabled
+		cache.enableStatistics(true);
 		
 		putElements(cache,10);
 	}
