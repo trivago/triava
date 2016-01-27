@@ -99,8 +99,8 @@ public class Builder<K,V> implements Configuration<K, V>
 	 */
 	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
 	{
-		writeMode = CacheWriteMode.fromStoreByValue(configuration.isStoreByValue());
 		this.factory = factory;
+		// TODO JSR107 Need to check whether statistics may be enabled by default
 		
 		copyBuilder(configuration, this);
 	}
@@ -125,6 +125,11 @@ public class Builder<K,V> implements Configuration<K, V>
 	 */
 	public Cache<K, V> build()
 	{
+		if (factory == null)
+		{
+			throw new IllegalStateException("No factory set in Builder. Make sure you retrieve your Builder from TCacheFactory.");
+		}
+		
 		if (id == null)
 		{
 			id = "tcache-" + anonymousCacheId.incrementAndGet();
@@ -544,6 +549,8 @@ public class Builder<K,V> implements Configuration<K, V>
 			target.concurrencyLevel = sourceB.concurrencyLevel;
 			if (sourceB.evictionPolicy != null)
 				target.evictionPolicy = sourceB.evictionPolicy;
+			if (sourceB.evictionClass != null)
+				target.evictionClass = sourceB.evictionClass;			
 			if (sourceB.hashImplementation != null)
 				target.hashImplementation = sourceB.hashImplementation;
 			if (sourceB.jamPolicy != null)
