@@ -84,10 +84,12 @@ public class Builder<K,V> implements Configuration<K, V>
 
 	/**
 	 * A Builder that is target for usage in JSR107 scenarios.
-	 * It takes a JSR107 Configuration object to define defaults, including the
-	 * default of STORE_BY_VALUE. Defaults for this Builder are taken from the given
+	 * It takes a JSR107 Configuration object to define defaults, and its isStoreByValue() value
+	 * is converted to a CacheWriteMode using {@link CacheWriteMode#fromStoreByValue(boolean)}.
+	 * <p>
+	 * Defaults for this Builder are taken from the given
 	 * configuration, which can be a plain JSR107 Configuration or a Builder itself. The
-	 * given configuration is copied, so subsequent changes to the original object will have
+	 * given configuration is copied in both cases, so subsequent changes to the original object will have
 	 * no effect on this Builder or any Cache created from it.
 	 * <p>
 	 * Any Cache created by {@link #build()} is registered in the given factory/CacheManager. 
@@ -97,7 +99,7 @@ public class Builder<K,V> implements Configuration<K, V>
 	 */
 	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
 	{
-		writeMode = CacheWriteMode.Clone; // JSR107 default is to copy objects.
+		writeMode = CacheWriteMode.fromStoreByValue(configuration.isStoreByValue());
 		this.factory = factory;
 		
 		copyBuilder(configuration, this);
@@ -479,7 +481,8 @@ public class Builder<K,V> implements Configuration<K, V>
 	@Override // JSR107
 	public boolean isStoreByValue()
 	{
-		return writeMode == CacheWriteMode.Clone;
+		
+		return writeMode.isStoreByValue();
 	}
 
 	public enum PropsType { CacheManager, Cache }; // should be package-private
@@ -515,13 +518,19 @@ public class Builder<K,V> implements Configuration<K, V>
 	}
 
 	/**
-	 * Copies the non-null values from source to target
+	 * Copies the configuration to the target Builder. If the source (configuration)
+	 * is also a Builder, its fields also get copied. Any null-value in the
+	 * configuration is ignored in the copying process, leaving the corresponding
+	 * target value unchanged. The CacheWriteMode can be
+	 * defined in two ways: If configuration is a Builder it is copied plainly,
+	 * otherwise it is derived from configuration.isStoreByValue().
 	 * 
 	 * @param configuration The source builder
 	 * @param target The target builder
 	 */
 	private void copyBuilder(Configuration<K, V> configuration, Builder<K, V> target)
 	{
+		CacheWriteMode tcacheWriteMode = null;
 		if (configuration.getClass().isAssignableFrom(Builder.class))
 		{
 			Builder<K, V> sourceB = (Builder<K, V>)configuration;
@@ -543,16 +552,15 @@ public class Builder<K,V> implements Configuration<K, V>
 			if (sourceB.loader != null)
 				target.loader = sourceB.loader;
 
+			tcacheWriteMode = sourceB.writeMode;
+		}
 		
-			if (sourceB.writeMode != null)
-				target.writeMode = sourceB.writeMode;
-		}
+		// JSR107 configuration follows
+		if (tcacheWriteMode != null)
+			target.writeMode = tcacheWriteMode;
 		else
-		{
-			// JSR107 configuration
-			boolean storeByValue = configuration.isStoreByValue();
-			target.writeMode = storeByValue ? CacheWriteMode.Clone : CacheWriteMode.Identity;
-		}
+			target.writeMode = CacheWriteMode.fromStoreByValue(configuration.isStoreByValue());
+		
 		target.keyType = configuration.getKeyType();
 		target.valueType = configuration.getValueType();
 
