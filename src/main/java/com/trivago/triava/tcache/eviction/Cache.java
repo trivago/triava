@@ -742,6 +742,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	/**
 	 * Sets the cleanup interval for evicting idle cache entries. If you do not call this method, the default
 	 * cleanup interval is used, which is 1/10 * idleTime. This is often a good value.
+	 * 
+	 * TODO This should go into the Builder
+	 * 
 	 * @param cleanUpIntervalMillis
 	 */
 	public void setCleanUpIntervalMillis(long cleanUpIntervalMillis)
