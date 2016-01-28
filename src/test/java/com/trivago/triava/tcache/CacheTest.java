@@ -1,3 +1,19 @@
+/*********************************************************************************
+ * Copyright 2015-present trivago GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **********************************************************************************/
+
 package com.trivago.triava.tcache;
 
 import static org.junit.Assert.assertEquals;
@@ -10,16 +26,19 @@ import java.util.Random;
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
 
+/**
+ * Tests for tCache operations, and behavior like eviction
+ * @author cesken
+ *
+ */
 public class CacheTest
 {
 	private static final long maxIdleTime = 100L;
@@ -28,21 +47,6 @@ public class CacheTest
 
 	boolean runAcceptanceTests = false;
 
-	@BeforeClass
-	public static void setUp()
-	{
-		cache.setCleanUpIntervalMillis(300);
-		cache.put("", 0);
-		
-		try 
-		{
-			Thread.sleep(500);
-		} 
-		catch (InterruptedException e) 
-		{
-			e.printStackTrace();
-		}
-	}
 	
 	@AfterClass
 	public static void tearDown()
@@ -55,7 +59,7 @@ public class CacheTest
 	public void setUpEach()
 	{
 		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(10).setMaxCacheTime(maxCacheTime).setMaxIdleTime(maxIdleTime) .build();
-
+		assertTrue("Cache is not empty at start of test",  cache.size() == 0);
 	}
 	
 	@Test
@@ -102,7 +106,7 @@ public class CacheTest
 	}
 	
 	@Test
-	public void autoCleanCacheEntry()
+	public void expireCacheEntry()
 	{
 		Cache<String, Integer> cache1 = createCache("CacheTest-autoCleanCacheEntry", 1, 1, 10);
 
@@ -293,17 +297,18 @@ public class CacheTest
 		assertEquals("Value in Cache is not identical", value, cache1.get(key));
 
 		cacheManager.destroyCache(cacheName);
-		boolean correctExcetionThrown = false;
+		boolean correctExceptionThrown = false;
 		try
 		{
+			// Explicitly checking this code position instead of marking the the whole test with expected=IllegalStateException.class 
 			cache1.put(key,value);
 		}
 		catch (IllegalStateException e)
 		{
-			correctExcetionThrown = true;
+			correctExceptionThrown = true;
 		}
 		
-		assertTrue("IllegalStateException must be thrown when accessing a closed Cache", correctExcetionThrown);
+		assertTrue("IllegalStateException must be thrown when accessing a closed Cache", correctExceptionThrown);
 	}
 	
 	@Test
