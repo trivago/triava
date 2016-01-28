@@ -231,6 +231,7 @@ public class Builder<K,V> implements Configuration<K, V>
 	 * for initially sizing the underlying storage structures.
 	 * 
 	 * @param expectedMapSize The expected number of elements to be stored
+	 * @return This Builder
 	 */
 	public Builder<K,V> setExpectedMapSize(int expectedMapSize)
 	{
@@ -270,7 +271,7 @@ public class Builder<K,V> implements Configuration<K, V>
 	 * If you want to use a custom eviction strategy,
 	 * use {@link #setEvictionClass(EvictionInterface)} instead.
 	 *  
-	 * @param evictionPolicy
+	 * @param evictionPolicy The EvictionPolicy
 	 * @return This Builder
 	 */
 	public Builder<K,V> setEvictionPolicy(EvictionPolicy evictionPolicy)
@@ -311,8 +312,8 @@ public class Builder<K,V> implements Configuration<K, V>
 	 * Set the StorageBackend for the underlying ConcurrentMap. If this method is not called,
 	 * ConcurrentHashMap will be used.
 	 *  
-	 * @param hashImplementation
-	 * @return
+	 * @param hashImplementation The {@link HashImplementation}
+	 * @return This Builder
 	 * 
 	 */
 	@Beta(comment="To be replaced by a method to set a StorageBackend")
@@ -325,11 +326,11 @@ public class Builder<K,V> implements Configuration<K, V>
 	/**
 	 * Sets the policy, how a Thread that calls put() will behave the cache is full.
 	 * Either the Thread will WAIT or DROP the element and not put it in the cache.
-	 * The default is WAIT. The Jam Policy has no effect on caches of unlimited size
+	 * The default is WAIT. The {@link JamPolicy} has no effect on caches of unlimited size
 	 * {@link EvictionPolicy}}.NONE.
 	 * 
-	 * @param jamPolicy
-	 * @return
+	 * @param jamPolicy The {@link JamPolicy}
+	 * @return This Builder
 	 */
 	public Builder<K,V> setJamPolicy(JamPolicy jamPolicy)
 	{
@@ -361,8 +362,9 @@ public class Builder<K,V> implements Configuration<K, V>
 	/**
 	 * Sets whether statistics should be gathered. The performance impact on creating statistics is very low,
 	 * so it is safe to activate statistics. If this method is not called, the default is to collect statistics.
-	 * @param statistics
-	 * @return
+	 * 
+	 * @param statistics true, if you want to switch on statistics 
+	 * @return This Builder
 	 */
 	public Builder<K,V> setStatistics(boolean statistics)
 	{

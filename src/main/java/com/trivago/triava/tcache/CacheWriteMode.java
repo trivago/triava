@@ -18,7 +18,13 @@ public enum CacheWriteMode
 	{
 		this.jsr107compatibleStoreByValue = jsr107compatibleCopying;
 	}
-	
+
+	/**
+	 * Converts the JSR isStoreByValue to the corresponding CacheWriteMode.
+	 * 
+	 * @param storeByValue true for store by value, false otherwise
+	 * @return The corresponding CacheWriteMode
+	 */
 	public static CacheWriteMode fromStoreByValue(boolean storeByValue)
 	{
 		return storeByValue ? Clone : Identity;
@@ -27,7 +33,7 @@ public enum CacheWriteMode
 	/**
 	 * Returns whether this CacheWriteMode is using store-by-value as defined by JSR107.
 	 * Only for {@link #Clone} true is returned. Mode {@link #Identity} always shares Objects, and {@link #Intern} also most of the time.
-	 * @return
+	 * @return true, if the mode is to store by value
 	 */
 	public boolean isStoreByValue()
 	{
