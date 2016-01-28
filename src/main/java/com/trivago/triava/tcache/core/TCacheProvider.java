@@ -17,9 +17,9 @@
 package com.trivago.triava.tcache.core;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.cache.CacheManager;
 import javax.cache.configuration.OptionalFeature;
@@ -29,7 +29,9 @@ import com.trivago.triava.tcache.TCacheFactory;
 
 public class TCacheProvider implements CachingProvider
 {
-	List<CacheManager> cacheManagers = new ArrayList<>();
+	Set<CacheManager> cacheManagers = new HashSet<>();
+	Object cacheManagersLock = new Object();
+	
 	public TCacheProvider()
 	{
 	}
@@ -61,36 +63,81 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public CacheManager getCacheManager(URI uri, ClassLoader classLoader)
 	{
-		TCacheFactory factory = new TCacheFactory(uri, classLoader);
-		return factory;
+		return getCacheManager(uri, classLoader, null);
 	}
 
 	@Override
 	public CacheManager getCacheManager(URI uri, ClassLoader classLoader, Properties properties)
 	{
-		TCacheFactory factory = new TCacheFactory(uri, classLoader, properties);
-		return factory;
+		synchronized (cacheManagersLock)
+		{
+			CacheManager cacheManager = findCacheManager(uri, classLoader);
+			if (cacheManager == null)
+			{
+				if (properties == null)
+					cacheManager = new TCacheFactory(uri, classLoader);
+				else
+					cacheManager = new TCacheFactory(uri, classLoader, properties);
+			}
+			cacheManagers.add(cacheManager);
+			return cacheManager;
+		}
+	}
+
+	/**
+	 * Returns the CacheManager for the given parameters if it is managed by this TCacheProvider 
+	 * @param uri The Cache URI
+	 * @param classLoader The Classloader
+	 * 
+	 * @return The CacheManager, or null if no matching one is managed by this TCacheProvider
+	 */
+	private CacheManager findCacheManager(URI uri, ClassLoader classLoader)
+	{
+		for (CacheManager cacheManager : cacheManagers)
+		{
+			if (! cacheManager.getURI().equals(uri))
+				continue;
+			if (! cacheManager.getClassLoader().equals(classLoader))
+				continue;
+			
+			// Properties are to be ignored for equality check according to the JSR107 Spec
+			return cacheManager;
+		}
+		
+		return null;
 	}
 
 	@Override
 	public void close()
 	{
-		// TODO Auto-generated method stub
-		
+		for (CacheManager cacheManager : cacheManagers)
+		{
+			closeAndRemove(cacheManager);
+		}
+	}
+
+	private void closeAndRemove(CacheManager cacheManager)
+	{
+		cacheManager.close();
+		cacheManagers.remove(cacheManager);
 	}
 
 	@Override
 	public void close(ClassLoader classLoader)
 	{
-		// TODO Auto-generated method stub
-		
+		for (CacheManager cacheManager : cacheManagers)
+		{
+			if (cacheManager.getClassLoader().equals(classLoader))
+				closeAndRemove(cacheManager);
+		}
 	}
 
 	@Override
 	public void close(URI uri, ClassLoader classLoader)
 	{
-		// TODO Auto-generated method stub
-		
+		CacheManager cacheManager = findCacheManager(uri, classLoader);
+		if (cacheManager != null)
+			closeAndRemove(cacheManager);
 	}
 
 	@Override

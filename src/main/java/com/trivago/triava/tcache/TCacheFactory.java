@@ -57,7 +57,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	final ClassLoader classloader;
 	final Properties properties;
 
-	static final TCacheFactory standardFactory = new TCacheFactory();
+	static TCacheFactory standardFactory = null;
 
 	public TCacheFactory()
 	{
@@ -100,6 +100,9 @@ public class TCacheFactory implements Closeable, CacheManager
 	 */
 	public static TCacheFactory standardFactory()
 	{
+		TCacheFactory sf = standardFactory;
+		if (sf == null || sf.isClosed())
+			standardFactory = new TCacheFactory();
 		return standardFactory;
 	}
 
@@ -435,6 +438,32 @@ public class TCacheFactory implements Closeable, CacheManager
 		T thisCasted = (T)this;
 		return thisCasted;
 	}
-	
 
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((classloader == null) ? 0 : classloader.hashCode());
+		result = prime * result + uri.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		TCacheFactory other = (TCacheFactory) obj;
+		if (classloader != other.classloader)
+			return false;
+		if (!uri.equals(other.uri))
+			return false;
+		
+		return true;
+	}
 }

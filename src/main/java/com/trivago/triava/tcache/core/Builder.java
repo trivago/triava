@@ -61,7 +61,7 @@ public class Builder<K,V> implements Configuration<K, V>
 	private EvictionPolicy evictionPolicy = EvictionPolicy.LFU;
 	private EvictionInterface<K, V> evictionClass = null;
 	private HashImplementation hashImplementation = HashImplementation.ConcurrentHashMap;
-	private TCacheFactory factory = TCacheFactory.standardFactory();
+	private TCacheFactory factory = null;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = true;
 	private CacheLoader<K, V> loader = null;
@@ -127,7 +127,8 @@ public class Builder<K,V> implements Configuration<K, V>
 	{
 		if (factory == null)
 		{
-			throw new IllegalStateException("No factory set in Builder. Make sure you retrieve your Builder from TCacheFactory.");
+			factory = TCacheFactory.standardFactory();
+//			throw new IllegalStateException("No factory set in Builder. Make sure you retrieve your Builder from TCacheFactory.");
 		}
 		
 		if (id == null)
