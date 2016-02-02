@@ -179,10 +179,7 @@ public class CacheTest
 		
 		String key = "key-a";
 		Integer value = 1;
-//		long lastAccess = 0L;
-		long inputDate = 0L;
-		
-		inputDate = System.currentTimeMillis();
+		long inputDate = System.currentTimeMillis();
 		
 		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
 		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
