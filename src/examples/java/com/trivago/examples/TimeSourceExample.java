@@ -16,8 +16,10 @@
 
 package com.trivago.examples;
 
+import java.io.PrintStream;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.time.EstimatorTimeSource;
@@ -34,9 +36,12 @@ import com.trivago.triava.time.TimeSource;
  */
 public class TimeSourceExample
 {
+	private static final String SYSTEM_SOURCE_NAME = "System";
 	static final long Y2000 = 946684800_000L; // Year 2000 new year midnight
 	static final long DAY_LENGTH_MILLIS = 86400_000;
 	
+	static PrintStream out = System.out;
+
 	public static void main(String[] args)
 	{
 		offsetTimeSource();
@@ -53,7 +58,7 @@ public class TimeSourceExample
 		TimeSource tsToday = new SystemTimeSource();
 		TimeSource tsYesterday = new OffsetTimeSource(tsToday.millis() - DAY_LENGTH_MILLIS, tsToday);
 		
-		compareTimeSources("System", "Offset", tsToday, tsYesterday);
+		compareTimeSources(SYSTEM_SOURCE_NAME, "Offset", tsToday, tsYesterday);
 	}
 
 	/**
@@ -64,7 +69,7 @@ public class TimeSourceExample
 		TimeSource tsToday = new SystemTimeSource();
 		TimeSource tsYesterday = new OffsetTimeSource(Y2000, tsToday);
 		
-		compareTimeSources("System", "Y2000", tsToday, tsYesterday);
+		compareTimeSources(SYSTEM_SOURCE_NAME, "Y2000", tsToday, tsYesterday);
 	}
 
 	/**
@@ -75,7 +80,7 @@ public class TimeSourceExample
 		TimeSource tsNow = new SystemTimeSource();
 		TimeSource tsEstimated = new EstimatorTimeSource(100);
 		
-		compareTimeSources("System", "Estimator", tsNow, tsEstimated);
+		compareTimeSources(SYSTEM_SOURCE_NAME, "Estimator", tsNow, tsEstimated);
 	}
 	
 	/**
@@ -87,7 +92,7 @@ public class TimeSourceExample
 		TimeSource tsMinus1Day = new OffsetTimeSource(tsNow.millis() - DAY_LENGTH_MILLIS, tsNow); // yesterday = - 24h
 		TimeSource tsMinus1DayEst = new EstimatorTimeSource(tsMinus1Day, 100, new TriavaNullLogger()); // -24h and estimating
 		
-		compareTimeSources("System", "Chained", tsNow, tsMinus1DayEst);
+		compareTimeSources(SYSTEM_SOURCE_NAME, "Chained", tsNow, tsMinus1DayEst);
 	}
 
 	/**
@@ -95,7 +100,7 @@ public class TimeSourceExample
 	 */
 	private static void compareTimeSources(String ts1name, String ts2name, TimeSource ts1, TimeSource ts2)
 	{
-		System.out.println("--- " + ts1name + " vs " + ts2name + " START ---");
+		out.println("--- " + ts1name + " vs " + ts2name + " START ---");
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss.SSS");
 		for (int i=0; i<30; i++)
 		{
@@ -104,18 +109,19 @@ public class TimeSourceExample
 			String ts1date = sdf.format(new Date(ts1millis));
 			String ts2date = sdf.format(new Date(ts2millis));
 			long millisDiff = ts1millis - ts2millis;
-			System.out.printf("diff=%5d %s %s %s %s%n",  millisDiff, ts1name, ts1date.toString(), ts2name, ts2date.toString());
+			out.printf("diff=%5d %s %s %s %s%n",  millisDiff, ts1name, ts1date.toString(), ts2name, ts2date.toString());
 			try
 			{
 				Thread.sleep(75);
 			}
 			catch (InterruptedException e)
 			{
-				e.printStackTrace();
+				// This should never happen, as we do not interrupt and there should not be any spurious interrupts/wakeups like in wait()
+				out.println("Interrupted: " + Arrays.toString(e.getStackTrace()));
 			}
 		}
-		System.out.println("--- " + ts1name + " vs " + ts2name + " END ---");
-		System.out.println();
+		out.println("--- " + ts1name + " vs " + ts2name + " END ---");
+		out.println();
 	}
 
 	

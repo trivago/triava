@@ -14,6 +14,7 @@
 package com.trivago.examples;
 
 import java.io.IOException;
+import java.io.PrintStream;
 
 import javax.cache.CacheManager;
 import javax.cache.Caching;
@@ -37,6 +38,7 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
 public class CacheJSR107Example
 {
 
+	PrintStream out = System.out;
 	CacheManager cacheManager;
 	String cacheName = "simpleCache";
 	String cacheName2 = "builderCache";
@@ -49,16 +51,16 @@ public class CacheJSR107Example
 	
 	void example()
 	{
-		System.out.println("Test for a stock JSR107 Cache");
+		out.println("Test for a stock JSR107 Cache");
 		runTest(createJsr107Cache(cacheName));
-		System.out.println();
-		System.out.println("Test for a JSR107 Cache, using a Builder as Configuration object");
+		out.println();
+		out.println("Test for a JSR107 Cache, using a Builder as Configuration object");
 		runTest(createJsr107CacheWithBuilder(cacheName2));
 	}
 
 	void runTest(javax.cache.Cache<Integer, Integer> cache)
 	{
-		System.out.println("Created Cache: " + cache);
+		out.println("Created Cache: " + cache);
 
 		int countGood = 0;
 		int countBad = 0;
@@ -67,7 +69,7 @@ public class CacheJSR107Example
 			cache.put(i, i + 1);
 			if (i % 1000 == 0)
 			{
-				System.out.println("Written " + i + " entries");
+				out.println("Written " + i + " entries");
 			}
 			// Each 10th loop iteration, do a get 
 			if (i % 10 == 0)
@@ -90,23 +92,23 @@ public class CacheJSR107Example
 
 		float expectedHitRate = countGood / ((float)countGood + countBad);
 		
-		System.out.println("Use JVisualVM or any other tool to inspect the MBeans in javax.cache");
-		System.out.println();
+		out.println("Use JVisualVM or any other tool to inspect the MBeans in javax.cache");
+		out.println();
 
 		// For demonstrating the two statistics (native and JSR107 MBean), we need to access the native tCache implementation => unwrap
 		Cache<?,?> tcache = cache.unwrap(Cache.class);
-		System.out.println(tcache.statistics());
+		out.println(tcache.statistics());
 		
-		System.out.println();
-		System.out.println("The statistics in the MBeans should match the one above execpt for different naming and the 'hit rate':");
-		System.out.println(" - hitRatio is the last minute average (floating average, tCache specific, always 0.0% in the first 10 seconds)");
-		System.out.println(" - The CacheHitPercentage in the MBean is an overall value, as defined in JSR107");
-		System.out.println(" - The theoretically expected hit rate is " + 100*expectedHitRate + "%"); 
-		System.out.println("Press return to continue");
+		out.println();
+		out.println("The statistics in the MBeans should match the one above execpt for different naming and the 'hit rate':");
+		out.println(" - hitRatio is the last minute average (floating average, tCache specific, always 0.0% in the first 10 seconds)");
+		out.println(" - The CacheHitPercentage in the MBean is an overall value, as defined in JSR107");
+		out.println(" - The theoretically expected hit rate is " + 100*expectedHitRate + "%"); 
+		out.println("Press return to continue");
 		waitForCR();		
-		System.out.println("Destroying cache");
+		out.println("Destroying cache");
 		cacheManager.destroyCache(cache.getName());
-		System.out.println("MBeans should be unregistered now. Press return to continue");
+		out.println("MBeans should be unregistered now. Press return to continue");
 		waitForCR();
 	}
 
