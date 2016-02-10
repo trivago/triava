@@ -76,6 +76,9 @@ import com.trivago.triava.time.TimeSource;
  * The basic limitations are those of the underlying ConcurrentMap implementation, as no further data
  * structures are maintained. This is also true for the subclasses that allow evictions.
  * 
+ * @param <K> The Key type
+ * @param <V> The Value type
+ *
  * @author Christian Esken
  * @since 2009-06-10
  *
@@ -1037,10 +1040,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 	
 	/**
-	 * Removes the object with given key, and return the value that was stored for it.
-	 * Returns null if there was no value for the key stored.
+	 * Removes the object with given key, if stored in the Cache. Returns whether it was actually removed.
 	 * 
-	 * @param key
+	 * @param key The key
+	 * @param value The value
 	 * @return The value that was stored for the given key or null 
 	 */
 	public boolean remove(K key, V value)
@@ -1067,7 +1070,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * Removes the object with given key, and return the value that was stored for it.
 	 * Returns null if there was no value for the key stored.
 	 * 
-	 * @param key
+	 * @param key The key
 	 * @return The value that was stored for the given key or null 
 	 */
 	public V remove(K key)
