@@ -2,21 +2,15 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-## Building:
-triava requires Java 7 and depends on the JSR107 API javax.cache:cache-api:1.0.0. Dependencies are resolved by Maven. The following will build everything, including Javadoc and a source jar:
-
-`mvn package`
-
-This will create three artefacts in the target/ folder:
-
-- triava-[version].jar
-- triava-[version]-sources.jar
-- triava-[version]-javadoc.jar
+## License
+Licensed under the Apache License, Version 2.0
 
 ## Usage:
 To start, look at the [examples folder](./src/examples/java/com/trivago/examples).
 
 ### Usage in Maven: pom.xml
+triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
+
 ```
   <dependencies>
     <dependency>
@@ -27,17 +21,11 @@ To start, look at the [examples folder](./src/examples/java/com/trivago/examples
   </dependencies>
 ```
 
-#### Maven Central
-triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
-
-Maintainers can upload new versions to Maven Central Staging:
-`mvn clean deploy -P release` 
-
 
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.0'
+	compile 'com.trivago:triava:0.9.3'
 }
 ```
 
@@ -49,8 +37,21 @@ dependencies {
     - Added CacheManager.destroyCache()
     - Added JSR methods ...replace...() methods.
 
-## License
-Licensed under the Apache License, Version 2.0
+
+## Building:
+triava requires Java 7 and depends on the JSR107 API javax.cache:cache-api:1.0.0. Dependencies are resolved by Maven. The following will build everything, including Javadoc and a source jar:
+
+`mvn package`
+
+This will create three artefacts in the target/ folder:
+
+- triava-[version].jar
+- triava-[version]-sources.jar
+- triava-[version]-javadoc.jar
+
+Maintainers can upload new versions to Maven Central Staging:
+`mvn clean deploy -P release` 
+
 
 ## Examples
 Have a look at the [examples folder](./src/examples/java/com/trivago/examples).
