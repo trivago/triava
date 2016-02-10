@@ -26,8 +26,6 @@ import javax.cache.event.CacheEntryListener;
 import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 
-import com.trivago.triava.tcache.core.CacheEventManager;
-import com.trivago.triava.tcache.core.ListenerCacheEventManager;
 import com.trivago.triava.tcache.eviction.Cache;
 
 /**
