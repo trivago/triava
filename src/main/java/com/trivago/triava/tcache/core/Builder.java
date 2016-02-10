@@ -19,7 +19,12 @@ package com.trivago.triava.tcache.core;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.cache.configuration.CacheEntryListenerConfiguration;
+import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Configuration;
+import javax.cache.configuration.Factory;
+import javax.cache.expiry.ExpiryPolicy;
+import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.annotations.Beta;
 import com.trivago.triava.tcache.CacheWriteMode;
@@ -44,7 +49,7 @@ import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
  * @param <K> Key type
  * @param <V> Value type
  */
-public class Builder<K,V> implements Configuration<K, V>
+public class Builder<K,V> implements CompleteConfiguration<K, V>
 {
 	private static final long serialVersionUID = -4430382287782891844L;
 
@@ -64,6 +69,7 @@ public class Builder<K,V> implements Configuration<K, V>
 	private TCacheFactory factory = null;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = true;
+	private boolean management = true;  // TODO JSR107 implement
 	private CacheLoader<K, V> loader = null;
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
 	Class<K> keyType = null; // TODO JSR107 implement
@@ -679,6 +685,60 @@ public class Builder<K,V> implements Configuration<K, V>
 		if (writeMode != other.writeMode)
 			return false;
 		return true;
+	}
+
+	@Override
+	public boolean isReadThrough()
+	{
+		// Does not support multi-level caching
+		return false;
+	}
+
+	@Override
+	public boolean isWriteThrough()
+	{
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isStatisticsEnabled()
+	{
+		return statistics;
+	}
+
+	@Override
+	public boolean isManagementEnabled()
+	{
+		return management;
+	}
+
+	@Override
+	public Iterable<CacheEntryListenerConfiguration<K, V>> getCacheEntryListenerConfigurations()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Factory<javax.cache.integration.CacheLoader<K, V>> getCacheLoaderFactory()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Factory<CacheWriter<? super K, ? super V>> getCacheWriterFactory()
+	{
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Factory<ExpiryPolicy> getExpiryPolicyFactory()
+	{
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	

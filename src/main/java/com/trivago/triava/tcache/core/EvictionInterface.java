@@ -35,10 +35,10 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
 public interface EvictionInterface<K, V>
 {
 	/**
-	 * Returns the Comparator for the eviction policy. Elements to be evicted earlier have to be sorted to the
+	 * Returns the Comparator implementing the eviction policy. Elements to be evicted earlier have to be sorted to the
 	 * front by the returned Comparator.
 	 * 
-	 * @return
+	 * @return The comparator implementing the eviction policy
 	 */
 	Comparator<? super HolderFreezer<K, V>> evictionComparator();
 
@@ -46,10 +46,14 @@ public interface EvictionInterface<K, V>
 	 * Returns a value that is required by the actual implementation for eviction. Implement this if you rely on a
 	 * value that may change over the course of the eviction sorting process. Examples of changing values are the usage
 	 * count or the last use timestamp. 
+	 * <p>
+	 * Future directions: First, rename this to getSnapshotValue() as it is clearer. Secondly, we could allow snapshots to be objects,
+	 * and then we would have "public interface EvictionInterface&lt;K, V, SNAPSHOT&gt;"
 	 * 
-	 * @param key
-	 * @param holder
-	 * @return
+	 * @param key The key of the cache entry
+	 * @param holder The holder, which includes the value and metadata
+	 *  
+	 * @return The snapshot of the value 
 	 */
 	long getFreezeValue(K key, TCacheHolder<V> holder);
 	

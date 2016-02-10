@@ -17,28 +17,43 @@
 package com.trivago.triava.tcache.eviction;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 import javax.cache.CacheManager;
 import javax.cache.configuration.CacheEntryListenerConfiguration;
+import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Configuration;
+import javax.cache.event.EventType;
 import javax.cache.integration.CompletionListener;
 import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
 
+import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
+import com.trivago.triava.tcache.event.DispatchMode;
+import com.trivago.triava.tcache.event.ListenerEntry;
+import com.trivago.triava.tcache.event.TCacheEntryEvent;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 
+/**
+ * 
+ * @author cesken
+ *
+ * @param <K> The Key type
+ * @param <V> The Value type
+ */
 public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 {
 	final Cache<K,V> tcache;
 	final CacheManager cacheManager;
 	final TCacheConfigurationBean<K,V> configurationBean;
+	private Set<ListenerEntry<K,V> > listeners = new HashSet<>();
 
 	TCacheJSR107(Cache<K,V> tcache, CacheManager cacheManager)
 	{
@@ -66,10 +81,20 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	}
 
 	@Override
-	public void deregisterCacheEntryListener(CacheEntryListenerConfiguration<K, V> arg0)
+	public void deregisterCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
 	{
-		// TODO Auto-generated method stub
+		throwISEwhenClosed();
 		
+		Iterator<ListenerEntry<K, V>> it = listeners.iterator();
+		while (it.hasNext())
+		{
+			ListenerEntry<K, V> listenerEntry = it.next();
+			if (listenerConfiguration.equals(listenerEntry.getConfig()))
+			{
+				it.remove();
+				break; // Can be only one, as it is in the Spec that Listeners must not added twice.
+			}
+		}
 	}
 
 	@Override
@@ -121,11 +146,22 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		return cacheManager;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public <C extends Configuration<K, V>> C getConfiguration(Class<C> arg0)
+	public <C extends Configuration<K, V>> C getConfiguration(Class<C> clazz)
 	{
-		// TODO Auto-generated method stub
-		return null;
+		Builder<K, V> builder = tcache.builder;
+
+		if (clazz.isAssignableFrom(javax.cache.configuration.Configuration.class))
+		{
+			return (C)builder;
+		}
+		if (clazz.isAssignableFrom(CompleteConfiguration.class))
+		{
+			return (C)builder;
+		}
+		
+		throw new IllegalArgumentException("Unsupported configuration class: " + clazz.toString());
 	}
 
 	@Override
@@ -174,6 +210,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public void put(K key, V value)
 	{
 		tcache.put(key, value);
+		dispatchEvent(EventType.CREATED, key, value);
 	}
 
 	@Override
@@ -184,6 +221,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			K key = entry.getKey();
 			V value = entry.getValue();
 			tcache.put(key, value);
+			dispatchEvent(EventType.CREATED, key, value); // TOOO Do a multi-dispatch here
 		}
 	}
 
@@ -194,28 +232,80 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		// For JSR107 putIfAbsent() should return whether a value was set.
 		// As tcache.putIfAbsent() has the semantics of ConcurrentMap#putIfAbsent(), we can check for
 		// oldValue == null.
-		return oldValue == null;
+		boolean changed = oldValue == null;
+
+		if (changed)
+			dispatchEvent(EventType.CREATED, key, value);
+		
+		return changed;
 	}
 
 	@Override
-	public void registerCacheEntryListener(CacheEntryListenerConfiguration<K, V> arg0)
+	public void registerCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
 	{
-		// TODO Auto-generated method stub
+		throwISEwhenClosed();
 		
+		DispatchMode dispatchMode = listenerConfiguration.isSynchronous() ? DispatchMode.SYNC : DispatchMode.ASYNC_TIMED;
+		boolean added = listeners.add(new ListenerEntry<K, V>(listenerConfiguration, tcache, dispatchMode));
+		if (!added)
+		{
+			throw new IllegalArgumentException("Cache entry listener may not be added twice to " + tcache.id() + ": "+ listenerConfiguration);
+		}
+	}
+
+	void dispatchEvent(EventType eventType, K key)
+	{
+		dispatchEventToListeners(new TCacheEntryEvent<K, V>(this, eventType, key));
+	}
+
+	void dispatchEvent(EventType eventType, K key, V value)
+	{
+		dispatchEventToListeners(new TCacheEntryEvent<K, V>(this, eventType, key, value));
+	}
+
+	void dispatchEvent(EventType eventType, K key, V value, V oldValue)
+	{
+		dispatchEventToListeners(new TCacheEntryEvent<K, V>(this, eventType, key, value,oldValue));
+	}
+
+	private void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
+	{
+		for (ListenerEntry<K, V> listener : listeners)
+		{
+			listener.dispatch(event);
+		}
+	}
+
+
+	/**
+	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is closed.
+	 */
+	private void throwISEwhenClosed()
+	{
+		if (isClosed())
+			throw new IllegalStateException("Cache already closed: " + tcache.id());
 	}
 
 	@Override
 	public boolean remove(K key)
 	{
 		V oldValue = tcache.remove(key);
+		boolean removed = oldValue != null;
+		if (removed)
+			dispatchEvent(EventType.REMOVED, key, null, oldValue);
+		
 		// JSR107 Return whether a value was removed
-		return oldValue != null;
+		return removed;
 	}
 
 	@Override
 	public boolean remove(K key, V value)
 	{
-		return tcache.remove(key, value);
+		boolean removed = tcache.remove(key, value);
+		if (removed)
+			dispatchEvent(EventType.REMOVED, key, value);
+		
+		return removed;
 	}
 
 	@Override
@@ -229,7 +319,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		for (K key : keys)
 		{
-			tcache.remove(key);
+			V oldValue = tcache.remove(key);
+			boolean removed = oldValue != null;
+			// TODO optimize to dispatch all events in one call
+			if (removed)
+				dispatchEvent(EventType.REMOVED, key, null, oldValue);
 		}
 	}
 
