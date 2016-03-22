@@ -16,14 +16,17 @@ package com.trivago.triava.util;
 import java.text.DecimalFormat;
 
 /**
- * The UnitTools supply methods to convert a plain value into components, based on Units
+ * UnitTools contain methods to format a numerical value using units from a {@link UnitSystem}. For example
+ * 13504653 can be formatted as 13,5 MB", "12.9 MiB", "13MB 504KB 653B" "or "14MW". The highest unit prefix
+ * is giga (e.g. "G" or "Gi", the lowest prefix is the one from the base (typically empty)
+ * 
  * @author cesken
  *
  */
-public class UnitTools
+public class UnitFormatter
 {
 	/**
-	 * Formats the value to human readable representation, using the given Unit System. 
+	 * Formats a value to human readable representation, using the given Unit System. 
 	 * with a maximum of two fraction digits, e.g. 13504653 is converted to "13.5M". If you need more control on the format, call
 	 * {@link #formatAsUnit(long, UnitSystem, String, DecimalFormat)}.
 	 * 
@@ -39,7 +42,7 @@ public class UnitTools
 	}
 	
 	/**
-	 * Formats the value to human readable representation, using the given Unit System. 
+	 * Formats a value to human readable representation, using the given Unit System. 
 	 * For example 13500653 is converted to "13.501MB".
 	 * 
 	 * @param number The number to format

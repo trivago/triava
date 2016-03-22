@@ -54,15 +54,15 @@ public class UnitToolsTest
 		UnitSystem us = UnitSystem.SI;
 
 		// Value "without" decimal places
-		String k100 = UnitTools.formatAsUnit(1000, us, "B");
+		String k100 = UnitFormatter.formatAsUnit(1000, us, "B");
 		assertEquals("", "1kB", k100); // Depends on locale, especially comma vs point
 
 		// Rounding down
-		String k112 = UnitTools.formatAsUnit(1123, us, "B");
+		String k112 = UnitFormatter.formatAsUnit(1123, us, "B");
 		assertEquals("", "1.12kB", k112); // Depends on locale, especially comma vs point
 
 		// Rounding up
-		String k113 = UnitTools.formatAsUnit(1126, us, "B");
+		String k113 = UnitFormatter.formatAsUnit(1126, us, "B");
 		assertEquals("", "1.13kB", k113); // Depends on locale, especially comma vs point
 	}
 
@@ -71,15 +71,15 @@ public class UnitToolsTest
 	{
 		UnitSystem us = UnitSystem.IEC;
 		// Exact 2^n value
-		String k200 = UnitTools.formatAsUnit(2048, us, "B");
+		String k200 = UnitFormatter.formatAsUnit(2048, us, "B");
 		assertEquals("", "2KiB", k200); // Depends on locale, especially comma vs point
 
 		// Rounding down: 2.04449219
-		String k204 = UnitTools.formatAsUnit(2094, us, "B");
+		String k204 = UnitFormatter.formatAsUnit(2094, us, "B");
 		assertEquals("", "2.04KiB", k204); // Depends on locale, especially comma vs point
 
 		// Rounding up: 2,0458984
-		String k205 = UnitTools.formatAsUnit(2095, us, "B");
+		String k205 = UnitFormatter.formatAsUnit(2095, us, "B");
 		assertEquals("", "2.05KiB", k205); // Depends on locale, especially comma vs point
 	}
 
@@ -93,19 +93,19 @@ public class UnitToolsTest
 		UnitSystem us = UnitSystem.SI;
 
 		// Simple conversion
-		String megawatt1 = UnitTools.formatAsUnits(12_345_678, us, "W", ",");
+		String megawatt1 = UnitFormatter.formatAsUnits(12_345_678, us, "W", ",");
 		assertEquals("", "12MW,345kW,678W", megawatt1);
 
 		// Multiple Characters for separator
-		String megawatt2 = UnitTools.formatAsUnits(12_345_678, us, "W", ", ");
+		String megawatt2 = UnitFormatter.formatAsUnits(12_345_678, us, "W", ", ");
 		assertEquals("", "12MW, 345kW, 678W", megawatt2);
 
 		// Simple conversion, with Kilos empty
-		String megawatt3 = UnitTools.formatAsUnits(12_000_678, us, "W", ",");
+		String megawatt3 = UnitFormatter.formatAsUnits(12_000_678, us, "W", ",");
 		assertEquals("", "12MW,678W", megawatt3);
 
 		// Multiple Characters, with Kilos empty
-		String megawatt4 = UnitTools.formatAsUnits(12_000_678, us, "W", ", ");
+		String megawatt4 = UnitFormatter.formatAsUnits(12_000_678, us, "W", ", ");
 		assertEquals("", "12MW, 678W", megawatt4);
 	}
 	
@@ -120,15 +120,15 @@ public class UnitToolsTest
 		UnitSystem us = UnitSystem.IEC;
 
 		// Rounding up: 2,0361328 , using 2 fraction digits
-		String k2085 = UnitTools.formatAsUnit(2085, us, "B", new DecimalFormat("0.00"));
+		String k2085 = UnitFormatter.formatAsUnit(2085, us, "B", new DecimalFormat("0.00"));
 		assertEquals("", "2.04KiB", k2085); // Depends on locale, especially comma vs point
 
 		// Rounding down: 2,0361328 , using 0 or 1 fraction digits
-		String k200b = UnitTools.formatAsUnit(2085, us, "B", new DecimalFormat("0.#"));
+		String k200b = UnitFormatter.formatAsUnit(2085, us, "B", new DecimalFormat("0.#"));
 		assertEquals("", "2KiB", k200b); // Depends on locale, especially comma vs point
 
 		// Rounding down: 2,0361328 , using 1 fraction digit
-		String k200c = UnitTools.formatAsUnit(2085, us, "B", new DecimalFormat("0.0"));
+		String k200c = UnitFormatter.formatAsUnit(2085, us, "B", new DecimalFormat("0.0"));
 		assertEquals("", "2.0KiB", k200c); // Depends on locale, especially comma vs point
 	}
 	
@@ -144,9 +144,9 @@ public class UnitToolsTest
 		DecimalFormat dfDE = new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.GERMANY));
 		DecimalFormat dfUS = new DecimalFormat("0.00", DecimalFormatSymbols.getInstance(Locale.US));
 
-		String kDE = UnitTools.formatAsUnit(1123, us, "B", dfDE);
+		String kDE = UnitFormatter.formatAsUnit(1123, us, "B", dfDE);
 		assertEquals("", "1,12kB", kDE); // Depends on locale, comma for Germany
-		String kUS = UnitTools.formatAsUnit(1123, us, "B", dfUS);
+		String kUS = UnitFormatter.formatAsUnit(1123, us, "B", dfUS);
 		assertEquals("", "1.12kB", kUS); // Depends on locale, point for US
 	}
 	

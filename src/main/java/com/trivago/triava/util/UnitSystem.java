@@ -15,7 +15,7 @@ package com.trivago.triava.util;
 
 
 /**
- * Defines a Unit system that contains {@link UnitPrefix}es for kilo, mega ang giga. Unit systems are used by {@link UnitTools}
+ * Defines a Unit system that contains {@link UnitPrefix}es for kilo, mega ang giga. Unit systems are used by {@link UnitFormatter}
  * and {@link UnitComponent} to split a value into components and format values to readable output like "23.5kB".  
  * Own systems can be defined, but most use cases will be covered by the 3 predefined systems:
  * <ul>

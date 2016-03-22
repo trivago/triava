@@ -17,7 +17,7 @@
 package com.trivago.triava.tcache.util;
 
 import com.trivago.triava.util.UnitSystem;
-import com.trivago.triava.util.UnitTools;
+import com.trivago.triava.util.UnitFormatter;
 
 /**
  * Data class which stores  information of the cache size, namely number of elements and
@@ -68,7 +68,7 @@ public class CacheSizeInfo
 	@Override
 	public String toString()
 	{
-		String humanReadableSize = UnitTools.formatAsUnit(sizeInByte, UnitSystem.SI, "B");
+		String humanReadableSize = UnitFormatter.formatAsUnit(sizeInByte, UnitSystem.SI, "B");
 		return "CacheSizeInfo [id=" + id + ", elemsBefore=" + elemsBefore + ", elemsAfter=" + elemsAfter
 				+ ", elemsDiff=" + (elemsAfter - elemsBefore) + ", sizeInByte=" + sizeInByte + ", sizeReadable="
 				+ humanReadableSize + "]";
