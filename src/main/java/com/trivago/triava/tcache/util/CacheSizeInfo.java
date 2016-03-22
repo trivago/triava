@@ -16,6 +16,9 @@
 
 package com.trivago.triava.tcache.util;
 
+import com.trivago.triava.util.UnitSystem;
+import com.trivago.triava.util.UnitTools;
+
 /**
  * Data class which stores  information of the cache size, namely number of elements and
  * size in bytes. It is used in {@link com.trivago.triava.tcache.eviction.Cache#reportSize(ObjectSizeCalculatorInterface)}.
@@ -65,45 +68,10 @@ public class CacheSizeInfo
 	@Override
 	public String toString()
 	{
+		String humanReadableSize = UnitTools.formatAsUnit(sizeInByte, UnitSystem.SI, "B");
 		return "CacheSizeInfo [id=" + id + ", elemsBefore=" + elemsBefore + ", elemsAfter=" + elemsAfter
 				+ ", elemsDiff=" + (elemsAfter - elemsBefore) + ", sizeInByte=" + sizeInByte + ", sizeReadable="
-				+ humanReadableSize(sizeInByte) + "]";
-	}
-
-	/**
-	 * Transforms a size in bytes to human readable representation.
-	 * 
-	 * @param size
-	 * @return
-	 */
-	private static final long BASE = 1000;
-	private static final long BASE_KILO = BASE;
-	private static final long BASE_MEGA = BASE * BASE;
-	private static final long BASE_GIGA = BASE * BASE * BASE;
-
-	private static String humanReadableSize(long size)
-	{
-
-		StringBuilder formatedSize = new StringBuilder(32);
-
-		long remainder = size;
-		long GB = remainder / BASE_GIGA;
-		remainder -= GB * BASE_GIGA;
-		long MB = remainder / BASE_MEGA;
-		remainder -= MB * BASE_MEGA;
-		long KB = remainder / BASE_KILO;
-		remainder -= KB * BASE_KILO;
-		long bytes = remainder;
-
-		if (GB > 0)
-			formatedSize.append(GB).append("GB ");
-		if (MB > 0)
-			formatedSize.append(MB).append("MB ");
-		if (KB > 0)
-			formatedSize.append(KB).append("KB ");
-		formatedSize.append(bytes).append("B");
-
-		return formatedSize.toString();
+				+ humanReadableSize + "]";
 	}
 
 }
