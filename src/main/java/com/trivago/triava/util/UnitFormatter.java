@@ -30,7 +30,7 @@ public class UnitFormatter
 	 * with a maximum of two fraction digits, e.g. 13504653 is converted to "13.5M". If you need more control on the format, call
 	 * {@link #formatAsUnit(long, UnitSystem, String, DecimalFormat)}.
 	 * 
-	 * @param number The number to format
+	 * @param value The number to format
 	 * @param unitSystem The Unit system
 	 * @param unitPostfix The postfix, for example "B" for byte or "W" for Watt. May be empty.
 	 * 
@@ -45,7 +45,7 @@ public class UnitFormatter
 	 * Formats a value to human readable representation, using the given Unit System. 
 	 * For example 13500653 is converted to "13.501MB".
 	 * 
-	 * @param number The number to format
+	 * @param value The number to format
 	 * @param unitSystem The Unit system
 	 * @param unitPostfix The postfix, for example "B" for byte or "W" for Watt. May be empty.
 	 * @param format The decimal format for formatting the number
@@ -82,12 +82,13 @@ public class UnitFormatter
 	 * @param number The number to format
 	 * @param unitSystem The Unit system
 	 * @param unitPostfix The postfix, for example "B" for byte or "W" for Watt. May be empty.
+	 * @param separator The separator between the elements
 	 * 
 	 * @return The formatted value
 	 */
-	public static String formatAsUnits(long size, UnitSystem unitSystem, String unitPostfix, String separator)
+	public static String formatAsUnits(long number, UnitSystem unitSystem, String unitPostfix, String separator)
 	{
-		UnitComponent comp = new UnitComponent(size, unitSystem);
+		UnitComponent comp = new UnitComponent(number, unitSystem);
 		int GB = comp.giga();
 		int MB = comp.mega();
 		int KB = comp.kilo();
