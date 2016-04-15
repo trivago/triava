@@ -41,7 +41,7 @@ dependencies {
 - 0.9.4
     - cache: Listener support for synchronous and asynchronous events
     - util: Add a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W".
-           The Unit formatter supports different Unit Systems: SI units (1000 based, Kilo, k), IEC units (1024 based, Kibi, Ki) and JEDEC (1024 based, Kilo, K)
+           The Unit formatter supports different Unit Systems: SI units (1000 based, kilo, k), IEC60027-2 units (1024 based, kibi, Ki) and JEDEC (1024 based, Kilo, K)
 
 
 ## Building:
@@ -49,13 +49,14 @@ triava requires Java 7 and depends on the JSR107 API javax.cache:cache-api:1.0.0
 
 `mvn package`
 
-This will create three artefacts in the target/ folder:
+This will create three artifacts in the target/ folder:
 
 - triava-[version].jar
 - triava-[version]-sources.jar
 - triava-[version]-javadoc.jar
 
 Maintainers can upload new versions to Maven Central Staging:
+
 `mvn clean deploy -P release` 
 
 
