@@ -123,7 +123,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	 */
 	public <K, V> Builder<K, V> builder()
 	{
-		return new Builder<>(this);
+		return new Builder<K,V>(this);
 	}
 
 	/**

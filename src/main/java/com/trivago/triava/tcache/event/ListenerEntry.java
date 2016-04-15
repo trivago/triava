@@ -60,9 +60,11 @@ public class ListenerEntry<K,V> // should be private to TCache
 	/**
 	 * Creates a ListenerEntry from the factories in CacheEntryListenerConfiguration.
 	 * Both CacheEntryEventFilter and CacheEntryListener are created.
+	 * The {@link #dispatchMode} regulates how events get dispatched, for example synchronous, asynchronous batched or timed
 	 * 
 	 * @param config The CacheEntryListenerConfiguration
 	 * @param tcache The cache which events should be listened to 
+	 * @param dispatchMode How events are dispatched to listeners
 	 */
 	public ListenerEntry(CacheEntryListenerConfiguration<K, V> config, Cache<K,V> tcache, DispatchMode dispatchMode)
 	{

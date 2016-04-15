@@ -68,12 +68,12 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private HashImplementation hashImplementation = HashImplementation.ConcurrentHashMap;
 	private TCacheFactory factory = null;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
-	private boolean statistics = true;
-	private boolean management = true;  // TODO JSR107 implement
+	private boolean statistics = false; // off by JSR107 default
+	private boolean management = false; // off by JSR107 default , TODO JSR107 implement
 	private CacheLoader<K, V> loader = null;
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
-	Class<K> keyType = null; // TODO JSR107 implement
-	Class<V> valueType = null; // TODO JSR107 implement
+	Class<K> keyType = objectKeyType();
+	Class<V> valueType = objectValueType();
 
 	/**
 	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
@@ -86,6 +86,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	public Builder(TCacheFactory factory)
 	{
 		this.factory = factory;
+		management = true;
+		statistics = true;
 	}
 
 	/**
@@ -106,8 +108,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
 	{
 		this.factory = factory;
-		// TODO JSR107 Need to check whether statistics may be enabled by default
-		
 		copyBuilder(configuration, this);
 	}
 
@@ -483,13 +483,23 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	@Override // JSR107
 	public Class<K> getKeyType()
 	{
-		return keyType;
+		return keyType == null ? (Class<K>)Object.class : keyType;
 	}
 
 	@Override // JSR107
 	public Class<V> getValueType()
 	{
 		return valueType;
+	}
+
+	public void setKeyType(Class<K> keyType)
+	{
+		this.keyType = keyType;
+	}
+
+	public void setValueType(Class<V> valueType)
+	{
+		this.valueType = valueType;
 	}
 
 	@Override // JSR107
@@ -564,11 +574,19 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 				target.hashImplementation = sourceB.hashImplementation;
 			if (sourceB.jamPolicy != null)
 				target.jamPolicy = sourceB.jamPolicy;
-			target.statistics = sourceB.statistics;
 			if (sourceB.loader != null)
 				target.loader = sourceB.loader;
 
 			tcacheWriteMode = sourceB.writeMode;
+		}
+		
+		if (configuration.getClass().isAssignableFrom(Configuration.class))
+		{
+			CompleteConfiguration<K,V> cc = (CompleteConfiguration<K,V>)configuration;
+			target.statistics = cc.isStatisticsEnabled();
+			target.management = cc.isManagementEnabled();
+			// target.writeThrough  // not supported
+			// target.readThrough  // not supported
 		}
 		
 		// JSR107 configuration follows
@@ -697,7 +715,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	@Override
 	public boolean isWriteThrough()
 	{
-		// TODO Auto-generated method stub
+		// Does not support multi-level caching
 		return false;
 	}
 
@@ -742,4 +760,24 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	
+
+	/**
+	 * Return Object.class casted suitably for {@link #getValueType()}
+	 * @return Object.class
+	 */
+	@SuppressWarnings("unchecked")
+	private Class<V> objectValueType()
+	{
+		return (Class<V>)Object.class;
+	}
+
+	/**
+	 * Return Object.class casted suitably for {@link #getKeyType()}
+	 * @return Object.class
+	 */
+	@SuppressWarnings("unchecked")
+	private Class<K> objectKeyType()
+	{
+		return (Class<K>)Object.class;
+	}
 }

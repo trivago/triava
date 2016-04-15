@@ -2,7 +2,7 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-The included Cache implementation tCache is heading for full JSR107 (Java Caching) compliance. Most operations work fully compliant, including creating caches through the Service Provider Interface, MBean support and obviously putting and getting values. Cache Listeners are supported since v0.9.4. in both sync and async modes.
+The included Cache implementation tCache is heading for full JSR107 (Java Caching) compliance. Most operations work fully compliant, including Service Provider Interface, MBean support, Cache Listeners. For more about compliance, read the [TCK information](./tck/README.md) 
 
 ## License
 Licensed under the Apache License, Version 2.0

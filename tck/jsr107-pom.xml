@@ -206,7 +206,7 @@
                 <!--Change the following properties on the command line to override with the coordinates for your implementation-->
                 <implementation-groupId>com.trivago</implementation-groupId>
                 <implementation-artifactId>triava</implementation-artifactId>
-                <implementation-version>0.9.3-beta1</implementation-version>
+                <implementation-version>0.9.4</implementation-version>
 
                 <!-- Change the following properties to your CacheManager and Cache implementation. Used by the unwrap tests. -->
                 <CacheManagerImpl>com.trivago.triava.tcache.TCacheFactory</CacheManagerImpl>

@@ -19,6 +19,5 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 ```
 
 ### Current compliance status:
-- Passes 39/41 tests
-- 2 configuration tests not yet passing (marked in source code as TODO)
-- TCK hangs in org.jsr107.tck.integration.CacheLoaderServer, due to yet incomplete Loader implementation
+- Passes 70/72 tests. Issue in the 2 failures is the missing ListenerConfiguration support in the Configuration class implementation.
+- After that TCK hangs during org.jsr107.tck.expiry.CacheExpiryTest in org.jsr107.tck.integration.CacheLoaderServer, due to yet incomplete Loader implementation
