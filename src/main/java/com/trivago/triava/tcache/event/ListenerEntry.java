@@ -66,10 +66,6 @@ public class ListenerEntry<K,V> // should be private to TCache
 	 */
 	public ListenerEntry(CacheEntryListenerConfiguration<K, V> config, Cache<K,V> tcache, DispatchMode dispatchMode)
 	{
-		if (dispatchMode != DispatchMode.SYNC)
-		{
-			throw new UnsupportedOperationException("DispatchMode is not yet supported: " + dispatchMode);
-		}
 		this.config = config;
 		this.tcache = tcache;
 		this.dispatchMode = dispatchMode;
@@ -77,6 +73,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 		{
 			this.dispatchQueue = new ArrayBlockingQueue<CacheEntryEvent<K, V>>(1024);
 			dispatchThread = new DispatchRunnable("tCacheEventDispatcher-" + tcache.id());
+			dispatchThread.start();
 		}
 		else
 		{

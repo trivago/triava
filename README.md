@@ -2,7 +2,7 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-The included Cache implementation tCache is heading for full JSR107 (Java Caching) compliance. Basic operations already fully work, including creating caches through the Service Provider Interface, MBean support and obviously putting and getting values. Cache Listeners are only partially supported at this point of time. 
+The included Cache implementation tCache is heading for full JSR107 (Java Caching) compliance. Most operations work fully compliant, including creating caches through the Service Provider Interface, MBean support and obviously putting and getting values. Cache Listeners are supported since v0.9.4. in both sync and async modes.
 
 ## License
 Licensed under the Apache License, Version 2.0
@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.0</version>
+      <version>0.9.4</version>
     </dependency>
   </dependencies>
 ```
@@ -27,17 +27,21 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.3'
+	compile 'com.trivago:triava:0.9.4'
 }
 ```
 
 ## Changes ##
 - v0.4.0 Initial version. Production ready.
-- v0.9.0 Finalizing package structure. Move existing unit tests to triava project.
-- v0.9.1 Implementing JSR107 compliance (work in progress)
+- v0.9.0 Finalized package structure. Moved existing unit tests to triava project.
+- v0.9.1 cache: Implementing JSR107 compliance (work in progress)
     - MXBean support: Configuration and Statistics
     - Added CacheManager.destroyCache()
     - Added JSR methods ...replace...() methods.
+- 0.9.4
+    - cache: Listener support for synchronous and asynchronous events
+    - util: Add a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W".
+           The Unit formatter supports different Unit Systems: SI units (1000 based, Kilo, k), IEC units (1024 based, Kibi, Ki) and JEDEC (1024 based, Kilo, K)
 
 
 ## Building:
