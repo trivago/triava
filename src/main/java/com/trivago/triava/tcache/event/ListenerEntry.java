@@ -28,6 +28,9 @@ import javax.cache.event.CacheEntryUpdatedListener;
 
 import com.trivago.triava.tcache.eviction.Cache;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
 /**
  * Holds a CacheEntryListenerConfiguration and the two "listeners" created from it,
  * the CacheEntryEventFilter and the CacheEntryListener. The {@link #hashCode()} and
@@ -51,7 +54,9 @@ public class ListenerEntry<K,V> // should be private to TCache
 	
 	final CacheEventManager<K,V> eventManager;
 	final DispatchMode dispatchMode;
-	
+	final BlockingQueue<CacheEntryEvent<K, V>> dispatchQueue;
+	DispatchRunnable dispatchThread = null;
+
 	/**
 	 * Creates a ListenerEntry from the factories in CacheEntryListenerConfiguration.
 	 * Both CacheEntryEventFilter and CacheEntryListener are created.
@@ -68,7 +73,16 @@ public class ListenerEntry<K,V> // should be private to TCache
 		this.config = config;
 		this.tcache = tcache;
 		this.dispatchMode = dispatchMode;
-		
+		if (dispatchMode.isAsync())
+		{
+			this.dispatchQueue = new ArrayBlockingQueue<CacheEntryEvent<K, V>>(1024);
+			dispatchThread = new DispatchRunnable("tCacheEventDispatcher-" + tcache.id());
+		}
+		else
+		{
+			dispatchQueue = null;
+		}
+
 		CacheEventManager<K,V> em = null;
 		Factory<CacheEntryListener<? super K, ? super V>> listenerFactory = config.getCacheEntryListenerFactory();
 		if (listenerFactory != null)
@@ -106,44 +120,69 @@ public class ListenerEntry<K,V> // should be private to TCache
 			if (!interested(event))
 				return; // filtered
 			
-			@SuppressWarnings("unchecked")
+//			@SuppressWarnings("unchecked")
 			CacheEntryListener<K, V> listener = (CacheEntryListener<K, V>) this.listener;
-			
-			if (dispatchMode == DispatchMode.SYNC)
+
+			if (!dispatchMode.isAsync())
 			{
-				switch (event.getEventType())
-				{
-					case CREATED:
-						if (listener instanceof CacheEntryCreatedListener)
-							eventManager.created(tcache, (CacheEntryCreatedListener<K,V>)listener, event);
-						break;
-						
-					case EXPIRED:
-						if (listener instanceof CacheEntryExpiredListener)
-							eventManager.expired(tcache, (CacheEntryExpiredListener<K,V>)listener,  event);
-						break;
-						
-					case UPDATED:
-						if (listener instanceof CacheEntryUpdatedListener)
-							eventManager.updated(tcache, (CacheEntryUpdatedListener<K,V>)listener,  event);
-						break;
-	
-					case REMOVED:
-						if (listener instanceof CacheEntryRemovedListener)
-							eventManager.removed(tcache, (CacheEntryRemovedListener<K,V>)listener,  event);
-						break;
-						
-					default:
-						// By default do nothing. If new event types are added to the Spec they are ignored.
-				}
+				sendEvent(event, listener);
 			}
 			else
 			{
-				// TODO Implement async/batched dispatching
+				try
+				{
+					dispatchQueue.put(event);
+				}
+				catch (InterruptedException e)
+				{
+					/** Interruption policy:
+					 * The #dispatch method can be part of client interaction like a put or get call. Or it can
+					 * be from internal operations like eviction. In both cases we do not want to blindly
+					 * bubble up the stack until some random code catches it. Reason is, that it could leave the
+					 * Cache in an inconsistent state, e.g. a value was put() into the cache but the statistics
+					 * do not reflect that. Thus, we simply mark the current thread interrupted, so any caller
+					 * on any stack level may inspect the status.
+					 */
+					Thread.currentThread().interrupt();
+					// If we come here, the event may not be in the dispatchQueue. But we will not
+					// retry, as there are no guarantees when interrupting and it is safer to just go on.
+					// For example if during shutdown the dispatchQueue is full, we would iterate here
+					// forever as the DispatchRunnable instance could be shutdown and not read from the
+					// queue any longer.
+				}
 			}
 		}
 	}
-	
+
+	private void sendEvent(CacheEntryEvent<K, V> event, CacheEntryListener<K, V> listener)
+	{
+		switch (event.getEventType())
+        {
+            case CREATED:
+                if (listener instanceof CacheEntryCreatedListener)
+                    eventManager.created(tcache, (CacheEntryCreatedListener<K,V>)listener, event);
+                break;
+
+            case EXPIRED:
+                if (listener instanceof CacheEntryExpiredListener)
+                    eventManager.expired(tcache, (CacheEntryExpiredListener<K,V>)listener,  event);
+                break;
+
+            case UPDATED:
+                if (listener instanceof CacheEntryUpdatedListener)
+                    eventManager.updated(tcache, (CacheEntryUpdatedListener<K,V>)listener,  event);
+                break;
+
+            case REMOVED:
+                if (listener instanceof CacheEntryRemovedListener)
+                    eventManager.removed(tcache, (CacheEntryRemovedListener<K,V>)listener,  event);
+                break;
+
+            default:
+                // By default do nothing. If new event types are added to the Spec they are ignored.
+        }
+	}
+
 
 	/**
 	 * Checks whether this ListenerEntry is interested in the given event. More formally,
@@ -162,6 +201,15 @@ public class ListenerEntry<K,V> // should be private to TCache
 //	{
 //		return listener;
 //	}
+
+	public void shutdown()
+	{
+		DispatchRunnable runnable = dispatchThread;
+		if (runnable != null)
+		{
+			runnable.shutdown();
+		}
+	}
 
 	@Override
 	public int hashCode()
@@ -182,4 +230,54 @@ public class ListenerEntry<K,V> // should be private to TCache
 		return this.getConfig() == ((ListenerEntry<?,?>)obj).getConfig();
 	}
 
+	/**
+	 *
+	 */
+	private class DispatchRunnable  extends Thread implements Runnable
+	{
+		private volatile boolean running = true;
+
+		DispatchRunnable(String id)
+		{
+			super(id);
+			setDaemon(true);
+		}
+
+		@Override
+		public void run()
+		{
+			CacheEntryListener<K, V> listenerRef = (CacheEntryListener<K, V>) listener;
+
+			while (running)
+			{
+				try
+				{
+					final CacheEntryEvent<K, V> event = dispatchQueue.take();
+					sendEvent(event, listenerRef);
+				}
+				catch (InterruptedException ie)
+				{
+					// Interruption policy: Only used for quitting
+				}
+				catch (Exception exc)
+				{
+					// If the thread enters this line, there was an issue wit sendEvent(). Likely it
+					// is in the user provided Listener code, so we must make sure not to die if this
+					// happens. For now we will silently ignore any errors.
+				}
+			}
+		}
+
+		 public void shutdown()
+		 {
+			 running = false;
+			 Thread thread = dispatchThread;
+			 if (thread != null)
+			 {
+				 thread.interrupt();
+				 dispatchThread = null;
+			 }
+		 }
+
+	}
 }

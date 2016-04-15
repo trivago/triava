@@ -13,11 +13,12 @@ import javax.cache.event.EventType;
  */
 public class TCacheEntryEvent<K,V> extends CacheEntryEvent<K, V>
 {
-	K key;
-	V value;
-	V oldValue;
+	final K key;
+	final V value;
+	final V oldValue;
+	final boolean oldValueAvailable;
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = 7453522096130191080L;
 
@@ -25,53 +26,59 @@ public class TCacheEntryEvent<K,V> extends CacheEntryEvent<K, V>
 	{
 		this(source, eventType, key, null, null);
 	}
-	
+
 	public TCacheEntryEvent(Cache<K,V> source, EventType eventType, K key, V value)
 	{
-		this(source, eventType, key, value, null);
+		this(source, eventType, key, value, null, false);
 	}
-	
+
 	public TCacheEntryEvent(Cache<K,V> source, EventType eventType, K key, V value, V oldValue)
+	{
+		this(source, eventType, key, value, oldValue, true);
+	}
+
+	public TCacheEntryEvent(Cache<K,V> source, EventType eventType, K key, V value, V oldValue, boolean oldValueAvailable)
 	{
 		super(source, eventType);
 		this.key = key;
 		this.value = value;
 		this.oldValue = oldValue;
+		this.oldValueAvailable = oldValueAvailable;
 	}
 
 	@Override
 	public K getKey()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return key;
 	}
 
 	@Override
 	public V getValue()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return value;
 	}
 
 	@Override
 	public <T> T unwrap(Class<T> clazz)
 	{
-		// TODO Auto-generated method stub
-		return null;
+        if (!(clazz.isAssignableFrom(TCacheEntryEvent.class)))
+            throw new IllegalArgumentException("Cannot unwrap CacheManager to unsupported Class " + clazz);
+
+        @SuppressWarnings("unchecked")
+        T thisCasted = (T)this;
+        return thisCasted;
 	}
 
 	@Override
 	public V getOldValue()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return oldValue;
 	}
 
 	@Override
 	public boolean isOldValueAvailable()
 	{
-		// TODO Auto-generated method stub
-		return false;
+		return oldValueAvailable;
 	}
 
 }

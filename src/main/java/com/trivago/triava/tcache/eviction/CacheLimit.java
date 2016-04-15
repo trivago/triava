@@ -399,7 +399,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			// ###B###
 
 			@SuppressWarnings("unchecked")
-			HolderFreezer<K, V>[] toCheck = toCheckL.toArray(new HolderFreezer[0]);
+			HolderFreezer<K, V>[] toCheck = toCheckL.toArray(new HolderFreezer[toCheckL.size()]);
 			Arrays.sort(toCheck, evictionClass.evictionComparator());
 
 			int removedCount = 0;
