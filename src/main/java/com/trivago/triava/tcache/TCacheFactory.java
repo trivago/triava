@@ -38,10 +38,11 @@ import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 
 /**
- * The TCacheFactory allows to create Cache instances via {@link #builder()}, and also supplies administrative methods for the
+ * The TCacheFactory allows to create Cache instances via calls to {@link #builder()}, and also supplies administrative methods for the
  * managed caches, like shutting down all registered Caches. The preferred way of obtaining a TCacheFactory
  * instance for application code is a call to {@link #standardFactory()}. Library code should instantiate a new
  * TCacheFactory instance, so it can manage its own Cache collection.
+ * An alternative way is to use the JCache API, and obtain an instance via {@link javax.cache.spi.CachingProvider}.getCacheManager() calls.
  * 
  * @author cesken
  * @since 2015-03-10
@@ -304,6 +305,11 @@ public class TCacheFactory implements Closeable, CacheManager
 		return new ArrayList<>(CacheInstances);
 	}
 
+	/**
+	 * Throws IllegalStateException if this TCacheFactory is closed. Otherwise returns without error.
+	 * 
+	 * @throws IllegalStateException if this TCacheFactory is closed
+	 */
 	private void assertNotClosed()
 	{
 		if (closed)
