@@ -114,41 +114,42 @@ public class ListenerEntry<K,V> // should be private to TCache
 	 */
 	public void dispatch(CacheEntryEvent<K, V> event)
 	{
-		if (eventManager != null)
-		{
-			if (!interested(event))
-				return; // filtered
-			
-//			@SuppressWarnings("unchecked")
-			CacheEntryListener<K, V> listener = (CacheEntryListener<K, V>) this.listener;
+		if (eventManager == null)
+			return;
+					
+		if (!interested(event))
+			return; // filtered
 
-			if (!dispatchMode.isAsync())
+		
+		@SuppressWarnings("unchecked")
+		CacheEntryListener<K, V> listener = (CacheEntryListener<K, V>) this.listener;
+
+		if (!dispatchMode.isAsync())
+		{
+			sendEvent(event, listener);
+		}
+		else
+		{
+			try
 			{
-				sendEvent(event, listener);
+				dispatchQueue.put(event);
 			}
-			else
+			catch (InterruptedException e)
 			{
-				try
-				{
-					dispatchQueue.put(event);
-				}
-				catch (InterruptedException e)
-				{
-					/** Interruption policy:
-					 * The #dispatch method can be part of client interaction like a put or get call. Or it can
-					 * be from internal operations like eviction. In both cases we do not want to blindly
-					 * bubble up the stack until some random code catches it. Reason is, that it could leave the
-					 * Cache in an inconsistent state, e.g. a value was put() into the cache but the statistics
-					 * do not reflect that. Thus, we simply mark the current thread interrupted, so any caller
-					 * on any stack level may inspect the status.
-					 */
-					Thread.currentThread().interrupt();
-					// If we come here, the event may not be in the dispatchQueue. But we will not
-					// retry, as there are no guarantees when interrupting and it is safer to just go on.
-					// For example if during shutdown the dispatchQueue is full, we would iterate here
-					// forever as the DispatchRunnable instance could be shutdown and not read from the
-					// queue any longer.
-				}
+				/** Interruption policy:
+				 * The #dispatch method can be part of client interaction like a put or get call. Or it can
+				 * be from internal operations like eviction. In both cases we do not want to blindly
+				 * bubble up the stack until some random code catches it. Reason is, that it could leave the
+				 * Cache in an inconsistent state, e.g. a value was put() into the cache but the statistics
+				 * do not reflect that. Thus, we simply mark the current thread interrupted, so any caller
+				 * on any stack level may inspect the status.
+				 */
+				Thread.currentThread().interrupt();
+				// If we come here, the event may not be in the dispatchQueue. But we will not
+				// retry, as there are no guarantees when interrupting and it is safer to just go on.
+				// For example if during shutdown the dispatchQueue is full, we would iterate here
+				// forever as the DispatchRunnable instance could be shutdown and not read from the
+				// queue any longer.
 			}
 		}
 	}
