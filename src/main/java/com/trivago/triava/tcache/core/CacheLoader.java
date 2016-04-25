@@ -16,22 +16,31 @@
 
 package com.trivago.triava.tcache.core;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.cache.integration.CacheLoaderException;
+
 /**
- * A CacheLoader implements on-the-fly retrieval of values which are not yet in the Cache.  
+ * An abstract implementation of {@link javax.cache.integration.CacheLoader}, that implements {@link #loadAll(Iterable)}
+ * in a trivial fashion by iterating all keys and sequentially calling {@link #load(Object)}.
+ *   
  * @author cesken
  *
  * @param <K> The key class
  * @param <V> The value class
  */
-public interface CacheLoader<K, V>
+public abstract class CacheLoader<K, V> implements javax.cache.integration.CacheLoader<K, V>
 {
-	/**
-	 * Computes or retrieves the value corresponding to {@code key}. Failures to load the
-	 * value must throw an Exception.
-	 *
-	 * @param key the non-null key whose value should be loaded
-	 * @return the value associated with {@code key}; <b>must not be null</b>
-	 * @throws Exception The cause if loading the value has failed 
-	 */
-    V load(K key) throws Exception;
+    @Override
+    public Map<K, V> loadAll(Iterable<? extends K> keys) throws CacheLoaderException
+    {
+    	Map<K, V> entries = new HashMap<>();
+    	for (K key : keys)
+    	{
+    		entries.put(key, load(key));
+    	}
+    	
+    	return entries;
+    }
 }

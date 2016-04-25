@@ -16,6 +16,8 @@
 
 package com.trivago.triava.tcache.core;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -74,6 +76,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
 	Class<K> keyType = objectKeyType();
 	Class<V> valueType = objectValueType();
+	
+	Collection<CacheEntryListenerConfiguration<K, V>> listenerConfiguration = new ArrayList<>(0); // TODO Evaluate this in the Cache constructor
 
 	/**
 	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
@@ -580,11 +584,19 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			tcacheWriteMode = sourceB.writeMode;
 		}
 		
-		if (configuration.getClass().isAssignableFrom(Configuration.class))
+		if (configuration.getClass().isAssignableFrom(CompleteConfiguration.class))
 		{
 			CompleteConfiguration<K,V> cc = (CompleteConfiguration<K,V>)configuration;
 			target.statistics = cc.isStatisticsEnabled();
 			target.management = cc.isManagementEnabled();
+			
+			Collection<CacheEntryListenerConfiguration<K, V>> listenerConfs = new ArrayList<>(0);
+			for (CacheEntryListenerConfiguration<K, V> entry : cc.getCacheEntryListenerConfigurations())
+			{
+				listenerConfs.add(entry);
+			}
+			target.listenerConfiguration = listenerConfs;
+			
 			// target.writeThrough  // not supported
 			// target.readThrough  // not supported
 		}
@@ -734,8 +746,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	@Override
 	public Iterable<CacheEntryListenerConfiguration<K, V>> getCacheEntryListenerConfigurations()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return listenerConfiguration;
 	}
 
 	@Override
@@ -748,7 +759,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	@Override
 	public Factory<CacheWriter<? super K, ? super V>> getCacheWriterFactory()
 	{
-		// TODO Auto-generated method stub
+		// We do not support write-through, thus return the default (null)
 		return null;
 	}
 

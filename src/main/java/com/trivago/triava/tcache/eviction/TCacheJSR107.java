@@ -16,9 +16,11 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,9 +33,13 @@ import javax.cache.integration.CompletionListener;
 import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
+import javax.cache.processor.MutableEntry;
 
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.core.CacheLoader;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
+import com.trivago.triava.tcache.core.TCacheJSR107Entry;
+import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.DispatchMode;
 import com.trivago.triava.tcache.event.ListenerEntry;
 import com.trivago.triava.tcache.event.TCacheEntryEvent;
@@ -173,18 +179,81 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public <T> T invoke(K key, EntryProcessor<K, V, T> entryProcessor, Object... args) throws EntryProcessorException
 	{
-		// TODO Auto-generated method stub
-		return null;
+		AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
+		if (holder == null)
+		{
+			CacheLoader<K, V> loader = tcache.loader;
+			if (loader != null)
+			{
+				V value = loader.load(key);
+				if (value != null)
+				{
+					put(key, value);
+					holder = tcache.objects.get(key); // Future: Use a put() that returns the holder
+				}
+			}
+		}
+		MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K,V>(key, holder, tcache);
+		T result = entryProcessor.process(me, args);
+		return result;
 	}
 
+	// TODO The effects of entryProcessor.process() should be visible only after returning from that message according to JSR107 Spec
+	//      The entry should be replaced atomically, instead of TCacheJSR107MutableEntry directly manipulating the Cache.
 	@Override
 	public <T> Map<K, EntryProcessorResult<T>> invokeAll(Set<? extends K> keys, EntryProcessor<K, V, T> entryProcessor,
 			Object... args)
 	{
-		// TODO Auto-generated method stub
-		return null;
+		Map<K, EntryProcessorResult<T>> resultMap = new HashMap<>();
+		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : tcache.objects.entrySet())
+		{
+			try
+			{
+				MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K,V>(entry.getKey(), entry.getValue(), tcache);
+				T result = entryProcessor.process(me, args);
+				if (result != null)
+				{
+					resultMap.put(entry.getKey(), new EntryProcessorResultTCache<T>(result));
+				}
+			}
+			catch (Exception exc)
+			{
+				resultMap.put(entry.getKey(), new EntryProcessorResultTCache<T>(exc));
+			}
+		}
+		
+		return resultMap;
 	}
 
+	private static class EntryProcessorResultTCache<T> implements EntryProcessorResult<T>
+	{
+		Object result;
+		
+		EntryProcessorResultTCache(T result)
+		{
+			this.result = result;
+		}
+
+		EntryProcessorResultTCache(Exception exc)
+		{
+			this.result = new EntryProcessorException(exc);
+		}
+
+		@Override
+		public T get() throws EntryProcessorException
+		{
+			if (result instanceof EntryProcessorException)
+				throw (EntryProcessorException)result;
+			else
+			{
+				@SuppressWarnings("unchecked")
+				T ret = (T)result;
+				return ret;
+			}
+		}
+		
+	}
+	
 	@Override
 	public boolean isClosed()
 	{
@@ -194,16 +263,55 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public Iterator<javax.cache.Cache.Entry<K, V>> iterator()
 	{
-//		Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> iterator = tcache.objects.entrySet().iterator();
-		// TODO Auto-generated method stub
-		return null;
+		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
+		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : tcache.objects.entrySet())
+		{
+			entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue()));
+		}
+		return entries.iterator();
 	}
 
+	// TODO #loadAll() must be implemented ASYNCHRONOUSLY according to JSR107 Spec
 	@Override
-	public void loadAll(Set<? extends K> arg0, boolean arg1, CompletionListener arg2)
+	public void loadAll(Set<? extends K> keys, boolean replaceExistingValues, CompletionListener listener)
 	{
-		// TODO Auto-generated method stub
+		CacheLoader<K, V> loader = tcache.loader;
 		
+		if (loader == null)
+			return;
+
+		final Set<K> finalKeys;
+
+		try
+		{
+			if (replaceExistingValues)
+			{
+				loader.loadAll(keys);
+			}
+			else
+			{
+				finalKeys = new HashSet<>();
+				
+				// Only a single Thread may iterate keys (may be a not thread-safe Set)
+				for (K key : keys)
+				{
+					if (!containsKey(key))
+					{
+						finalKeys.add(key);
+					}
+				}
+				loader.loadAll(finalKeys);
+			}
+			
+			listener.onCompletion();
+		}
+		catch (Exception exc)
+		{
+			listener.onException(exc);
+		}
+		
+		
+
 	}
 
 	@Override
@@ -321,9 +429,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			V oldValue = tcache.remove(key);
 			boolean removed = oldValue != null;
-			// TODO optimize to dispatch all events in one call
 			if (removed)
+			{
+				// Future direction: This could be optimized to do dispatchEvents(Event-List).
+				// To be done with the next major refactoring, as event lists need to be supported until the very bottom of the call-stack, namely until ListenerCacheEventManager.
 				dispatchEvent(EventType.REMOVED, key, null, oldValue);
+			}
 		}
 	}
 

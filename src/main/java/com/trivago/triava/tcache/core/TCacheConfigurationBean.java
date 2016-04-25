@@ -16,9 +16,11 @@
 
 package com.trivago.triava.tcache.core;
 
+import javax.cache.configuration.Configuration;
 import javax.cache.management.CacheMXBean;
 
 import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.TCacheJSR107;
 
 public class TCacheConfigurationBean<K,V> implements CacheMXBean
 {
@@ -32,15 +34,15 @@ public class TCacheConfigurationBean<K,V> implements CacheMXBean
 	@Override
 	public String getKeyType()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		Configuration<K,V> config = getCacheConfiguration();
+		return config.getKeyType().getCanonicalName();
 	}
 
 	@Override
 	public String getValueType()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		Configuration<K,V> config = getCacheConfiguration();
+		return config.getValueType().getCanonicalName();
 	}
 
 	@Override
@@ -73,4 +75,16 @@ public class TCacheConfigurationBean<K,V> implements CacheMXBean
 		return tcache.isManagementEnabled();
 	}
 
+
+	/**
+	 * Returns the Configuration object of the corresponding Cache.
+	 * @return
+	 */
+	private Configuration<K,V> getCacheConfiguration()
+	{
+		TCacheJSR107<K, V> jsr107cache = tcache.jsr107cache();
+		@SuppressWarnings("unchecked")
+		Configuration<K,V> config = (Configuration<K,V>)jsr107cache.getConfiguration(Configuration.class);
+		return config;
+	}
 }

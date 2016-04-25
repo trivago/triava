@@ -36,8 +36,6 @@ public class CacheExample
 	{
 		
 		TCacheFactory factory = TCacheFactory.standardFactory();
-//		Builder<Integer, String> builder = factory.builder();
-//		Cache<Integer, String> cache = builder.build();
 //		Cache.setLogger(new TriavaConsoleLogger());  // For some logs to the console, uncomment this line
 		
 		exampleCacheGetWithLoader(factory);
@@ -161,10 +159,10 @@ public class CacheExample
 
 
 
-	static class IntToStringLoader implements CacheLoader<Integer,String>
+	static class IntToStringLoader extends CacheLoader<Integer,String>
 	{
 		@Override
-		public String load(Integer value) throws Exception
+		public String load(Integer value)
 		{
 			return "Value " + value; // using implict StringBuilder
 		}
