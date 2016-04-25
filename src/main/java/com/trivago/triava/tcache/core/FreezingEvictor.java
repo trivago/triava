@@ -93,9 +93,9 @@ abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 	 * Typical examples are element metadata like <i>use count</i> or the <i>last use timestamp</i>. Content-aware
 	 * eviction implementations  can also derive a value from the data, like session status ("logged out", "idle").
 	 * 
-	 * @param key
-	 * @param holder
-	 * @return
+	 * @param key The key
+	 * @param holder The holder that holds the associated value for the key
+	 * @return The eviction relevance, see method description.  
 	 */
 	@Override
 	public abstract long getFreezeValue(K key, TCacheHolder<V> holder);
@@ -103,12 +103,12 @@ abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 	/**
 	 * Compare objects by their frozen value {@link HolderFreezer#getFrozenValue()}. The returned value
 	 * is negative, 0, or positive, similar to o1.getFrozenValue().compareTo(o2.getFrozenValue()).
-	 * The tiebreaker in the HolderFreezer will be taken into account, if includeTiebreaker is set.
+	 * The tie breaker in the HolderFreezer will be taken into account, if includeTiebreaker is set.
 	 * 
-	 * @param o1
-	 * @param o2
-	 * @param includeTiebreaker
-	 * @return
+	 * @param o1 The first object for the comparison
+	 * @param o2 The second object for the comparison
+	 * @param includeTiebreaker If true, the tie breaker will be consulted on identical elements
+	 * @return A compare value, as explained in the method description
 	 */
 	public int compareByFreezer(HolderFreezer<K, V> o1, HolderFreezer<K, V> o2, boolean includeTiebreaker)
 	{

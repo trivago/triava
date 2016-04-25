@@ -1131,10 +1131,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 	
 	/**
-	 * Retrieve reference to AccessTimeHolder&lt;T&gt; objects as an unmodifiable Collection.
+	 * Retrieve reference to AccessTimeHolder&lt;V&gt; objects as an unmodifiable Collection.
 	 * You can use this when you want to serialize the complete Cache. 
 	 *
-	 * @return Collection of all AccessTimeHolder&lt;T&gt; Objects. The collection is unmodifiable.
+	 * @return Collection of all AccessTimeHolder&lt;V&gt; Objects. The collection is unmodifiable.
 	 */
 	public Collection<AccessTimeObjectHolder<V>> getAccessTimeHolderObjects()
 	{
@@ -1272,45 +1272,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	{
 		return managementEnabled;
 	}
-
-//	public static final class TCacheJSR106Holder<K, V> implements javax.cache.Cache.Entry<K, V>
-//	{
-//		final K key;
-//		final TCacheHolder<V> holder;
-//		
-//		
-//		public TCacheJSR106Holder(K key, TCacheHolder<V> holder)
-//		{
-//			this.key = key;
-//			this.holder = holder;
-//		}
-//
-//		@Override
-//		public K getKey()
-//		{
-//			return key;
-//		}
-//
-//		@Override
-//		public V getValue()
-//		{
-//			return holder.peek();
-//		}
-//
-//
-//		@Override
-//		public <T> T unwrap(Class<T> clazz)
-//		{
-//			if (!(clazz.isAssignableFrom(TCacheHolder.class)))
-//				throw new IllegalArgumentException("Cannot unwrap to unsupported Class " + clazz);
-//			
-//			
-//			@SuppressWarnings("unchecked")
-//			T holderCast = (T)holder;
-//			return holderCast;
-//		}
-//		
-//	}
 
 
 }
