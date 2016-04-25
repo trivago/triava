@@ -16,9 +16,6 @@
 
 package com.trivago.triava.tcache.util;
 
-import com.sun.jmx.mbeanserver.JmxMBeanServer;
-
-
 import javax.management.ListenerNotFoundException;
 import javax.management.MBeanNotificationInfo;
 import javax.management.MBeanServer;
@@ -31,11 +28,13 @@ import javax.management.NotificationListener;
 /**
  * An MBeanServer builder which creates a local MBeanServer.
  * <p>
- * Implementation note. This is only required for the TCK, and not during normal runtime.
- * The implementation is taken from the RI, and thus it contains a dependency
- * to the Sun/Oracle JDK, due to com.sun.* import.
+ * Implementation note. This class is only required for the TCK, and not during normal runtime.
+ * The implementation is taken from the RI, but has been modified that it calls
+ * super.newMBeanServer() instead of creating a direct dependency
+ * to the Sun/Oracle JDK via a com.sun.* import.
  *
  * @author Greg Luck
+ * @author Christian Esken
  */
 public class TCKMBeanServerBuilder extends MBeanServerBuilder {
 
@@ -48,11 +47,10 @@ public class TCKMBeanServerBuilder extends MBeanServerBuilder {
   }
 
   @Override
-  public MBeanServer newMBeanServer(String defaultDomain, MBeanServer outer,
-                                    MBeanServerDelegate delegate) {
+  public MBeanServer newMBeanServer(String defaultDomain, MBeanServer outer, MBeanServerDelegate delegate)
+  {
     MBeanServerDelegate decoratingDelegate = new RIMBeanServerDelegate(delegate);
-    return JmxMBeanServer.newMBeanServer(defaultDomain, outer,
-        decoratingDelegate, false);
+    return super.newMBeanServer(defaultDomain, outer, decoratingDelegate);
   }
 
   /**
@@ -63,7 +61,7 @@ public class TCKMBeanServerBuilder extends MBeanServerBuilder {
    */
   public class RIMBeanServerDelegate extends MBeanServerDelegate {
 
-    private MBeanServerDelegate delegate;
+    private final MBeanServerDelegate delegate;
 
     /**
      * Constructor
