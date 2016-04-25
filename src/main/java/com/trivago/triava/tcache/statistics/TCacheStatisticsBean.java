@@ -27,7 +27,7 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	private static final long serialVersionUID = -2459622086065310568L;
 	
 	final private StatisticsCalculator statistics;
-	final private Cache<?,?> tcache;
+	final transient private Cache<?,?> tcache;
 	final private StatisticsAveragingMode averagingMode; 
 	
 	public enum StatisticsAveragingMode { JSR107, PER_MINUTE } 
