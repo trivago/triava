@@ -34,8 +34,8 @@ public class UnitComponent
 	/**
 	 * Creates a representation in the {@link UnitSystem} for the value.
 	 * 
-	 * @param value
-	 * @param unitSystem
+	 * @param value The multiplier for each prefix, e.g. 1000 or 1024
+	 * @param unitSystem The UnitSystem to use
 	 */
 	public UnitComponent(long value, UnitSystem unitSystem)
 	{
