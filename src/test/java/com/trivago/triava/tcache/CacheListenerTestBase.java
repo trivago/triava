@@ -18,43 +18,29 @@ package com.trivago.triava.tcache;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.cache.CacheManager;
 import javax.cache.Caching;
-import javax.cache.configuration.Factory;
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.event.CacheEntryCreatedListener;
 import javax.cache.event.CacheEntryEvent;
 import javax.cache.event.CacheEntryExpiredListener;
-import javax.cache.event.CacheEntryListener;
 import javax.cache.event.CacheEntryListenerException;
 import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 import javax.cache.spi.CachingProvider;
 
+/**
+ * Base class for implementing unit tests for Cache Listeners.
+ * @author cesken
+ *
+ */
 public class CacheListenerTestBase
 {
 	CacheManager cacheManager;
 	
-	class NamedAtomicInteger extends AtomicInteger
-	{
-		private static final long serialVersionUID = 6608822331361354835L;
-		
-		private final String name;
-		
-		NamedAtomicInteger(String name)
-		{
-			this.name = name;
-		}
-
-		public String name()
-		{
-			return name;
-		}
-		
-	}
 	volatile NamedAtomicInteger createdListenerFiredCount = new NamedAtomicInteger("created");
 	volatile NamedAtomicInteger updatedListenerFiredCount = new NamedAtomicInteger("updated");
 	volatile NamedAtomicInteger removedListenerFiredCount = new NamedAtomicInteger("removed");
@@ -65,6 +51,21 @@ public class CacheListenerTestBase
 	TimeUnit unit = TimeUnit.MILLISECONDS; // Unit
 	
 
+
+	
+	/**
+	 * Creates a Cache via plain JSR107 API. The Cache is configured with a default MutableConfiguration.
+	 * @param cacheName Cache name
+	 * @return The Cache
+	 */
+	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName)
+	{
+		MutableConfiguration<Integer, String> mc = new MutableConfiguration<>();
+		javax.cache.Cache<Integer, String> cache = cacheManager().createCache(cacheName, mc); // Build
+		return cache;
+	}
+	
+	
 	/**
 	 * Returns a tCache CacheManager.  
 	 * @return
@@ -81,28 +82,58 @@ public class CacheListenerTestBase
 	}
 	
 
+	/**
+	 * Checks the created count: expected vs actual 
+	 * @param expected
+	 */
 	void checkCreated(int expected)
 	{
 		checkEventCount(expected, createdListenerFiredCount);
 	}
 	
-
+	/**
+	 * Checks the updated count: expected vs actual 
+	 * @param expected
+	 */
 	void checkUpdated(int expected)
 	{
-		assertEquals("Updated listener has not fired the expected number of times", expected, updatedListenerFiredCount.get());
+		checkEventCount(expected, updatedListenerFiredCount);
 	}
 
+	/**
+	 * Checks the removeded count: expected vs actual 
+	 * @param expected
+	 */
+	void checkRemoved(int expected)
+	{
+		checkEventCount(expected, removedListenerFiredCount);
+	}
+	
+	/**
+	 * Checks the expired count: expected vs actual 
+	 * @param expected
+	 */
+	void checkExpired(int expected)
+	{
+		checkEventCount(expected, expiredListenerFiredCount);
+	}
+	
+	/**
+	 * Waits a maximum time of {@link #maxWait} in the Unit {@link #unit} for actual value to get equal with expected.
+	 * A JUnit #assertEquals() is run when it is equal or the timeout has passed.
+	 * 
+	 * @param expected The expected value
+	 * @param actual The actual value
+	 */
 	void checkEventCount(int expected, NamedAtomicInteger actual)
 	{
-		boolean equals;
 		if (maxWait > 0)
 		{
 			boolean done = false;
 			long timeLimit = System.currentTimeMillis() + unit.toMillis(maxWait);
 			while (!done)
 			{
-				equals = equals(expected, actual.get());
-				if (equals)
+				if (expected == actual.get())
 					break;
 				
 				if (System.currentTimeMillis() >= timeLimit)
@@ -110,7 +141,7 @@ public class CacheListenerTestBase
 				
 				try
 				{
-					Thread.sleep(10);
+					Thread.sleep(1);
 				}
 				catch (InterruptedException e)
 				{
@@ -122,13 +153,6 @@ public class CacheListenerTestBase
 		assertEquals(actual.name() + " listener has not fired the expected number of times", expected, createdListenerFiredCount.get());
 	}
 
-	private boolean equals(int expected, int actual)
-	{
-		return expected == actual;
-	}
-
-
-
 	void resetListenerCounts()
 	{
 		createdListenerFiredCount.set(0);
@@ -137,43 +161,12 @@ public class CacheListenerTestBase
 		expiredListenerFiredCount.set(0);
 	}
 
+
 	
-	/**
-	 * Creates a Cache via plain JSR107 API. The Cache is configured with a default MutableConfiguration.
-	 * @param cacheName Cache name
-	 * @return The Cache
-	 */
-	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName)
+	
+	class UpdateListener implements Serializable, CacheEntryUpdatedListener<Integer, String>, CacheEntryCreatedListener<Integer, String>, CacheEntryRemovedListener<Integer, String>, CacheEntryExpiredListener<Integer, String> 
 	{
-		MutableConfiguration<Integer, String> mc = new MutableConfiguration<>();
-		javax.cache.Cache<Integer, String> cache = cacheManager().createCache(cacheName, mc); // Build
-		return cache;
-	}
-
-	
-	
-	class UpdateListener implements CacheEntryUpdatedListener<Integer, String>, CacheEntryCreatedListener<Integer, String>, CacheEntryRemovedListener<Integer, String>, CacheEntryExpiredListener<Integer, String> 
-	{
-		UlFactory factory = new UlFactory();
-		
-		class UlFactory implements Factory<CacheEntryListener<Integer, String>>
-		{
-			private static final long serialVersionUID = -6664979334102671325L;
-
-			@Override
-			public CacheEntryListener<Integer, String> create()
-			{
-				return new UpdateListener();
-			}
-
-			
-		}
-		
-		UlFactory factory()
-		{
-			return factory;
-	
-		}
+		private static final long serialVersionUID = -9003765582158554780L;
 		
 		@Override
 		public void onUpdated(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)

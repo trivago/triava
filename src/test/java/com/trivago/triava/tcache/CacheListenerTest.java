@@ -21,9 +21,9 @@ import static org.junit.Assert.fail;
 import java.util.concurrent.TimeUnit;
 
 import javax.cache.configuration.CacheEntryListenerConfiguration;
+import javax.cache.configuration.Factory;
+import javax.cache.configuration.FactoryBuilder;
 import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
-
-import com.trivago.triava.tcache.CacheListenerTestBase.UpdateListener.UlFactory;
 
 public class CacheListenerTest extends CacheListenerTestBase
 {
@@ -41,7 +41,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 		{	
 			javax.cache.Cache<Integer, String> cache = createJsr107Cache("CacheTest-1");
 			
-			UlFactory ulFactory = new UpdateListener().factory();
+			Factory<UpdateListener> ulFactory = FactoryBuilder.factoryOf(new UpdateListener());
 			CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, isSynchronous);
 			cache.registerCacheEntryListener(listenerConf);
 			
