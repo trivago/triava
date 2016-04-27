@@ -18,6 +18,7 @@ package com.trivago.triava.tcache.core;
 
 import java.net.URI;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Properties;
 import java.util.Set;
 
@@ -29,7 +30,9 @@ import com.trivago.triava.tcache.TCacheFactory;
 
 public class TCacheProvider implements CachingProvider
 {
+	//@GuardedBy("cacheManagersLock")
 	Set<CacheManager> cacheManagers = new HashSet<>();
+	// Explicit lock, as cacheManagers need a higher level locking than a ConcurrentSet 
 	Object cacheManagersLock = new Object();
 	
 	public TCacheProvider()
@@ -57,7 +60,7 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public CacheManager getCacheManager()
 	{
-		return TCacheFactory.standardFactory();
+		return getCacheManager(getDefaultURI(), getDefaultClassLoader(), null);
 	}
 
 	@Override
@@ -69,17 +72,24 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public CacheManager getCacheManager(URI uri, ClassLoader classLoader, Properties properties)
 	{
+		System.out.println("getCacheManager( " + uri + ", cl=" + classLoader + ", props=" + properties);
+		if (classLoader == null)
+			classLoader = getDefaultClassLoader();
+		
 		synchronized (cacheManagersLock)
 		{
 			CacheManager cacheManager = findCacheManager(uri, classLoader);
 			if (cacheManager == null)
 			{
 				if (properties == null)
-					cacheManager = new TCacheFactory(uri, classLoader);
+					cacheManager = new TCacheFactory(uri, classLoader, this);
 				else
-					cacheManager = new TCacheFactory(uri, classLoader, properties);
+					cacheManager = new TCacheFactory(uri, classLoader, properties, this);
+
+				cacheManagers.add(cacheManager);
 			}
-			cacheManagers.add(cacheManager);
+			
+			System.out.println("getCacheManager( " + uri + ", cl=" + classLoader + ", props=" + properties + " found cm=" + cacheManager + " open=" + !cacheManager.isClosed());
 			return cacheManager;
 		}
 	}
@@ -93,15 +103,18 @@ public class TCacheProvider implements CachingProvider
 	 */
 	private CacheManager findCacheManager(URI uri, ClassLoader classLoader)
 	{
-		for (CacheManager cacheManager : cacheManagers)
+		synchronized (cacheManagersLock)
 		{
-			if (! cacheManager.getURI().equals(uri))
-				continue;
-			if (! cacheManager.getClassLoader().equals(classLoader))
-				continue;
-			
-			// Properties are to be ignored for equality check according to the JSR107 Spec
-			return cacheManager;
+			for (CacheManager cacheManager : cacheManagers)
+			{
+				if (! cacheManager.getURI().equals(uri))
+					continue;
+				if (! cacheManager.getClassLoader().equals(classLoader))
+					continue;
+				
+				// Properties are to be ignored for equality check according to the JSR107 Spec
+				return cacheManager;
+			}
 		}
 		
 		return null;
@@ -110,36 +123,64 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public void close()
 	{
-		for (CacheManager cacheManager : cacheManagers)
+		System.out.println("CacheManager.close()");
+		synchronized (cacheManagersLock)
 		{
-			closeAndRemove(cacheManager);
+			for( Iterator<CacheManager> it = cacheManagers.iterator(); it.hasNext(); )
+			{
+				CacheManager cacheManager = it.next();
+				// Order must be close, remove
+				cacheManager.close();
+				it.remove();
+				System.out.println("CacheManager.close() closed");
+			}
 		}
 	}
 
-	private void closeAndRemove(CacheManager cacheManager)
-	{
-		cacheManager.close();
-		cacheManagers.remove(cacheManager);
-	}
 
 	@Override
 	public void close(ClassLoader classLoader)
 	{
-		for (CacheManager cacheManager : cacheManagers)
+		System.out.println("CacheManager.close() cl=" + classLoader);
+		synchronized (cacheManagersLock)
 		{
-			if (cacheManager.getClassLoader().equals(classLoader))
-				closeAndRemove(cacheManager);
+			for( Iterator<CacheManager> it = cacheManagers.iterator(); it.hasNext(); )
+			{
+				CacheManager cacheManager = it.next();
+				if (cacheManager.getClassLoader().equals(classLoader))
+				{
+					cacheManager.close();
+					it.remove();
+					System.out.println("CacheManager.close() closed cl=" + classLoader);
+				}
+			}
 		}
 	}
 
+	
 	@Override
 	public void close(URI uri, ClassLoader classLoader)
 	{
-		CacheManager cacheManager = findCacheManager(uri, classLoader);
-		if (cacheManager != null)
-			closeAndRemove(cacheManager);
+		System.out.println("CacheManager.close() cl=" + classLoader + ", uri=" + uri);
+		synchronized (cacheManagersLock)
+		{
+			CacheManager cacheManager = findCacheManager(uri, classLoader);
+			if (cacheManager != null)
+			{
+				cacheManager.close();
+				cacheManagers.remove(cacheManager);
+				System.out.println("CacheManager.close() closed cl=" + classLoader + ", uri=" + uri);
+			}
+		}
 	}
 
+	// TODO This MUST be package-private. Refactor 
+	public void removeCacheManager(CacheManager cacheManager)
+	{
+		cacheManagers.remove(cacheManager);
+		System.out.println("CacheManager.removeCacheManager() from close cm=" + cacheManager);
+	}
+	
 	@Override
 	public boolean isSupported(OptionalFeature optionalFeature)
 	{

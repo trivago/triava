@@ -29,6 +29,7 @@ import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Configuration;
 import javax.cache.event.EventType;
+import javax.cache.integration.CacheLoader;
 import javax.cache.integration.CompletionListener;
 import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
@@ -36,7 +37,6 @@ import javax.cache.processor.EntryProcessorResult;
 import javax.cache.processor.MutableEntry;
 
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.core.CacheLoader;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
@@ -137,12 +137,16 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public V getAndRemove(K key)
 	{
+		throwISEwhenClosed();
+
 		return tcache.remove(key);
 	}
 
 	@Override
 	public V getAndReplace(K key, V value)
 	{
+		throwISEwhenClosed();
+
 		return tcache.getAndReplace(key, value);
 	}
 
@@ -278,7 +282,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		CacheLoader<K, V> loader = tcache.loader;
 		
 		if (loader == null)
+		{
+			listener.onException(new UnsupportedOperationException("Cache does not support loadAll as no CacheLoader is defined: " + this.getName()));
 			return;
+		}
 
 		final Set<K> finalKeys;
 
@@ -300,6 +307,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 						finalKeys.add(key);
 					}
 				}
+
 				loader.loadAll(finalKeys);
 			}
 			
@@ -317,6 +325,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void put(K key, V value)
 	{
+		throwISEwhenClosed();
+
 		tcache.put(key, value);
 		dispatchEvent(EventType.CREATED, key, value);
 	}
@@ -324,6 +334,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void putAll(Map<? extends K, ? extends V> entries)
 	{
+		if (entries.isEmpty())
+			return;
+		
+		throwISEwhenClosed();
+
 		for (java.util.Map.Entry<? extends K, ? extends V> entry : entries.entrySet())
 		{
 			K key = entry.getKey();
@@ -336,6 +351,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public boolean putIfAbsent(K key, V value)
 	{
+		throwISEwhenClosed();
+
 		V oldValue = tcache.putIfAbsent(key, value);
 		// For JSR107 putIfAbsent() should return whether a value was set.
 		// As tcache.putIfAbsent() has the semantics of ConcurrentMap#putIfAbsent(), we can check for
@@ -397,6 +414,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public boolean remove(K key)
 	{
+		throwISEwhenClosed();
+		
 		V oldValue = tcache.remove(key);
 		boolean removed = oldValue != null;
 		if (removed)
@@ -409,6 +428,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public boolean remove(K key, V value)
 	{
+		throwISEwhenClosed();
+		if (value == null)
+		{
+			// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
+			// While a JCache may not contain null values, this does not mean to throw NPE. I would expect to return false.
+			throw new NullPointerException("value is null");
+		}
+		
 		boolean removed = tcache.remove(key, value);
 		if (removed)
 			dispatchEvent(EventType.REMOVED, key, value);
@@ -419,12 +446,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void removeAll()
 	{
-		tcache.clear();
+		throwISEwhenClosed();
+		removeAll(tcache.objects.keySet());
 	}
 
 	@Override
 	public void removeAll(Set<? extends K> keys)
 	{
+		throwISEwhenClosed();
 		for (K key : keys)
 		{
 			V oldValue = tcache.remove(key);
@@ -441,12 +470,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public boolean replace(K key, V value)
 	{
+		throwISEwhenClosed();
 		return tcache.replace(key, value);
 	}
 
 	@Override
 	public boolean replace(K key, V oldValue, V newValue)
 	{
+		throwISEwhenClosed();
 		return tcache.replace(key, oldValue, newValue);
 	}
 

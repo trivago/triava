@@ -33,7 +33,9 @@ import javax.cache.spi.CachingProvider;
 
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.Builder.PropsType;
+import com.trivago.triava.tcache.core.TCacheProvider;
 import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.TCacheJSR107;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 
@@ -57,6 +59,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	AtomicInteger uriSeqno = new AtomicInteger();
 	final ClassLoader classloader;
 	final Properties properties;
+	final TCacheProvider cachingProvider;
 
 	static TCacheFactory standardFactory = null;
 
@@ -75,20 +78,24 @@ public class TCacheFactory implements Closeable, CacheManager
 		{
 			throw new AssertionError("URI cannot be created: " + uriString, e);
 		}
+		
+		cachingProvider = null; // A standalone Cache without CachingProvider
 	}
 	
-	public TCacheFactory(URI uri, ClassLoader classLoader)
+	public TCacheFactory(URI uri, ClassLoader classLoader, TCacheProvider cachingProvider)
 	{
 		this.classloader = classLoader;
 		this.uri = uri;
 		properties = defaultProperties();
+		this.cachingProvider = cachingProvider;
 	}
 
-	public TCacheFactory(URI uri, ClassLoader classLoader, Properties properties)
+	public TCacheFactory(URI uri, ClassLoader classLoader, Properties properties, TCacheProvider cachingProvider)
 	{
 		this.classloader = classLoader;
 		this.uri = uri;
 		this.properties = new Properties(properties);
+		this.cachingProvider = cachingProvider;
 	}
 
 	/**
@@ -103,8 +110,11 @@ public class TCacheFactory implements Closeable, CacheManager
 	{
 		TCacheFactory sf = standardFactory;
 		if (sf == null || sf.isClosed())
-			standardFactory = new TCacheFactory();
-		return standardFactory;
+		{
+			sf = new TCacheFactory();
+			standardFactory = sf;
+		}
+		return sf;
 	}
 
 	private Properties defaultProperties()
@@ -255,7 +265,16 @@ public class TCacheFactory implements Closeable, CacheManager
 			cache.shutdown();
 		}
 		CacheInstances.clear();
-		closed = true;	
+		if (cachingProvider == null)
+		{
+			// Standalone, deprecated
+			closed = true;				
+		}
+		else
+		{
+			// From Caching provider
+			cachingProvider.removeCacheManager(this);
+		}
 	}
 	
 
@@ -394,14 +413,36 @@ public class TCacheFactory implements Closeable, CacheManager
 	}
 
 	@Override
-	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName)
+	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName, Class<K> keyClass, Class<V> valueClass)
 	{
 		for (Cache<?, ?> registeredCache : CacheInstances)
 		{
 			if (registeredCache.id().equals(cacheName))
 			{
 				javax.cache.Cache<?, ?> jsr107cacheTypeless = registeredCache.jsr107cache();
-				// TODO JSR107 Do a type check here for K and V. Throw IllegalArgumentException if they do not match
+				TCacheJSR107<?, ?> jsr107cache2 = registeredCache.jsr107cache();
+				@SuppressWarnings("unchecked")
+				Configuration<?,?> cc = jsr107cache2.getConfiguration(Configuration.class);
+				
+				// Type check for key
+				if (keyClass != null)
+				{
+					if ( cc.getKeyType() != keyClass)
+					{
+						throw new IllegalArgumentException("Key class mismatch. cache=" + cacheName + ", requestedClass=" + keyClass.getCanonicalName() + ", cacheClass=" + cc.getKeyType());
+					}
+				}
+				
+				// Type check for value
+				if (valueClass != null)
+				{
+					if ( cc.getValueType() != valueClass)
+					{
+						throw new IllegalArgumentException("Value class mismatch. cache=" + cacheName + ", requestedClass=" + valueClass.getCanonicalName() + ", cacheClass=" + cc.getValueType());
+					}
+				}
+				
+				@SuppressWarnings("unchecked")
 				javax.cache.Cache<K, V> jsr107cache = (javax.cache.Cache<K, V>) jsr107cacheTypeless;
 				return jsr107cache;
 			}
@@ -411,9 +452,9 @@ public class TCacheFactory implements Closeable, CacheManager
 	}
 
 	@Override
-	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName, Class<K> arg1, Class<V> arg2)
+	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName)
 	{
-		return getCache(cacheName); // TODO JSR107 Do a type check here
+		return getCache(cacheName, null, null);
 	}
 
 	@Override
@@ -430,8 +471,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	@Override
 	public CachingProvider getCachingProvider()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return cachingProvider;
 	}
 
 	@Override

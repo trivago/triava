@@ -25,12 +25,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import javax.cache.configuration.Factory;
+import javax.cache.integration.CacheLoader;
+
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.core.CacheLoader;
 import com.trivago.triava.tcache.core.StorageBackend;
 import com.trivago.triava.tcache.statistics.HitAndMissDifference;
 import com.trivago.triava.tcache.statistics.NullStatisticsCalculator;
@@ -276,6 +278,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	
 	}
 
+	final private boolean strictJSR107;
 	final private String id;
 	final Builder<K,V> builder; // A reference to the Builder that created this Cache
 	private final static long baseTimeMillis = System.currentTimeMillis();
@@ -330,6 +333,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	public Cache(Builder<K,V> builder)
 	{
 		this.id = builder.getId();
+		this.strictJSR107 = builder.isStrictJSR107();
 		this.builder = builder;
 		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
 		this.maxCacheTime = builder.getMaxCacheTime();
@@ -340,11 +344,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		// b) "/ 10" is for using 10% of that time as cleanupInterval
 		this.cleanUpIntervalMillis = this.defaultMaxIdleTime * 100; // makes defaultMaxIdleTime / 10
 		this.jamPolicy = builder.getJamPolicy();
-		this.loader  = builder.getLoader();
+		// CacheLoader directly or via CacheLoaderFactory 
+		Factory<javax.cache.integration.CacheLoader<K, V>> lf = builder.getCacheLoaderFactory();
+		if (lf != null)
+		{
+			this.loader  = lf.create();
+		}
+		else
+		{
+			this.loader  = builder.getLoader();
+		}
 
 		objects = createBackingMap(builder);
 		
 		enableStatistics(builder.getStatistics());
+		enableManagement(builder.isManagementEnabled());
 		
 	    activateTimeSource();
 	    
@@ -490,7 +504,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * and throw something like ServiceShuttingDownException(). Before doing ANY of this, we need to think about
 	 * how (and whether) we want to provide a safe service shutdown. 
 	 * 
-	 * @param sleepMillis
+	 * @param sleepMillis The sleep time in milliseconds
 	 */
 	public static void sleepSimple(long sleepMillis)
 	{
@@ -617,7 +631,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * @param idleTime in seconds
 	 * @param cacheTime  Max Cache time in seconds
 	 * @param putIfAbsent Defines the behavior when the key is already present. See method documentation. 
-	 * @return If returnEffectiveHolder is true, the holder object of the object in the Map is returned. If returnEffectiveHolder is false, the returned value is like described in {@link java.util.Map#put(Object, Object)}. 
+	 * @param returnEffectiveHolder If true, the holder object of the object in the Map is returned. If returnEffectiveHolder is false, the returned value is like described in {@link java.util.Map#put(Object, Object)}.
+	 * @return The holder reference, as described in the returnEffectiveHolder parameter
 	 */
 	protected AccessTimeObjectHolder<V> putToMap(K key, V data, long idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
 	{
@@ -702,9 +717,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	/**
 	 * TCK-WORK JSR107 check statistics effect
 	 * 
-	 * @param key
-	 * @param value
-	 * @return
+	 * {@inheritDoc}
 	 */
 	public V getAndReplace(K key, V value)
 	{
@@ -743,12 +756,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 	/**
-	 * Sets the cleanup interval for evicting idle cache entries. If you do not call this method, the default
+	 * Sets the cleanup interval for expiring idle cache entries. If you do not call this method, the default
 	 * cleanup interval is used, which is 1/10 * idleTime. This is often a good value.
 	 * 
 	 * TODO This should go into the Builder
 	 * 
-	 * @param cleanUpIntervalMillis
+	 * @param cleanUpIntervalMillis The eviction cleanup interval in milliseconds
 	 */
 	public void setCleanUpIntervalMillis(long cleanUpIntervalMillis)
 	{
@@ -774,7 +787,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * 
 	 * Throws NullPointerException if pKey is null.
 	 * 
-	 * @param key
+	 * @param key The key
 	 * @return The value
 	 * @throws RuntimeException if key is not present and the loader threw an Exception.
 	 * @throws NullPointerException if key is null.
@@ -837,8 +850,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 
 	/**
-	 * Fills the givenCache statistics object.
+	 * Fills the given cache statistics object.
 	 * 
+	 * @param cacheStatistic The statistics object to fill
 	 * @return The CacheStatistic object
 	 */
 	protected TCacheStatisticsInterface fillCacheStatistics(TCacheStatisticsInterface cacheStatistic)
@@ -920,6 +934,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		return averageHitrate;
 	}
 	
+	/**
+	 * Removes all entries from the Cache without notifying Listeners
+	 */
 	public void clear()
 	{
 		stopAndClear(0);
@@ -950,7 +967,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 
 	/**
-	 * Instantiates the TimeSource, if it is not yet there.
+	 * Returns the TimeSource for this Cache. The TimeSource is used for any situation where the current time is required, for
+	 * example the input date for a cache entry or on getting the current time when doing expiration.   
+	 * 
+	 * Instantiates the TimeSource if it is not yet there.
+	 * 
+	 * @return The TimeSource for this Cache.
 	 */
 	protected TimeSource activateTimeSource()
 	{
@@ -1057,7 +1079,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		if (!holderValue.equals(value))
 			return false;
 
-		boolean removed = this.objects.remove(key, holderValue);
+		boolean removed = this.objects.remove(key, holder);
 		if (removed)
 		{
 			releaseHolder(holder);

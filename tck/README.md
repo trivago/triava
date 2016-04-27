@@ -19,5 +19,19 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 ```
 
 ### Current compliance status:
-- Passes 70/72 tests. Issue in the 2 failures is the missing ListenerConfiguration support in the Configuration class implementation.
-- After that TCK hangs during org.jsr107.tck.expiry.CacheExpiryTest in org.jsr107.tck.integration.CacheLoaderServer, due to yet incomplete Loader implementation
+- All basic functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
+- Passes 288/466 tests. 
+
+## Unclear JSR107 Specs, but compliant according to TCK
+The following tests or Specs are unclear and should be adressed to the JSR107 working group.
+
+# RemoveTest.remove_2arg_NullValue()
+	// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
+	// While a JCache may not contain null values, this does not mean to throw NPE. I would expect to return false.
+
+# CacheMBStatisticsBeanTest
+	// Three wrong assertEquals() checks, where the "expected" and "actual" parameters are exchanged.
+	// Has no influence on test result, but wrong test output.
+	    assertEquals(result, "Sooty");
+	    assertEquals(result, "Trinity");
+	

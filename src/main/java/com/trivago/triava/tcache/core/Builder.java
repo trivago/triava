@@ -25,6 +25,7 @@ import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Configuration;
 import javax.cache.configuration.Factory;
+import javax.cache.expiry.EternalExpiryPolicy;
 import javax.cache.expiry.ExpiryPolicy;
 import javax.cache.integration.CacheWriter;
 
@@ -59,6 +60,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 
 	static long MAX_IDLE_TIME = 1800; // DEFAULT: 30 minutes
 	private String id;
+	private boolean strictJSR107 = true;
 	private long maxIdleTime = MAX_IDLE_TIME; // 30 minutes
 	private long maxCacheTime = 3600; // 60 minutes
 	private int maxCacheTimeSpread = 0; // 0 seconds
@@ -72,12 +74,16 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = false; // off by JSR107 default
 	private boolean management = false; // off by JSR107 default , TODO JSR107 implement
-	private CacheLoader<K, V> loader = null;
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
 	Class<K> keyType = objectKeyType();
 	Class<V> valueType = objectValueType();
 	
 	Collection<CacheEntryListenerConfiguration<K, V>> listenerConfiguration = new ArrayList<>(0); // TODO Evaluate this in the Cache constructor
+	Factory<CacheWriter<? super K, ? super V>> writerFactory = null; // TODO Evaluate this in the Cache constructor
+	Factory<ExpiryPolicy> expiryPolicyFactory = EternalExpiryPolicy.factoryOf(); // TODO Evaluate this in the Cache constructor
+
+	private CacheLoader<K, V> loader = null;
+	Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory = null;
 
 	/**
 	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
@@ -92,6 +98,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		this.factory = factory;
 		management = true;
 		statistics = true;
+		strictJSR107 = false;
 	}
 
 	/**
@@ -483,7 +490,19 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		this.loader = loader;
 		return this;
 	}
-	
+
+	@Override
+	public Factory<javax.cache.integration.CacheLoader<K, V>> getCacheLoaderFactory()
+	{
+		return loaderFactory;
+	}
+
+	public Builder<K, V> setCacheLoaderFactory(Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory)
+	{
+		this.loaderFactory = loaderFactory;
+		return this;
+	}
+
 	@Override // JSR107
 	public Class<K> getKeyType()
 	{
@@ -559,12 +578,13 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private void copyBuilder(Configuration<K, V> configuration, Builder<K, V> target)
 	{
 		CacheWriteMode tcacheWriteMode = null;
-		if (configuration.getClass().isAssignableFrom(Builder.class))
+		if (configuration instanceof Builder)
 		{
 			Builder<K, V> sourceB = (Builder<K, V>)configuration;
 			// tCache native configuration
 			if (sourceB.id != null)
 				target.id = sourceB.id;
+			target.strictJSR107 = sourceB.strictJSR107;
 			target.maxIdleTime = sourceB.maxIdleTime;
 			target.maxCacheTime = sourceB.maxCacheTime;
 			target.maxCacheTimeSpread = sourceB.maxCacheTimeSpread;
@@ -579,16 +599,25 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			if (sourceB.jamPolicy != null)
 				target.jamPolicy = sourceB.jamPolicy;
 			if (sourceB.loader != null)
-				target.loader = sourceB.loader;
+				target.loader = sourceB.loader; // loader vs loaderFactory
 
 			tcacheWriteMode = sourceB.writeMode;
 		}
 		
-		if (configuration.getClass().isAssignableFrom(CompleteConfiguration.class))
+		if (configuration instanceof CompleteConfiguration)
 		{
 			CompleteConfiguration<K,V> cc = (CompleteConfiguration<K,V>)configuration;
 			target.statistics = cc.isStatisticsEnabled();
 			target.management = cc.isManagementEnabled();
+			
+			target.expiryPolicyFactory = cc.getExpiryPolicyFactory();
+			target.writerFactory = cc.getCacheWriterFactory();
+			Factory<javax.cache.integration.CacheLoader<K, V>> lf = cc.getCacheLoaderFactory();
+			if (lf != null)
+			{
+				target.loader = null; // loader vs loaderFactory
+				target.loaderFactory = lf;
+			}
 			
 			Collection<CacheEntryListenerConfiguration<K, V>> listenerConfs = new ArrayList<>(0);
 			for (CacheEntryListenerConfiguration<K, V> entry : cc.getCacheEntryListenerConfigurations())
@@ -742,6 +771,20 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	{
 		return management;
 	}
+	/**
+	 * Returns whether the Cache behaves strictly JSR107 compliant
+	 * 
+	 * @return true if the Cache behaves strictly JSR107 compliant
+	 */
+	public boolean isStrictJSR107()
+	{
+		return strictJSR107;
+	}
+
+	public void setStrictJSR107(boolean strictJSR107)
+	{
+		this.strictJSR107 = strictJSR107;
+	}
 
 	@Override
 	public Iterable<CacheEntryListenerConfiguration<K, V>> getCacheEntryListenerConfigurations()
@@ -750,24 +793,15 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	@Override
-	public Factory<javax.cache.integration.CacheLoader<K, V>> getCacheLoaderFactory()
-	{
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public Factory<CacheWriter<? super K, ? super V>> getCacheWriterFactory()
 	{
-		// We do not support write-through, thus return the default (null)
-		return null;
+		return writerFactory;
 	}
 
 	@Override
 	public Factory<ExpiryPolicy> getExpiryPolicyFactory()
 	{
-		// TODO Auto-generated method stub
-		return null;
+		return expiryPolicyFactory;
 	}
 
 	

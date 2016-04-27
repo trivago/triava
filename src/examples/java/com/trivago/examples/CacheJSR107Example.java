@@ -143,8 +143,9 @@ public class CacheJSR107Example
 		cacheManager = cachingProvider.getCacheManager();
 
 		MutableConfiguration<Integer, Integer> mc = new MutableConfiguration<Integer, Integer>();
+		mc.setManagementEnabled(true);
+		mc.setStatisticsEnabled(true);
 		javax.cache.Cache<Integer, Integer> cache = cacheManager.createCache(cacheName, mc); // Build
-		cacheManager.enableManagement(cacheName, true);
 
 		return cache;
 	}
