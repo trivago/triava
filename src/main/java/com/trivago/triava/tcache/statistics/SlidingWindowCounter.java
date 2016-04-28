@@ -200,7 +200,7 @@ public class SlidingWindowCounter
      *
      *  Scenario 3: No action. Could happen when server clocks drift too much from each other.
      *
-     * @param timeNowInSeconds
+     * @param timeNowInSeconds The current time in milliseconds since epoch
      */
     public void synchronizeTimePointer(long timeNowInSeconds)
     {

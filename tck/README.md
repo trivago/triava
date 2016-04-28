@@ -19,8 +19,8 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 ```
 
 ### Current compliance status:
-- All basic functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 288/466 tests. 
+- All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
+- Passes 335/465 tests. (72%)
 
 ## Unclear JSR107 Specs, but compliant according to TCK
 The following tests or Specs are unclear and should be adressed to the JSR107 working group.
@@ -29,9 +29,30 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
 	// While a JCache may not contain null values, this does not mean to throw NPE. I would expect to return false.
 
+# PutTest.putAll_NullKey()
+	// It disallows partial success, even though this is not explicitly required, instead the Spec reads:
+	//
+	// " * The effect of this call is equivalent to that of calling
+	//   * {@link #put(Object, Object) put(k, v)} on this cache once for each mapping
+	//   * from key <tt>k</tt> to value <tt>v</tt> in the specified map.
+	//   *
+	// * The order in which the individual puts occur is undefined."
+	//
+	// There is no mention of a "rollback" for partial failures. In contrast CacheWriter has explicit documentation ("remove succesful writes from the Map").
+	// The API / Spec should be changed to reflect the TCK test or vice versa.
+	
+# CacheManagerTest createCacheSameName() and createCacheSame()
+	// Observation: Mandates to throw CacheException when "the same" cahe is to be created twice.
+	// Issue: Javadocs has no "@throws CacheException". It is only in the text. 
+	
+# CacheManagerTest getNullTypeCacheRequest()
+	// Observation: Mandates to throw NullPointerException when passing null as keyClass or valueClass
+	// Issue: Javadocs and Spec do not mention behavior on null.
+	
+	
 # CacheMBStatisticsBeanTest
 	// Three wrong assertEquals() checks, where the "expected" and "actual" parameters are exchanged.
 	// Has no influence on test result, but wrong test output.
 	    assertEquals(result, "Sooty");
 	    assertEquals(result, "Trinity");
-	
+	    

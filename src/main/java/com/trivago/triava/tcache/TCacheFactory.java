@@ -20,6 +20,7 @@ import java.io.Closeable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.cache.CacheException;
 import javax.cache.CacheManager;
 import javax.cache.configuration.Configuration;
 import javax.cache.spi.CachingProvider;
@@ -154,7 +156,7 @@ public class TCacheFactory implements Closeable, CacheManager
 			{
 				if (registeredCache.id().equals(id))
 				{
-					throw new IllegalStateException("Cache with the same id is already registered: " + id);
+					throw new CacheException("Cache with the same id is already registered: " + id);
 				}
 			}
 
@@ -163,45 +165,20 @@ public class TCacheFactory implements Closeable, CacheManager
 		}
 	}
 
-	/**
-	 * Destroys a specifically named and managed {@link Cache}. Once destroyed a new {@link Cache} of the same
-	 * name but with a different Configuration may be configured.
-	 * <p>
-	 * This is equivalent to the following sequence of method calls:
-	 * <ol>
-	 * <li>{@link Cache#clear()}</li>
-	 * <li> Cache#close()</li>
-	 * </ol>
-	 * followed by allowing the name of the {@link Cache} to be used for other {@link Cache} configurations.
-	 * <p>
-	 * From the time this method is called, the specified {@link Cache} is not available for operational use.
-	 * An attempt to call an operational method on the {@link Cache} will throw an
-	 * {@link IllegalStateException}.
-	 *
-	 * JSR-107 does not specify behavior if the given cacheName is not in the CacheManager (this TCacheFactory).
-	 * This implementations chooses to ignore the call and return without Exception.
-	 * 
-	 * @param cacheName
-	 *            the cache to destroy
-	 * @throws IllegalStateException
-	 *             if the TCacheFactory
-	 *
-	 *             {@link #isClosed()}
-	 * @throws NullPointerException
-	 *             if cacheName is null
-	 * @throws SecurityException
-	 *             when the operation could not be performed
-	 *
-	 *             due to the current security settings
-	 */
+	@Override
 	public void destroyCache(String cacheName)
 	{
+		assertNotClosed();
+
 		if (cacheName == null)
 		{
 			throw new NullPointerException("cacheName is null"); // JSR-107 compliance
 		}
-		assertNotClosed();
-		
+
+		/*
+		 * JSR-107 does not specify behavior if the given cacheName is not in the CacheManager (this TCacheFactory).
+		 * This implementations chooses to ignore the call and return without Exception.
+		 */
 		synchronized (factoryLock)
 		{
 			// Cannot loop using an Iterator and remove(), as the CopyOnWriteArrayList Iterator does not support remove()
@@ -274,6 +251,7 @@ public class TCacheFactory implements Closeable, CacheManager
 		{
 			// From Caching provider
 			cachingProvider.removeCacheManager(this);
+			closed = true;
 		}
 	}
 	
@@ -342,6 +320,7 @@ public class TCacheFactory implements Closeable, CacheManager
 			throws IllegalArgumentException
 	{
 		assertNotClosed();
+		
 		if (cacheName == null)
 		{
 			throw new NullPointerException("cacheName is null"); // JSR-107 compliance
@@ -357,6 +336,8 @@ public class TCacheFactory implements Closeable, CacheManager
 	@Override
 	public void enableManagement(String cacheName, boolean enable)
 	{
+		assertNotClosed();
+
 		Cache<?, ?> tCache = getTCacheWithChecks(cacheName);
 		if (tCache != null)
 		{
@@ -368,6 +349,8 @@ public class TCacheFactory implements Closeable, CacheManager
 	@Override
 	public void enableStatistics(String cacheName, boolean enable)
 	{
+		assertNotClosed();
+
 		Cache<?, ?> tCache = getTCacheWithChecks(cacheName);
 		if (tCache != null)
 		{
@@ -415,6 +398,45 @@ public class TCacheFactory implements Closeable, CacheManager
 	@Override
 	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName, Class<K> keyClass, Class<V> valueClass)
 	{
+		assertNotClosed();
+		throwNpeOnNull(keyClass, "keyClass");
+		throwNpeOnNull(valueClass, "valueClass");
+		
+		return getCacheInternal(cacheName, keyClass, valueClass, true);
+	}
+
+	private void throwNpeOnNull(Object obj, String message)
+	{
+		if (obj == null)
+			throw new NullPointerException(message + " must not be null");
+	}
+
+	@Override
+	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName)
+	{
+		assertNotClosed();
+
+		return getCacheInternal(cacheName, Object.class, Object.class, false);
+	}
+	
+	/**
+	 * Internal helper method for the two public JSR107 getCache() methods. It does the required type checks
+	 * and throws the two different Exceptions that JSR107 mandates for typed and untyped caches.
+	 * <p>
+	 * Implementation note: TCache internally represents untyped caches with the type class Object.class. This
+	 * goes along well with the JSR107, as it is allowed to return caches bound to (Object.class,Object.class) for untyped Caches.
+	 * 
+	 *  
+	 * @param cacheName Cache name
+	 * @param keyClass key class
+	 * @param valueClass value class
+	 * @param isTypedCache true if a typed Cache, false if an untyped Cache should be returned
+	 * @return A Cache for the parameters
+	 * @throws ClassCastException when the found cache is <b>untyped</b> or the types of the found cache does not match the requested classes. Only thrown for isTypedCache==true
+	 * @throws IllegalArgumentException when the found cache is <b>typed</b>. Only thrown for isTypedCache==false
+	 */
+	private <K, V> javax.cache.Cache<K, V> getCacheInternal(String cacheName, Class<?> keyClass, Class<?> valueClass, boolean isTypedCache)
+	{
 		for (Cache<?, ?> registeredCache : CacheInstances)
 		{
 			if (registeredCache.id().equals(cacheName))
@@ -429,7 +451,10 @@ public class TCacheFactory implements Closeable, CacheManager
 				{
 					if ( cc.getKeyType() != keyClass)
 					{
-						throw new IllegalArgumentException("Key class mismatch. cache=" + cacheName + ", requestedClass=" + keyClass.getCanonicalName() + ", cacheClass=" + cc.getKeyType());
+						if (isTypedCache)
+							throw new ClassCastException("Key class mismatch. cache=" + cacheName + ", requestedClass=" + keyClass.getCanonicalName() + ", cacheClass=" + cc.getKeyType());
+						else
+							throw new IllegalArgumentException("Key class mismatch. cache=" + cacheName + ", requestedClass=" + "null" + ", cacheClass=" + cc.getKeyType());
 					}
 				}
 				
@@ -438,7 +463,10 @@ public class TCacheFactory implements Closeable, CacheManager
 				{
 					if ( cc.getValueType() != valueClass)
 					{
-						throw new IllegalArgumentException("Value class mismatch. cache=" + cacheName + ", requestedClass=" + valueClass.getCanonicalName() + ", cacheClass=" + cc.getValueType());
+						if (isTypedCache)
+							throw new ClassCastException("Value class mismatch. cache=" + cacheName + ", requestedClass=" + valueClass.getCanonicalName() + ", cacheClass=" + cc.getValueType());
+						else
+							throw new IllegalArgumentException("Value class mismatch. cache=" + cacheName + ", requestedClass=" + "null" + ", cacheClass=" + cc.getValueType());
 					}
 				}
 				
@@ -451,21 +479,22 @@ public class TCacheFactory implements Closeable, CacheManager
 		return null;
 	}
 
-	@Override
-	public <K, V> javax.cache.Cache<K, V> getCache(String cacheName)
-	{
-		return getCache(cacheName, null, null);
-	}
 
 	@Override
 	public Iterable<String> getCacheNames()
 	{
+		// The following assertNotClosed() complies to the JSR107 specification, but it makes a TCK check fail.
+		// This is due to a bug in the TCK, which we addressed in https://github.com/jsr107/jsr107spec/issues/342
+		assertNotClosed();
+
 		List<String> cacheNames = new ArrayList<>(CacheInstances.size());
 		for (Cache<?, ?> cache : CacheInstances)
 		{
 			cacheNames.add(cache.id());
 		}
-		return cacheNames;
+		
+		// JSR107 mandates that the collection is immutable. This means it must also be unmodifiable (and the TCK checks that).
+		return Collections.unmodifiableList(cacheNames);
 	}
 
 	@Override

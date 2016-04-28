@@ -17,10 +17,11 @@
 package com.trivago.triava.tcache.core;
 
 import java.net.URI;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.cache.CacheManager;
 import javax.cache.configuration.OptionalFeature;
@@ -31,7 +32,7 @@ import com.trivago.triava.tcache.TCacheFactory;
 public class TCacheProvider implements CachingProvider
 {
 	//@GuardedBy("cacheManagersLock")
-	Set<CacheManager> cacheManagers = new HashSet<>();
+	Set<CacheManager> cacheManagers = Collections.newSetFromMap(new ConcurrentHashMap<CacheManager, Boolean>());
 	// Explicit lock, as cacheManagers need a higher level locking than a ConcurrentSet 
 	Object cacheManagersLock = new Object();
 	
@@ -75,6 +76,8 @@ public class TCacheProvider implements CachingProvider
 		System.out.println("getCacheManager( " + uri + ", cl=" + classLoader + ", props=" + properties);
 		if (classLoader == null)
 			classLoader = getDefaultClassLoader();
+		if (uri == null)
+			uri = getDefaultURI();
 		
 		synchronized (cacheManagersLock)
 		{
@@ -129,8 +132,23 @@ public class TCacheProvider implements CachingProvider
 			for( Iterator<CacheManager> it = cacheManagers.iterator(); it.hasNext(); )
 			{
 				CacheManager cacheManager = it.next();
-				// Order must be close, remove
+				/**
+				 *  The order must be close, remove. Reason: Otherwise we can could have 2 open caches with the same ID.
+				 *  
+				 *    Thread 1: it.remove();
+				 *    // Now Cache is still open, but not in cacheManagers any longer
+				 *    Thread 2: getCache()
+				 *    // Creates a new CacheManager, as it is not found in  cacheManagers
+				 *    // Now we have 2 identical open Cache managers
+				 *    Thread 1: cacheManager.close();
+				 *    // Now everything is fine again, but there was a time period with bad state
+				 *    
+				 *    Actually, due to locking with cacheManagersLock, this scenario will not happen. But for safety
+				 *    after a possible refactoring or different locking, the order can get important.  
+				 */
 				cacheManager.close();
+				// Hint: It may have happened, that cacheManager.close() already removed itself cacheManagers.
+				// In that case the next line is a NOP. It is important though, that the underlying Set is a Concurrent Set.
 				it.remove();
 				System.out.println("CacheManager.close() closed");
 			}
@@ -149,8 +167,12 @@ public class TCacheProvider implements CachingProvider
 				CacheManager cacheManager = it.next();
 				if (cacheManager.getClassLoader().equals(classLoader))
 				{
+//					pendingRemoveOfCacheManager = cacheManager;
 					cacheManager.close();
+					// Hint: It may have happened, that cacheManager.close() already removed itrslef cacheManagers.
+					// In that case the next line is a NOP. It is important though, that the underlying Set is a Concurrent Set.
 					it.remove();
+//					pendingRemoveOfCacheManager = null;
 					System.out.println("CacheManager.close() closed cl=" + classLoader);
 				}
 			}
@@ -167,18 +189,27 @@ public class TCacheProvider implements CachingProvider
 			CacheManager cacheManager = findCacheManager(uri, classLoader);
 			if (cacheManager != null)
 			{
+//				pendingRemoveOfCacheManager = cacheManager;
 				cacheManager.close();
+				// Hint: It may have happened, that cacheManager.close() already removed itrslef cacheManagers.
+				// In that case the next line is a NOP. It is important though, that the underlying Set is a Concurrent Set.
 				cacheManagers.remove(cacheManager);
+//				pendingRemoveOfCacheManager = null;
 				System.out.println("CacheManager.close() closed cl=" + classLoader + ", uri=" + uri);
 			}
 		}
 	}
 
+//	volatile CacheManager pendingRemoveOfCacheManager = null;
+//	
 	// TODO This MUST be package-private. Refactor 
 	public void removeCacheManager(CacheManager cacheManager)
 	{
-		cacheManagers.remove(cacheManager);
-		System.out.println("CacheManager.removeCacheManager() from close cm=" + cacheManager);
+		synchronized (cacheManagersLock)
+		{
+			cacheManagers.remove(cacheManager);
+			System.out.println("CacheManager.removeCacheManager() from close cm=" + cacheManager);
+		}
 	}
 	
 	@Override

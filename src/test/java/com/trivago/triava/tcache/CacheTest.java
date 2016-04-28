@@ -24,6 +24,8 @@ import static org.junit.Assert.fail;
 import java.util.Collection;
 import java.util.Random;
 
+import javax.cache.CacheException;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -240,8 +242,10 @@ public class CacheTest
 		assertEquals("Value does not match", maxCacheTime, cache.getMaxCacheTime());
 	}
 
-	
-	@Test(expected=IllegalStateException.class)
+	/**
+	 * The JSR107 Spec mandates to throw CacheException
+	 */
+	@Test(expected=CacheException.class)
 	public void duplicateRegistration()
 	{
 		Random rnd = new Random();

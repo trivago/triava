@@ -71,6 +71,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void clear()
 	{
+		throwISEwhenClosed();
 		tcache.clear();	
 	}
 
@@ -83,6 +84,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public boolean containsKey(K key)
 	{
+		throwISEwhenClosed();
 		return tcache.containsKey(key);
 	}
 
@@ -106,16 +108,24 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public V get(K key)
 	{
+		throwISEwhenClosed();
+
 		return tcache.get(key);
 	}
 
 	@Override
 	public Map<K, V> getAll(Set<? extends K> keys)
 	{
+		throwISEwhenClosed();
+
 		Map<K, V> result = new HashMap<>(keys.size());
 		for (K key : keys)
 		{
-			result.put(key, tcache.get(key));
+			V value = tcache.get(key);
+			if (value != null)
+			{
+				result.put(key, value);
+			}
 		}
 		
 		return result;
@@ -124,6 +134,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public V getAndPut(K key, V value)
 	{
+		throwISEwhenClosed();
+
 		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
 		
 		if (holder == null)
@@ -183,6 +195,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public <T> T invoke(K key, EntryProcessor<K, V, T> entryProcessor, Object... args) throws EntryProcessorException
 	{
+		throwISEwhenClosed();
+
 		AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
 		if (holder == null)
 		{
@@ -208,6 +222,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public <T> Map<K, EntryProcessorResult<T>> invokeAll(Set<? extends K> keys, EntryProcessor<K, V, T> entryProcessor,
 			Object... args)
 	{
+		throwISEwhenClosed();
+
 		Map<K, EntryProcessorResult<T>> resultMap = new HashMap<>();
 		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : tcache.objects.entrySet())
 		{
@@ -267,6 +283,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public Iterator<javax.cache.Cache.Entry<K, V>> iterator()
 	{
+		throwISEwhenClosed();
+
 		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
 		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : tcache.objects.entrySet())
 		{
@@ -279,6 +297,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void loadAll(Set<? extends K> keys, boolean replaceExistingValues, CompletionListener listener)
 	{
+		throwISEwhenClosed();
+
 		CacheLoader<K, V> loader = tcache.loader;
 		
 		if (loader == null)
@@ -334,11 +354,20 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void putAll(Map<? extends K, ? extends V> entries)
 	{
-		if (entries.isEmpty())
-			return;
-		
 		throwISEwhenClosed();
 
+		if (entries.isEmpty())
+			return;
+
+		// JSR107 spec clarification needed. The TCK check PutTest.putAll_NullKey() requires a total failure, and disallows partial success.
+		// This is not explicitly in the Specs. Until this clarification is done, we do an explicit key and value null check before starting to put values in the cache.
+		for (java.util.Map.Entry<? extends K, ? extends V> entry : entries.entrySet())
+		{
+			K key = entry.getKey();
+			V value = entry.getValue();
+			tcache.verifyKeyAndValueNotNull(key, value);
+		}
+		
 		for (java.util.Map.Entry<? extends K, ? extends V> entry : entries.entrySet())
 		{
 			K key = entry.getKey();
@@ -429,6 +458,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean remove(K key, V value)
 	{
 		throwISEwhenClosed();
+		
 		if (value == null)
 		{
 			// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
@@ -447,6 +477,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public void removeAll()
 	{
 		throwISEwhenClosed();
+		
 		removeAll(tcache.objects.keySet());
 	}
 
@@ -454,6 +485,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public void removeAll(Set<? extends K> keys)
 	{
 		throwISEwhenClosed();
+		
 		for (K key : keys)
 		{
 			V oldValue = tcache.remove(key);
@@ -471,6 +503,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean replace(K key, V value)
 	{
 		throwISEwhenClosed();
+		
 		return tcache.replace(key, value);
 	}
 
@@ -478,6 +511,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean replace(K key, V oldValue, V newValue)
 	{
 		throwISEwhenClosed();
+		
 		return tcache.replace(key, oldValue, newValue);
 	}
 

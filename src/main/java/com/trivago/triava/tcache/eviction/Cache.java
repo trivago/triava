@@ -362,6 +362,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		
 	    activateTimeSource();
 	    
+	    // TODO The call here is pretty awkward. It must be move to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
 	}
 
@@ -636,16 +637,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	protected AccessTimeObjectHolder<V> putToMap(K key, V data, long idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
 	{
-		if (shuttingDown)
+		if (isClosed())
 		{
 			// We don't accept new entries if this Cache is shutting down
-			return null;
+			if (strictJSR107)
+				throw new IllegalStateException("Cache is closed:" + id);
+			else
+				return null;
 		}
+
+		verifyKeyAndValueNotNull(key, data);
 		
-		if(data == null || idleTime < 0)
+		if (idleTime < 0)
 		{
-			// Reject invalid data
-			return null;
+			throw new IllegalArgumentException("idleTime must be >= 0, but is " + idleTime + " cache=" + id);
 		}
 		
 		boolean hasCapacity = ensureFreeCapacity();
@@ -721,6 +726,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public V getAndReplace(K key, V value)
 	{
+		verifyKeyAndValueNotNull(key, value);
+		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread());
 		AccessTimeObjectHolder<V> oldValue = this.objects.replace(key, newHolder);
@@ -728,13 +735,78 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		return oldValue == null ? null : oldValue.peek();
 	}
 	
+	/**
+	 * Checks whether key or value are null. If at least one parameter is null, NullPointerException is thrown. Otherwise
+	 * this method returns without any side-effects.
+	 * 
+	 * <p>
+	 * JSR107 mandates to throw NullPointerException. This is not in the Javadoc of JSR107, but in the
+	 * general part of the specification document:
+	 * "Any attempt to use null for keys or values will result in a NullPointerException being thrown, regardless of the use." 
+	 * 
+	 * @param key The key
+	 * @param value The value
+	 * @throws  NullPointerException if at least one parameter is null 
+	 */
+	void verifyKeyAndValueNotNull(K key, V value)
+	{
+		verifyKeyNotNull(key);
+		verifyValueNotNull(value);
+	}
+	
+	/**
+	 * Checks whether key is null. If it is null, NullPointerException is thrown. Otherwise
+	 * this method returns without any side-effects.
+	 * 
+	 * <p>
+	 * JSR107 mandates to throw NullPointerException. This is not in the Javadoc of JSR107, but in the
+	 * general part of the specification document:
+	 * "Any attempt to use null for keys or values will result in a NullPointerException being thrown, regardless of the use." 
+	 * 
+	 * @param key The key
+	 * @throws  NullPointerException if key is null 
+	 */
+	void verifyKeyNotNull(K key)
+	{
+		if(key == null)
+		{
+			throw new NullPointerException("null key is not allowed. cache=" + id);
+		}
+	}
+
+	/**
+	 * Checks whether key is null. If it is null, NullPointerException is thrown. Otherwise
+	 * this method returns without any side-effects.
+	 * 
+	 * <p>
+	 * JSR107 mandates to throw NullPointerException. This is not in the Javadoc of JSR107, but in the
+	 * general part of the specification document:
+	 * "Any attempt to use null for keys or values will result in a NullPointerException being thrown, regardless of the use." 
+	 * 
+	 * @param key The key
+	 * @throws  NullPointerException if key is null 
+	 */
+	void verifyValueNotNull(V value)
+	{
+		if(value == null)
+		{
+			throw new NullPointerException("null value is not allowed. cache=" + id);
+		}
+	}
+
+
 	public boolean replace(K key, V oldValue, V newValue)
 	{
+		verifyKeyAndValueNotNull(key, newValue);
+		verifyValueNotNull(oldValue);
+		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		AccessTimeObjectHolder<V> oldHolder; // holder for the object in the Cache
 		oldHolder = objects.get(key);
 		if (oldHolder == null)
 			return false; // Not in backing store => cannot replace
+		if (! oldHolder.peek().equals(oldValue))
+			return false; // oldValue does not match => do not replace
 		
 		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread());
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
@@ -794,6 +866,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public V get(K key) throws RuntimeException
 	{
+		throwISEwhenClosed();
+		verifyKeyNotNull(key);
+
 		AccessTimeObjectHolder<V> holder = this.objects.get(key);
 
 		boolean loaded = false;
@@ -1110,7 +1185,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * As each call to this method will chose a different expiration time, expiration and thus possible re-fetching
 	 * will spread over a longer time, and helps to avoid resource overload (like DB, REST Service, ...).
 	 *     
-	 * @param key
+	 * @param key The key for the object to expire
+	 * @param maxDelay The maximum delay time until the object will be expired
+	 * @param timeUnit The time unit for maxDelay
 	 */
 	public void expireUntil(K key, int maxDelay, TimeUnit timeUnit)
 	{
@@ -1135,8 +1212,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	/**
 	 * Frees the data in the holder, and returns the value stored by the holder.
 	 * 
-	 * @param holder
-	 * @return
+	 * @param holder The holder to release
+	 * @return The value stored by the holder
 	 */
 	protected V releaseHolder(AccessTimeObjectHolder<V> holder)
 	{
@@ -1179,6 +1256,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 * Returns true if this Cache contains a mapping for the specified key.
 	 * 
 	 * @see java.util.concurrent.ConcurrentMap#containsKey(Object)
+	 * 
+	 * @param key The key
+	 * @return true if this Cache contains a mapping for the specified key
 	 */
 	public boolean containsKey(K key)
 	{
@@ -1193,8 +1273,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	/**
 	 * Sets the logger that will be used for all Cache instances.
+	 * Changing the logger during runtime has immediate effect.
 	 * 
-	 * @param logger
+	 * @param logger The logger to use
 	 */
 	public static void setLogger(TriavaLogger logger)
 	{
@@ -1296,4 +1377,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
+	/**
+	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is closed.
+	 */
+	private void throwISEwhenClosed()
+	{
+		if (isClosed())
+			throw new IllegalStateException("Cache already closed: " + id());
+	}
 }
