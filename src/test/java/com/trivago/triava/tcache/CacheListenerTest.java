@@ -16,14 +16,18 @@
 
 package com.trivago.triava.tcache;
 
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import java.util.concurrent.TimeUnit;
 
+import javax.cache.Cache;
 import javax.cache.configuration.CacheEntryListenerConfiguration;
+import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Factory;
 import javax.cache.configuration.FactoryBuilder;
 import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
+
+import org.junit.Test;
 
 public class CacheListenerTest extends CacheListenerTestBase
 {
@@ -39,7 +43,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 		
 		try
 		{	
-			javax.cache.Cache<Integer, String> cache = createJsr107Cache("CacheTest-1");
+			javax.cache.Cache<Integer, String> cache = createJsr107Cache("CacheListenerTest-1");
 			
 			Factory<UpdateListener> ulFactory = FactoryBuilder.factoryOf(new UpdateListener());
 			CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, isSynchronous);
@@ -73,4 +77,48 @@ public class CacheListenerTest extends CacheListenerTestBase
 			fail(e.getMessage() + ": " + e.getCause());
 		}
 	}
+	
+	
+	
+	  @Test
+	  public void  testDeregistration() {
+
+			javax.cache.Cache<Integer, String> cache = createJsr107Cache("CacheListenerTest-2");
+
+
+
+	    UpdateListener firstListener = new UpdateListener();
+	    MutableCacheEntryListenerConfiguration<Integer, String> firstListenerConfiguration = new
+	        MutableCacheEntryListenerConfiguration(FactoryBuilder.factoryOf(firstListener), null, false, true);
+	    cache.registerCacheEntryListener(firstListenerConfiguration);
+
+	    assertEquals(1, getConfigurationCacheEntryListenerConfigurationSize(cache));
+
+	    UpdateListener secondListener = new UpdateListener();
+	    MutableCacheEntryListenerConfiguration<Integer, String> secondListenerConfiguration = new
+	        MutableCacheEntryListenerConfiguration(FactoryBuilder.factoryOf(secondListener), null, false, true);
+	    cache.registerCacheEntryListener(secondListenerConfiguration);
+
+	    assertEquals(2, getConfigurationCacheEntryListenerConfigurationSize(cache));
+	    cache.deregisterCacheEntryListener(secondListenerConfiguration);
+
+	    assertEquals(1, getConfigurationCacheEntryListenerConfigurationSize(cache));
+
+	    //no effect if called after it has been removed
+	    cache.deregisterCacheEntryListener(secondListenerConfiguration);
+	    assertEquals(1, getConfigurationCacheEntryListenerConfigurationSize(cache));
+
+	    //Deregister the listener registered at configuration time
+	    cache.deregisterCacheEntryListener(firstListenerConfiguration);
+	    assertEquals(0, getConfigurationCacheEntryListenerConfigurationSize(cache));
+	  }
+	  
+	  private int getConfigurationCacheEntryListenerConfigurationSize(Cache cache) {
+		    int i = 0;
+		    CompleteConfiguration<Long, String> cacheConfig = (CompleteConfiguration)cache.getConfiguration(CompleteConfiguration.class);
+		    for (CacheEntryListenerConfiguration<Long, String> listenerConfig : cacheConfig.getCacheEntryListenerConfigurations()) {
+		      i++;
+		    }
+		    return i;
+		  }
 }

@@ -18,13 +18,16 @@ package com.trivago.triava.tcache.eviction;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.Factory;
 import javax.cache.integration.CacheLoader;
 
@@ -34,6 +37,9 @@ import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.StorageBackend;
+import com.trivago.triava.tcache.event.DispatchMode;
+import com.trivago.triava.tcache.event.ListenerEntry;
+import com.trivago.triava.tcache.event.TCacheEntryEvent;
 import com.trivago.triava.tcache.statistics.HitAndMissDifference;
 import com.trivago.triava.tcache.statistics.NullStatisticsCalculator;
 import com.trivago.triava.tcache.statistics.StandardStatisticsCalculator;
@@ -310,6 +316,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	protected JamPolicy jamPolicy = JamPolicy.WAIT;
 	protected final CacheLoader<K, V> loader;
 
+	Set<ListenerEntry<K,V> > listeners = new HashSet<>();
+
 	final TCacheJSR107<K, V> tCacheJSR107;
 
 	/**
@@ -361,6 +369,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		enableManagement(builder.isManagementEnabled());
 		
 	    activateTimeSource();
+	    
+	    for (Iterator<CacheEntryListenerConfiguration<K, V>> it = builder.getCacheEntryListenerConfigurations().iterator(); it.hasNext(); )
+	    {
+	    	enableCacheEntryListener(it.next());
+	    }
 	    
 	    // TODO The call here is pretty awkward. It must be move to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
@@ -1385,4 +1398,68 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		if (isClosed())
 			throw new IllegalStateException("Cache already closed: " + id());
 	}
+
+
+	public void registerCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	{
+		throwISEwhenClosed();
+		
+		boolean added = enableCacheEntryListener(listenerConfiguration);
+		if (!added)
+		{
+			throw new IllegalArgumentException("Cache entry listener may not be added twice to " + this.id() + ": "+ listenerConfiguration);
+		}
+		else
+		{
+			// Reflect listener change in the configuration, as required by JSR107
+			builder.addCacheEntryListenerConfiguration(listenerConfiguration);
+		}
+	}
+	
+	/**
+	 * Enables a listener, without adding it to the Configuration. An  enabled listener can send events after this method returns.  
+	 * The caller must make sure that the
+	 * corresponding Configuration object reflects the change.
+	 * 
+	 * @param listenerConfiguration
+	 * @return
+	 */
+	boolean enableCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	{
+		DispatchMode dispatchMode = listenerConfiguration.isSynchronous() ? DispatchMode.SYNC : DispatchMode.ASYNC_TIMED;
+		boolean added = listeners.add(new ListenerEntry<K, V>(listenerConfiguration, this, dispatchMode));
+
+		return added;
+	}
+
+
+
+	public void deregisterCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	{
+		throwISEwhenClosed();
+		
+		Iterator<ListenerEntry<K, V>> it = listeners.iterator();
+		while (it.hasNext())
+		{
+			ListenerEntry<K, V> listenerEntry = it.next();
+			if (listenerConfiguration.equals(listenerEntry.getConfig()))
+			{
+				it.remove();
+				// Reflect listener change in the configuration, as required by JSR107
+				builder.removeCacheEntryListenerConfiguration(listenerConfiguration);
+				break; // Can be only one, as it is in the Spec that Listeners must not added twice.
+			}
+		}
+	}
+
+
+	void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
+	{
+		for (ListenerEntry<K, V> listener : listeners)
+		{
+			listener.dispatch(event);
+		}
+	}
+
+
 }

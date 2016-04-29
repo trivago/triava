@@ -61,11 +61,21 @@ public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>
 	@Override
 	public <T> T unwrap(Class<T> clazz)
 	{
-		if (!(clazz.isAssignableFrom(TCacheHolder.class)))
-			throw new IllegalArgumentException("Cannot unwrap to unsupported Class " + clazz);
+		System.out.println("unwrap " + clazz);
+		if (clazz.isAssignableFrom(TCacheJSR107Entry.class))
+		{
+			@SuppressWarnings("unchecked")
+			T holderCast = (T) this;
+			return holderCast;
+		}
 
-		@SuppressWarnings("unchecked")
-		T holderCast = (T) holder;
-		return holderCast;
+		if (clazz.isAssignableFrom(TCacheHolder.class) || clazz.isAssignableFrom(AccessTimeObjectHolder.class))
+		{
+			@SuppressWarnings("unchecked")
+			T holderCast = (T) holder;
+			return holderCast;
+		}
+
+		throw new IllegalArgumentException("Cannot unwrap to unsupported Class " + clazz);
 	}
 }

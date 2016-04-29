@@ -40,8 +40,6 @@ import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
-import com.trivago.triava.tcache.event.DispatchMode;
-import com.trivago.triava.tcache.event.ListenerEntry;
 import com.trivago.triava.tcache.event.TCacheEntryEvent;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
@@ -59,7 +57,6 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	final Cache<K,V> tcache;
 	final CacheManager cacheManager;
 	final TCacheConfigurationBean<K,V> configurationBean;
-	private Set<ListenerEntry<K,V> > listeners = new HashSet<>();
 
 	TCacheJSR107(Cache<K,V> tcache, CacheManager cacheManager)
 	{
@@ -93,16 +90,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 		
-		Iterator<ListenerEntry<K, V>> it = listeners.iterator();
-		while (it.hasNext())
-		{
-			ListenerEntry<K, V> listenerEntry = it.next();
-			if (listenerConfiguration.equals(listenerEntry.getConfig()))
-			{
-				it.remove();
-				break; // Can be only one, as it is in the Spec that Listeners must not added twice.
-			}
-		}
+		tcache.deregisterCacheEntryListener(listenerConfiguration);
 	}
 
 	@Override
@@ -303,7 +291,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		
 		if (loader == null)
 		{
-			listener.onException(new UnsupportedOperationException("Cache does not support loadAll as no CacheLoader is defined: " + this.getName()));
+			if (listener != null)
+				listener.onException(new UnsupportedOperationException("Cache does not support loadAll as no CacheLoader is defined: " + this.getName()));
 			return;
 		}
 
@@ -331,11 +320,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				loader.loadAll(finalKeys);
 			}
 			
-			listener.onCompletion();
+			if (listener != null)
+				listener.onCompletion();
 		}
 		catch (Exception exc)
 		{
-			listener.onException(exc);
+			if (listener != null)
+				listener.onException(exc);
 		}
 		
 		
@@ -347,8 +338,15 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		tcache.put(key, value);
-		dispatchEvent(EventType.CREATED, key, value);
+		//defaultMaxIdleTime, cacheTimeSpread()
+		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
+//		tcache.put(key, value);
+		if (holder == null)
+			dispatchEvent(EventType.CREATED, key, value);
+		else
+		{
+			dispatchEvent(EventType.UPDATED, key, value);
+		}
 	}
 
 	@Override
@@ -399,12 +397,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 		
-		DispatchMode dispatchMode = listenerConfiguration.isSynchronous() ? DispatchMode.SYNC : DispatchMode.ASYNC_TIMED;
-		boolean added = listeners.add(new ListenerEntry<K, V>(listenerConfiguration, tcache, dispatchMode));
-		if (!added)
-		{
-			throw new IllegalArgumentException("Cache entry listener may not be added twice to " + tcache.id() + ": "+ listenerConfiguration);
-		}
+		tcache.registerCacheEntryListener(listenerConfiguration);
 	}
 
 	void dispatchEvent(EventType eventType, K key)
@@ -424,10 +417,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 	private void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
 	{
-		for (ListenerEntry<K, V> listener : listeners)
-		{
-			listener.dispatch(event);
-		}
+		tcache.dispatchEventToListeners(event);
 	}
 
 
@@ -518,7 +508,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public <T> T unwrap(Class<T> clazz)
 	{
-		if (!(clazz.isAssignableFrom(Cache.class)))
+		if (!(clazz.isAssignableFrom(Cache.class) || clazz.isAssignableFrom(TCacheJSR107.class)))
 			throw new IllegalArgumentException("Cannot unwrap Cache to unsupported Class " + clazz);
 		
 		@SuppressWarnings("unchecked")

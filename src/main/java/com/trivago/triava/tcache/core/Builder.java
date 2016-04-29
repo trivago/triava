@@ -78,7 +78,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	Class<K> keyType = objectKeyType();
 	Class<V> valueType = objectValueType();
 	
-	Collection<CacheEntryListenerConfiguration<K, V>> listenerConfiguration = new ArrayList<>(0); // TODO Evaluate this in the Cache constructor
+	Collection<CacheEntryListenerConfiguration<K, V>> listenerConfigurations = new ArrayList<>(0);
 	Factory<CacheWriter<? super K, ? super V>> writerFactory = null; // TODO Evaluate this in the Cache constructor
 	Factory<ExpiryPolicy> expiryPolicyFactory = EternalExpiryPolicy.factoryOf(); // TODO Evaluate this in the Cache constructor
 
@@ -619,12 +619,12 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 				target.loaderFactory = lf;
 			}
 			
-			Collection<CacheEntryListenerConfiguration<K, V>> listenerConfs = new ArrayList<>(0);
+			Collection<CacheEntryListenerConfiguration<K, V>> listenerConfsCopy = new ArrayList<>(0);
 			for (CacheEntryListenerConfiguration<K, V> entry : cc.getCacheEntryListenerConfigurations())
 			{
-				listenerConfs.add(entry);
+				listenerConfsCopy.add(entry);
 			}
-			target.listenerConfiguration = listenerConfs;
+			target.listenerConfigurations = listenerConfsCopy;
 			
 			// target.writeThrough  // not supported
 			// target.readThrough  // not supported
@@ -789,7 +789,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	@Override
 	public Iterable<CacheEntryListenerConfiguration<K, V>> getCacheEntryListenerConfigurations()
 	{
-		return listenerConfiguration;
+		return listenerConfigurations;
 	}
 
 	@Override
@@ -824,5 +824,15 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private Class<K> objectKeyType()
 	{
 		return (Class<K>)Object.class;
+	}
+
+	public void addCacheEntryListenerConfiguration(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	{
+		listenerConfigurations.add(listenerConfiguration);
+	}
+
+	public void removeCacheEntryListenerConfiguration(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	{
+		listenerConfigurations.remove(listenerConfiguration);
 	}
 }
