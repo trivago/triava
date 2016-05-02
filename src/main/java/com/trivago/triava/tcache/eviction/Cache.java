@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.Factory;
+import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
 
 import com.trivago.triava.logging.TriavaLogger;
@@ -1453,11 +1454,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
-	void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
+	// TOOD should be package private
+	public void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
 	{
 		for (ListenerEntry<K, V> listener : listeners)
 		{
 			listener.dispatch(event);
+		}
+	}
+
+	// TOOD should be package private
+	public void dispatchEventsToListeners(Iterable<TCacheEntryEvent<K, V>> events, EventType eventType)
+	{
+		for (ListenerEntry<K, V> listener : listeners)
+		{
+			listener.dispatch(events, eventType);
 		}
 	}
 

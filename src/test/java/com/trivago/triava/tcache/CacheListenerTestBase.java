@@ -32,6 +32,8 @@ import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 import javax.cache.spi.CachingProvider;
 
+import com.trivago.triava.tcache.core.Builder;
+
 /**
  * Base class for implementing unit tests for Cache Listeners.
  * @author cesken
@@ -58,10 +60,17 @@ public class CacheListenerTestBase
 	 * @param cacheName Cache name
 	 * @return The Cache
 	 */
-	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName)
+	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName, Integer size)
 	{
-		MutableConfiguration<Integer, String> mc = new MutableConfiguration<>();
-		javax.cache.Cache<Integer, String> cache = cacheManager().createCache(cacheName, mc); // Build
+		CacheManager cm = cacheManager();
+		
+		Builder<Integer, String> mc = TCacheFactory.standardFactory().builder();
+		if (size != null)
+		{
+			mc.setExpectedMapSize(size);
+		}
+		javax.cache.Cache<Integer, String> cache = cm.createCache(cacheName, mc); // Build
+		
 		return cache;
 	}
 	
@@ -150,7 +159,7 @@ public class CacheListenerTestBase
 			
 		}
 
-		assertEquals(actual.name() + " listener has not fired the expected number of times", expected, createdListenerFiredCount.get());
+		assertEquals(actual.name() + " listener has not fired the expected number of times", expected, actual.get());
 	}
 
 	void resetListenerCounts()
@@ -163,6 +172,16 @@ public class CacheListenerTestBase
 
 
 	
+	class MyExpiredListener implements Serializable, CacheEntryExpiredListener<Integer, String>
+	{
+		@Override
+		public void onExpired(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
+				throws CacheEntryListenerException
+		{
+			expiredListenerFiredCount.incrementAndGet();
+		}
+		
+	}
 	
 	class UpdateListener implements Serializable, CacheEntryUpdatedListener<Integer, String>, CacheEntryCreatedListener<Integer, String>, CacheEntryRemovedListener<Integer, String>, CacheEntryExpiredListener<Integer, String> 
 	{

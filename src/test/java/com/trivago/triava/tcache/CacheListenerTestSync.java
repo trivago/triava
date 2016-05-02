@@ -16,6 +16,8 @@
 
 package com.trivago.triava.tcache;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.Test;
 
 public class CacheListenerTestSync extends CacheListenerTest
@@ -24,6 +26,7 @@ public class CacheListenerTestSync extends CacheListenerTest
 	@Test
 	public void testListenerSynchronous()
 	{
-		testListenerSync();
+		testListener(true, 0, TimeUnit.MILLISECONDS);
+		testWriteMoreThanCapacity(true, 0, TimeUnit.MILLISECONDS);
 	}	
 }

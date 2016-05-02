@@ -22,10 +22,6 @@ public class TCacheEntryEvent<K,V> extends CacheEntryEvent<K, V>
 	 */
 	private static final long serialVersionUID = 7453522096130191080L;
 
-	public TCacheEntryEvent(Cache<K,V> source, EventType eventType, K key)
-	{
-		this(source, eventType, key, null, null);
-	}
 
 	public TCacheEntryEvent(Cache<K,V> source, EventType eventType, K key, V value)
 	{

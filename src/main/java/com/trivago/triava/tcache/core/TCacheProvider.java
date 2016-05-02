@@ -73,7 +73,6 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public CacheManager getCacheManager(URI uri, ClassLoader classLoader, Properties properties)
 	{
-		System.out.println("getCacheManager( " + uri + ", cl=" + classLoader + ", props=" + properties);
 		if (classLoader == null)
 			classLoader = getDefaultClassLoader();
 		if (uri == null)
@@ -92,7 +91,6 @@ public class TCacheProvider implements CachingProvider
 				cacheManagers.add(cacheManager);
 			}
 			
-			System.out.println("getCacheManager( " + uri + ", cl=" + classLoader + ", props=" + properties + " found cm=" + cacheManager + " open=" + !cacheManager.isClosed());
 			return cacheManager;
 		}
 	}
@@ -126,7 +124,7 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public void close()
 	{
-		System.out.println("CacheManager.close()");
+//		System.out.println("CacheManager.close()");
 		synchronized (cacheManagersLock)
 		{
 			for( Iterator<CacheManager> it = cacheManagers.iterator(); it.hasNext(); )
@@ -150,7 +148,7 @@ public class TCacheProvider implements CachingProvider
 				// Hint: It may have happened, that cacheManager.close() already removed itself cacheManagers.
 				// In that case the next line is a NOP. It is important though, that the underlying Set is a Concurrent Set.
 				it.remove();
-				System.out.println("CacheManager.close() closed");
+//				System.out.println("CacheManager.close() closed");
 			}
 		}
 	}
@@ -159,7 +157,7 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public void close(ClassLoader classLoader)
 	{
-		System.out.println("CacheManager.close() cl=" + classLoader);
+//		System.out.println("CacheManager.close() cl=" + classLoader);
 		synchronized (cacheManagersLock)
 		{
 			for( Iterator<CacheManager> it = cacheManagers.iterator(); it.hasNext(); )
@@ -167,13 +165,10 @@ public class TCacheProvider implements CachingProvider
 				CacheManager cacheManager = it.next();
 				if (cacheManager.getClassLoader().equals(classLoader))
 				{
-//					pendingRemoveOfCacheManager = cacheManager;
 					cacheManager.close();
 					// Hint: It may have happened, that cacheManager.close() already removed itrslef cacheManagers.
 					// In that case the next line is a NOP. It is important though, that the underlying Set is a Concurrent Set.
 					it.remove();
-//					pendingRemoveOfCacheManager = null;
-					System.out.println("CacheManager.close() closed cl=" + classLoader);
 				}
 			}
 		}
@@ -183,32 +178,26 @@ public class TCacheProvider implements CachingProvider
 	@Override
 	public void close(URI uri, ClassLoader classLoader)
 	{
-		System.out.println("CacheManager.close() cl=" + classLoader + ", uri=" + uri);
 		synchronized (cacheManagersLock)
 		{
 			CacheManager cacheManager = findCacheManager(uri, classLoader);
 			if (cacheManager != null)
 			{
-//				pendingRemoveOfCacheManager = cacheManager;
 				cacheManager.close();
-				// Hint: It may have happened, that cacheManager.close() already removed itrslef cacheManagers.
+				// Hint: It may have happened, that cacheManager.close() already removed itself from cacheManagers.
 				// In that case the next line is a NOP. It is important though, that the underlying Set is a Concurrent Set.
 				cacheManagers.remove(cacheManager);
-//				pendingRemoveOfCacheManager = null;
-				System.out.println("CacheManager.close() closed cl=" + classLoader + ", uri=" + uri);
 			}
 		}
 	}
 
-//	volatile CacheManager pendingRemoveOfCacheManager = null;
-//	
 	// TODO This MUST be package-private. Refactor 
 	public void removeCacheManager(CacheManager cacheManager)
 	{
 		synchronized (cacheManagersLock)
 		{
 			cacheManagers.remove(cacheManager);
-			System.out.println("CacheManager.removeCacheManager() from close cm=" + cacheManager);
+//			System.out.println("CacheManager.removeCacheManager() from close cm=" + cacheManager);
 		}
 	}
 	

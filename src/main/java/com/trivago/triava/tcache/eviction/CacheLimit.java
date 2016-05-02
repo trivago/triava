@@ -18,6 +18,9 @@ package com.trivago.triava.tcache.eviction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -25,10 +28,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.cache.event.EventType;
+
 import com.trivago.triava.annotations.ObjectSizeCalculatorIgnore;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.EvictionInterface;
+import com.trivago.triava.tcache.event.TCacheEntryEvent;
 import com.trivago.triava.tcache.statistics.SlidingWindowCounter;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 
@@ -261,7 +267,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		{
 			if (evictor == null)
 			{
-				eThread = new EvictionThread("CacheEvictionThread-" + id());
+				eThread = new EvictionThread("CacheEvictionThread-" + id(), this);
 				eThread.setPriority(Thread.MIN_PRIORITY);
 				eThread.setDaemon(true);
 				eThread.setUncaughtExceptionHandler(eThread);
@@ -282,10 +288,15 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	{
 		volatile boolean running = true;
 		volatile boolean evictionIsRunning = false;
+		final Cache<K,V> tcache;
 		
-		public EvictionThread(String name)
+		Map<K,V> evictedElements = new HashMap<>();
+		
+		// Future directions: Pass a "Listener" down here, instead of the full tcache 
+		public EvictionThread(String name, Cache<K, V> tcache)
 		{
 			super(name);
+			this.tcache = tcache; 
 		}
 
 		@Override
@@ -310,6 +321,18 @@ public class CacheLimit<K, V> extends Cache<K, V>
 						evictionIsRunning = false;
 						evictionNotifierDone.notifyAll();
 					}
+					
+					// Send "EXPIRED" notifications (this is EVICTION, but it is not documented in the JSR107 specs
+					// whether one shouldsend "REMOVED" or "EXPIRED" for evictions.
+					List<TCacheEntryEvent<K,V>> events = new ArrayList<>(evictedElements.size());
+					for (Entry<K, V> entry : evictedElements.entrySet())
+					{
+						K key = entry.getKey();
+						V value = entry.getValue();
+						TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(tcache.jsr107cache(), EventType.EXPIRED, key, value);
+						events.add(event);
+					}
+					tcache.dispatchEventsToListeners(events, EventType.EXPIRED);
 				}
 				catch (InterruptedException e)
 				{
@@ -328,6 +351,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					 * Threads waiting on evictionNotifierDone may be stuck forever, or at least until the next
 					 * put() operation starts another eviction cycle via evictionNotifierQ. 
 					 */
+					evictedElements.clear();
 				}
 
 			} // while running
@@ -411,7 +435,8 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			int elemsToRemove = elementsToRemove();
 			for (HolderFreezer<K, V> entryToRemove : toCheck)
 			{
-				V oldValue = remove(entryToRemove.getKey()); // ###C###
+				K key = entryToRemove.getKey();
+				V oldValue = remove(key); // ###C###
 				if (oldValue != null)
 				{
 					/**
@@ -422,6 +447,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					 * the base class. Also if someone calls #remove(), the entry can disappear.
 					 */
 					++removedCount;
+					evictedElements.put(key, oldValue);
 					if (removedCount >= elemsToRemove)
 						break;
 				}

@@ -61,7 +61,6 @@ public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>
 	@Override
 	public <T> T unwrap(Class<T> clazz)
 	{
-		System.out.println("unwrap " + clazz);
 		if (clazz.isAssignableFrom(TCacheJSR107Entry.class))
 		{
 			@SuppressWarnings("unchecked")

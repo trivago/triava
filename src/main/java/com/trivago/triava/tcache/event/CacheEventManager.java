@@ -16,18 +16,19 @@
 
 package com.trivago.triava.tcache.event;
 
+import java.util.List;
+
 import javax.cache.event.CacheEntryCreatedListener;
 import javax.cache.event.CacheEntryEvent;
 import javax.cache.event.CacheEntryExpiredListener;
 import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 
-import com.trivago.triava.tcache.eviction.Cache;
-
 public interface CacheEventManager<K,V>
 {
-	void created(Cache<K,V> cache, CacheEntryCreatedListener<K, V> listener, CacheEntryEvent<K, V> event);
-	void updated(Cache<K,V> cache, CacheEntryUpdatedListener<K, V> listener, CacheEntryEvent<K, V> event);
-	void removed(Cache<K,V> cache, CacheEntryRemovedListener<K, V> listener, CacheEntryEvent<K, V> event);
-	void expired(Cache<K,V> cache, CacheEntryExpiredListener<K, V> listener, CacheEntryEvent<K, V> event);	
+	void created(CacheEntryCreatedListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);
+	void updated(CacheEntryUpdatedListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);
+	void removed(CacheEntryRemovedListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);
+	void expired(CacheEntryExpiredListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);	
+	void expired(CacheEntryExpiredListener<K, V> listener, List<CacheEntryEvent<? extends K, ? extends V>> events);	
 }

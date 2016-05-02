@@ -18,14 +18,9 @@ package com.trivago.triava.tcache.core;
 
 import javax.cache.processor.MutableEntry;
 
-import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
-
 /**
- * tCache implementation of {@link javax.cache.processor.MutableEntry}. It is based on the native tCache entry.
- * All called methods have immediate impact.<p>
- * TODO Check whether the "immediate impact" is compatible with the requirement that "effects are visible after EntryProcessor has finished".
- *      Because the effects are visible, but they might already be visible while it is running.
+ * tCache implementation of {@link javax.cache.processor.MutableEntry}. Any mutable changes have no direct impact, but
+ * they will be applied after after the EntryProcessor has returned.
  * 
  * @author cesken
  *
@@ -34,41 +29,57 @@ import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
  */
 public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V> implements MutableEntry<K, V>
 {
-	final Cache<K, V> tcache;
+	public enum Operation { NOP, REMOVE, SET }
+	private Operation operation = Operation.NOP;
+	V value = null;
 	
 	/**
 	 * Creates an instance based on the native tCache entry plus the key.
-	 * The constructor will likely change, and the tcache parameter will be removed.
 	 * 
 	 * @param key The key
-	 * @param holder The holder
-	 * @param tcache A reference to the tcache instance.
+	 * @param value The value
 	 */
-	public TCacheJSR107MutableEntry(K key, AccessTimeObjectHolder<V> holder, Cache<K, V> tcache)
+	public TCacheJSR107MutableEntry(K key, V value)
 	{
-		super(key, holder);
-		this.tcache = tcache;
+		super(key, null);
+		this.value = value;
 	}
 
 	@Override
 	public boolean exists()
 	{
-		return tcache.containsKey(key);
+		return operation != Operation.REMOVE && value != null;
 	}
 
 	@Override
 	public void remove()
 	{
-		// TODO Check if "immediate impact" is allowed
-		tcache.remove(key);
+		operation = Operation.REMOVE;
 	}
 
 	@Override
+	public V getValue()
+	{
+		// Overriding, to return the possibly mutated value
+		return this.value;
+	}
+	
+	@Override
 	public void setValue(V value)
 	{
-		// TODO Check if "immediate impact" is allowed
-		// TODO This is not yet JSR107 compliant. put() will change the holder, but TCacheJSR107Entry does not reflect this and keeps the old holder.
-		tcache.put(key, value);
+		operation = Operation.SET;
+		this.value = value;
 	}
 
+	/**
+	 * Returns the operation that should be performed on this MutableEntry after the EntryProcessor has returned.
+	 * A entry that was not changed by an EntryProcessor returns {@link Operation#NOP}, which means no operation
+	 * should take place
+	 *  
+	 * @return The desired Operation
+	 */
+	public Operation operation()
+	{
+		return operation;
+	}
 }

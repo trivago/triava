@@ -43,6 +43,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatistics;
  */
 public class CacheTest
 {
+	private static final int DEFAULT_CAPACITY = 10;
 	private static final long maxIdleTime = 100L;
 	private static final long maxCacheTime = 1000L;
 	private static Cache<String, Integer> cache = createCache("CacheTest", maxIdleTime, maxCacheTime, 10);
@@ -60,7 +61,7 @@ public class CacheTest
 	@Before
 	public void setUpEach()
 	{
-		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(10).setMaxCacheTime(maxCacheTime).setMaxIdleTime(maxIdleTime) .build();
+		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTime).setMaxIdleTime(maxIdleTime) .build();
 		assertTrue("Cache is not empty at start of test",  cache.size() == 0);
 	}
 	
@@ -361,4 +362,6 @@ public class CacheTest
 		
 		assertEquals(2.0, cacheStatistics.getHitCount(), 0.0);
 	}
+
+
 }

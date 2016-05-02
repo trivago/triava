@@ -20,7 +20,7 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 
 ### Current compliance status:
 - All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 335/465 tests. (72%)
+- Passes 341/465 tests. (73%)
 
 ## Unclear JSR107 Specs, but compliant according to TCK
 The following tests or Specs are unclear and should be adressed to the JSR107 working group.
@@ -40,7 +40,7 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	//
 	// There is no mention of a "rollback" for partial failures. In contrast CacheWriter has explicit documentation ("remove succesful writes from the Map").
 	// The API / Spec should be changed to reflect the TCK test or vice versa.
-	
+
 # CacheManagerTest createCacheSameName() and createCacheSame()
 	// Observation: Mandates to throw CacheException when "the same" cahe is to be created twice.
 	// Issue: Javadocs has no "@throws CacheException". It is only in the text. 
@@ -49,6 +49,11 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	// Observation: Mandates to throw NullPointerException when passing null as keyClass or valueClass
 	// Issue: Javadocs and Spec do not mention behavior on null.
 	
+# org.jsr107.tck.event.CacheListenerTest.testFilteredListener(CacheListenerTest.java:396)
+	// Observation: Unclear spec for Cache.remove(key): We need to use oldValue as value in the event. The Spec is not clear about this, but the TCK bombs
+	// us with NPE when we would use null as "value" and oldValue as "old value". The JSR107 RI uses oldValue as "value" and leaves the "old value" unset.
+	// org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)  // <<< Location of NPE
+
 	
 # CacheMBStatisticsBeanTest
 	// Three wrong assertEquals() checks, where the "expected" and "actual" parameters are exchanged.
@@ -56,3 +61,7 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	    assertEquals(result, "Sooty");
 	    assertEquals(result, "Trinity");
 	    
+# Unclear spec which kind of Listener should fire on Evictions
+	// Observation: Spec is unlcear. It talks about "evictions" when doing "expiration", but not about "true" evicitions.
+	// ehcache sends EVICTED, it seems. I will go for it, but it should be clarified.
+	

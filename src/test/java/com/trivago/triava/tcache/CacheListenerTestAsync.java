@@ -27,5 +27,6 @@ public class CacheListenerTestAsync extends CacheListenerTest
 	public void testListenerAsynchronous()
 	{
 		testListener(false, 1000, TimeUnit.MILLISECONDS);
+		testWriteMoreThanCapacity(false, 0, TimeUnit.MILLISECONDS);
 	}	
 }

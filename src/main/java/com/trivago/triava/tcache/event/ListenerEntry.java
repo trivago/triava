@@ -16,6 +16,11 @@
 
 package com.trivago.triava.tcache.event;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
 import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.Factory;
 import javax.cache.event.CacheEntryCreatedListener;
@@ -25,11 +30,9 @@ import javax.cache.event.CacheEntryExpiredListener;
 import javax.cache.event.CacheEntryListener;
 import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
+import javax.cache.event.EventType;
 
 import com.trivago.triava.tcache.eviction.Cache;
-
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 
 /**
  * Holds a CacheEntryListenerConfiguration and the two "listeners" created from it,
@@ -54,7 +57,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 	
 	final CacheEventManager<K,V> eventManager;
 	final DispatchMode dispatchMode;
-	final BlockingQueue<CacheEntryEvent<K, V>> dispatchQueue;
+	final BlockingQueue<Iterable<CacheEntryEvent<? extends K, ? extends V>>> dispatchQueue;
 	DispatchRunnable dispatchThread = null;
 
 	/**
@@ -73,7 +76,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 		this.dispatchMode = dispatchMode;
 		if (dispatchMode.isAsync())
 		{
-			this.dispatchQueue = new ArrayBlockingQueue<CacheEntryEvent<K, V>>(1024);
+			this.dispatchQueue = new ArrayBlockingQueue<Iterable<CacheEntryEvent<? extends K, ? extends V>>>(1024);
 			dispatchThread = new DispatchRunnable("tCacheEventDispatcher-" + tcache.id());
 			dispatchThread.start();
 		}
@@ -106,17 +109,75 @@ public class ListenerEntry<K,V> // should be private to TCache
 		return config;
 	}
 	
+	
+	
+	/**
+	 * Sends the events to the listener, if it passes the filter. Sending is either done synchronously or asynchronously
+	 * in batches of up to 256 events.
+	 * All events in the list must have the same event type.
+	 * 
+	 * @param events The events to dispatch
+	 * @param eventType The event type
+	 */
+	public void dispatch(Iterable<TCacheEntryEvent<K, V>> events, EventType eventType)
+	{
+		if (eventManager == null)
+			return;
+
+		@SuppressWarnings("unchecked")
+		CacheEntryListener<K, V> listener = (CacheEntryListener<K, V>) this.listener;
+
+
+		int batchSize = 256;
+		int i = 0;
+		int sentCount = 0;
+		int sentBatches = 0;
+		boolean needsSend = false;
+		
+		List<CacheEntryEvent<? extends K, ? extends V>> interestingEvents = new ArrayList<>(batchSize);
+		for (TCacheEntryEvent<? extends K, ? extends V> event : events)
+		{
+			
+			if (!interested(event))
+				continue; // filtered
+			
+			interestingEvents.add(event);
+			needsSend = true;
+			
+			sentCount ++;
+			
+			if (i++ == batchSize)
+			{
+				sentBatches++;
+				sendEvents(interestingEvents, listener, eventType);
+				needsSend = false;
+				i = 0;
+			}
+		}
+		
+		// Push out the last batch
+		if (needsSend)
+		{
+			sentBatches++;
+			sendEvents(interestingEvents, listener, eventType);
+		}
+		
+//		if (sentBatches > 0)
+//			System.out.println("sendEvent: " + sentCount + " in " + sentBatches + " batches (multi). type=" + eventType);
+
+	}
+
 
 	/**
 	 * Sends the event to the listener, if it passes the filter. Sending is either done synchronously or asynchronously
 	 * 
 	 * @param event The event to dispatch
 	 */
-	public void dispatch(CacheEntryEvent<K, V> event)
+	public void dispatch(TCacheEntryEvent<K, V> event)
 	{
 		if (eventManager == null)
 			return;
-					
+		
 		if (!interested(event))
 			return; // filtered
 
@@ -132,7 +193,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 		{
 			try
 			{
-				dispatchQueue.put(event);
+				dispatchQueue.put(createSingleEvent(event));
 			}
 			catch (InterruptedException e)
 			{
@@ -154,28 +215,68 @@ public class ListenerEntry<K,V> // should be private to TCache
 		}
 	}
 
-	private void sendEvent(CacheEntryEvent<K, V> event, CacheEntryListener<K, V> listener)
+
+	private void sendEvents(List<CacheEntryEvent<? extends K, ? extends V>> events, CacheEntryListener<K, V> listener, EventType eventType)
 	{
+		if (eventManager == null)
+			return;
+		
+		if (eventType != EventType.EXPIRED)
+			throw new UnsupportedOperationException("Multi Entry sending is only implemented for EventType.EXPIRED. eventType=" + eventType);
+		
+		if (!dispatchMode.isAsync())
+		{
+			eventManager.expired((CacheEntryExpiredListener<K, V>)listener, events);
+		}
+		else
+		{
+			try
+			{
+				dispatchQueue.put(events);
+			}
+			catch (InterruptedException e)
+			{
+				/** Interruption policy:
+				 * The #dispatch method can be part of client interaction like a put or get call. Or it can
+				 * be from internal operations like eviction. In both cases we do not want to blindly
+				 * bubble up the stack until some random code catches it. Reason is, that it could leave the
+				 * Cache in an inconsistent state, e.g. a value was put() into the cache but the statistics
+				 * do not reflect that. Thus, we simply mark the current thread interrupted, so any caller
+				 * on any stack level may inspect the status.
+				 */
+				Thread.currentThread().interrupt();
+				// If we come here, the event may not be in the dispatchQueue. But we will not
+				// retry, as there are no guarantees when interrupting and it is safer to just go on.
+				// For example if during shutdown the dispatchQueue is full, we would iterate here
+				// forever as the DispatchRunnable instance could be shutdown and not read from the
+				// queue any longer.
+			}
+		}
+	}
+	
+	private void sendEvent(CacheEntryEvent<? extends K, ? extends V> event, CacheEntryListener<K, V> listener)
+	{
+//		System.out.println("sendEvent: 1 (single)");
 		switch (event.getEventType())
         {
             case CREATED:
                 if (listener instanceof CacheEntryCreatedListener)
-                    eventManager.created(tcache, (CacheEntryCreatedListener<K,V>)listener, event);
+                    eventManager.created((CacheEntryCreatedListener<K, V>)listener, event);
                 break;
 
             case EXPIRED:
                 if (listener instanceof CacheEntryExpiredListener)
-                    eventManager.expired(tcache, (CacheEntryExpiredListener<K,V>)listener,  event);
+                    eventManager.expired((CacheEntryExpiredListener<K, V>)listener,  event);
                 break;
 
             case UPDATED:
                 if (listener instanceof CacheEntryUpdatedListener)
-                    eventManager.updated(tcache, (CacheEntryUpdatedListener<K,V>)listener,  event);
+                    eventManager.updated((CacheEntryUpdatedListener<K,V>)listener,  event);
                 break;
 
             case REMOVED:
                 if (listener instanceof CacheEntryRemovedListener)
-                    eventManager.removed(tcache, (CacheEntryRemovedListener<K,V>)listener,  event);
+                    eventManager.removed((CacheEntryRemovedListener<K,V>)listener,  event);
                 break;
 
             default:
@@ -183,6 +284,12 @@ public class ListenerEntry<K,V> // should be private to TCache
         }
 	}
 
+	private Iterable<CacheEntryEvent<? extends K, ? extends V>> createSingleEvent(TCacheEntryEvent<K, V> event)
+	{
+		List<CacheEntryEvent<? extends K, ? extends V>> list = new ArrayList<>();
+		list.add(event);
+		return list;
+	}
 
 	/**
 	 * Checks whether this ListenerEntry is interested in the given event. More formally,
@@ -191,7 +298,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 	 * @param event The CacheEntryEvent to check
 	 * @return true if interested
 	 */
-	private boolean interested(CacheEntryEvent<K, V> event)
+	private boolean interested(CacheEntryEvent<? extends K, ? extends V> event)
 	{
 		return filter == null ? true : filter.evaluate(event);
 	}
@@ -252,8 +359,11 @@ public class ListenerEntry<K,V> // should be private to TCache
 			{
 				try
 				{
-					final CacheEntryEvent<K, V> event = dispatchQueue.take();
-					sendEvent(event, listenerRef);
+					final Iterable<CacheEntryEvent<? extends K, ? extends V>> events = dispatchQueue.take();
+					for (CacheEntryEvent<? extends K, ? extends V> event : events)
+					{
+						sendEvent(event, listenerRef);
+					}
 				}
 				catch (InterruptedException ie)
 				{
