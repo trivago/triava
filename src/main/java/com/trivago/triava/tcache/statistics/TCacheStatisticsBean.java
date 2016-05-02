@@ -62,8 +62,19 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 		}
 		else
 		{
-			return 100F * getCacheHits() / getCacheGets();
+			return safeRate(getCacheHits(), getCacheGets(), 0);
 		}
+	}
+
+	/**
+	 * Divide divident by divisor and return it. If divisor is 0, return the defaultValue instead.
+	 */
+	private float safeRate(long divident, long divisor, int defaultValue)
+	{
+		if (divisor == 0)
+			return defaultValue;
+		else
+			return 100F * divident / divisor;
 	}
 
 	@Override
@@ -82,7 +93,7 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 		}
 		else
 		{
-			return 100F * getCacheMisses() / getCacheGets();
+			return safeRate(getCacheMisses(), getCacheGets(), 0);
 		}
 	}
 
