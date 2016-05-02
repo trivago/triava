@@ -267,7 +267,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		{
 			if (evictor == null)
 			{
-				eThread = new EvictionThread("CacheEvictionThread-" + id(), this);
+				eThread = new EvictionThread("CacheEvictionThread-" + id());
 				eThread.setPriority(Thread.MIN_PRIORITY);
 				eThread.setDaemon(true);
 				eThread.setUncaughtExceptionHandler(eThread);
@@ -288,15 +288,13 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	{
 		volatile boolean running = true;
 		volatile boolean evictionIsRunning = false;
-		final Cache<K,V> tcache;
 		
 		Map<K,V> evictedElements = new HashMap<>();
 		
 		// Future directions: Pass a "Listener" down here, instead of the full tcache 
-		public EvictionThread(String name, Cache<K, V> tcache)
+		public EvictionThread(String name)
 		{
 			super(name);
-			this.tcache = tcache; 
 		}
 
 		@Override
@@ -323,16 +321,17 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					}
 					
 					// Send "EXPIRED" notifications (this is EVICTION, but it is not documented in the JSR107 specs
-					// whether one shouldsend "REMOVED" or "EXPIRED" for evictions.
+					// whether one should send "REMOVED" or "EXPIRED" for evictions.
+				    TCacheJSR107<K, V> jsr107cache = jsr107cache();
 					List<TCacheEntryEvent<K,V>> events = new ArrayList<>(evictedElements.size());
 					for (Entry<K, V> entry : evictedElements.entrySet())
 					{
 						K key = entry.getKey();
 						V value = entry.getValue();
-						TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(tcache.jsr107cache(), EventType.EXPIRED, key, value);
+						TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(jsr107cache, EventType.EXPIRED, key, value);
 						events.add(event);
 					}
-					tcache.dispatchEventsToListeners(events, EventType.EXPIRED);
+					dispatchEventsToListeners(events, EventType.EXPIRED);
 				}
 				catch (InterruptedException e)
 				{

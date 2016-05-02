@@ -16,10 +16,14 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
@@ -1117,6 +1121,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	private void cleanUp()
 	{
+		Map<K,V> evictedElements = new HashMap<>();
+
+		// -1- Clean
 		int removedEntries = 0;
 	    for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = this.objects.entrySet().iterator(); iter.hasNext(); )
 	    {
@@ -1126,11 +1133,28 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    	if (holder.isInvalid())
 	    	{
 	    		iter.remove();
+	    		V value = holder.peek();
+		    	evictedElements.put(entry.getKey(), value);
 	    		holder.release();
 	    		++removedEntries;
 	    	}
 	    }
 	    
+	    // -2- Notify listeners
+	    // Future directions: This is "identical" with the code from eviction. Merge it
+	    TCacheJSR107<K, V> jsr107cache = jsr107cache();
+		List<TCacheEntryEvent<K,V>> events = new ArrayList<>(evictedElements.size());
+		for (Entry<K, V> entry : evictedElements.entrySet())
+		{
+			K key = entry.getKey();
+			V value = entry.getValue();
+			TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(jsr107cache, EventType.EXPIRED, key, value);
+			events.add(event);
+		}
+		dispatchEventsToListeners(events, EventType.EXPIRED);
+
+
+		// -3- Stop Thread if cache is empty
 	    if(objects.isEmpty())
 	    {
 	    	stopCleaner();
