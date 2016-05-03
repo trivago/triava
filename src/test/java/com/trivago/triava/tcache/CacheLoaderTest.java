@@ -102,7 +102,7 @@ public class CacheLoaderTest
 		return cache;
 	}
 
-	public class NumberCacheLoader extends com.trivago.triava.tcache.core.CacheLoader<Integer, String> implements Serializable
+	public static class NumberCacheLoader extends com.trivago.triava.tcache.core.CacheLoader<Integer, String> implements Serializable
 	{
 		private static final long serialVersionUID = -3956726199291290826L;
 
