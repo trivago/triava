@@ -1158,9 +1158,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 
 	/**
-	 * Notifies all listeners about 
-	 * @param entries
-	 * @param eventType
+	 * Notifies all listeners that a given EventType has happened for all the given entries.
+	 *  
+	 * @param entries A Map with key-value pairs
+	 * @param eventType The event type
 	 */
 	protected void notifyListeners(Map<K, V> entries, EventType eventType)
 	{
