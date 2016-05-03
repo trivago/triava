@@ -46,7 +46,7 @@ import com.trivago.triava.tcache.eviction.Cache;
  * @param <K> The Key type
  * @param <V> The Value type
  */
-public class ListenerEntry<K,V> // should be private to TCache
+public final class ListenerEntry<K,V> // should be private to TCache
 {
 	final CacheEntryListenerConfiguration<K, V> config;
 
@@ -74,16 +74,6 @@ public class ListenerEntry<K,V> // should be private to TCache
 		this.config = config;
 		this.tcache = tcache;
 		this.dispatchMode = dispatchMode;
-		if (dispatchMode.isAsync())
-		{
-			this.dispatchQueue = new ArrayBlockingQueue<Iterable<CacheEntryEvent<? extends K, ? extends V>>>(1024);
-			dispatchThread = new DispatchRunnable("tCacheEventDispatcher-" + tcache.id());
-			dispatchThread.start();
-		}
-		else
-		{
-			dispatchQueue = null;
-		}
 
 		CacheEventManager<K,V> em = null;
 		Factory<CacheEntryListener<? super K, ? super V>> listenerFactory = config.getCacheEntryListenerFactory();
@@ -102,6 +92,23 @@ public class ListenerEntry<K,V> // should be private to TCache
 		}
 		
 		eventManager = em;
+
+		if (dispatchMode.isAsync())
+		{
+			this.dispatchQueue = new ArrayBlockingQueue<Iterable<CacheEntryEvent<? extends K, ? extends V>>>(1024);
+			/**
+			 * Future directions: Starting the listener in the constructor is problematic.
+			 * If this class would be subclassed, the Thread would start too early. Right now it cannot happen, as this class is final.
+			 * Second, we possibly want a Thread restart mechanism anyhow, like we have with the expiration and eviction threads. For the
+			 * latter, there should be a dedicated "BackgroundThreadController<T>" class that controls/restarts background threads.
+			 */
+			dispatchThread = ensureListenerThreadIsRunning();
+		}
+		else
+		{
+			dispatchQueue = null;
+		}
+
 	}
 	
 	public CacheEntryListenerConfiguration<K, V> getConfig()
@@ -393,4 +400,19 @@ public class ListenerEntry<K,V> // should be private to TCache
 		 }
 
 	}
+	
+	/**
+	 * Starts the DispatchRunnable thread
+	 * 
+	 * @return
+	 */
+	private DispatchRunnable ensureListenerThreadIsRunning()
+	{
+		dispatchThread = new DispatchRunnable("tCacheEventDispatcher-" + tcache.id());
+		dispatchThread.start();
+		
+		return dispatchThread;
+	}
+
+
 }
