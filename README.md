@@ -40,9 +40,11 @@ dependencies {
     - Added JSR methods ...replace...() methods.
 - 0.9.4
     - cache: Listener support for synchronous and asynchronous events.
-    . cache: Suppoprt CacheLoader, ListenerConfiguration, MutableEntry, EntryProcessor
-    - util: Add a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W".
-           The Unit formatter supports different Unit Systems: SI units (1000 based, kilo, k), IEC60027-2 units (1024 based, kibi, Ki) and JEDEC (1024 based, Kilo, K)
+    - cache: Support CacheLoader, ListenerConfiguration, MutableEntry, EntryProcessor
+    - util: Add a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W". The Unit formatter supports different Unit Systems:
+        - SI units (1000 based, kilo, k)
+        - IEC60027-2 units (1024 based, kibi, Ki)
+        - JEDEC (1024 based, Kilo, K)
 
 
 ## Building:
@@ -57,9 +59,14 @@ This will create three artifacts in the target/ folder:
 - triava-[version]-javadoc.jar
 
 Maintainers can upload new versions to Maven Central Staging:
-
+ 
 `mvn clean deploy -P release` 
-
+Before uploading a new version, you should:
+ - Fix all Javadocs warnings
+ - Run FindBugs and fix all bugs
+ - Update this README: Changes section
+ - Update this README: Update all version numbers
+   
 
 ## Examples
 Have a look at the [examples folder](./src/examples/java/com/trivago/examples).
