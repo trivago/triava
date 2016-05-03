@@ -322,16 +322,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					
 					// Send "EXPIRED" notifications (this is EVICTION, but it is not documented in the JSR107 specs
 					// whether one should send "REMOVED" or "EXPIRED" for evictions.
-				    TCacheJSR107<K, V> jsr107cache = jsr107cache();
-					List<TCacheEntryEvent<K,V>> events = new ArrayList<>(evictedElements.size());
-					for (Entry<K, V> entry : evictedElements.entrySet())
-					{
-						K key = entry.getKey();
-						V value = entry.getValue();
-						TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(jsr107cache, EventType.EXPIRED, key, value);
-						events.add(event);
-					}
-					dispatchEventsToListeners(events, EventType.EXPIRED);
+				    notifyListeners(evictedElements, EventType.EXPIRED);
 				}
 				catch (InterruptedException e)
 				{

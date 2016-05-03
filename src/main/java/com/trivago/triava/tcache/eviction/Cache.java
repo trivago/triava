@@ -380,7 +380,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    	enableCacheEntryListener(it.next());
 	    }
 	    
-	    // TODO The call here is pretty awkward. It must be move to TCacheFactory.createCache();
+	    // TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
 	}
 
@@ -1141,17 +1141,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    }
 	    
 	    // -2- Notify listeners
-	    // Future directions: This is "identical" with the code from eviction. Merge it
-	    TCacheJSR107<K, V> jsr107cache = jsr107cache();
-		List<TCacheEntryEvent<K,V>> events = new ArrayList<>(evictedElements.size());
-		for (Entry<K, V> entry : evictedElements.entrySet())
-		{
-			K key = entry.getKey();
-			V value = entry.getValue();
-			TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(jsr107cache, EventType.EXPIRED, key, value);
-			events.add(event);
-		}
-		dispatchEventsToListeners(events, EventType.EXPIRED);
+	    notifyListeners(evictedElements, EventType.EXPIRED);
 
 
 		// -3- Stop Thread if cache is empty
@@ -1164,6 +1154,26 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    {
 	    	logger.info(this.id + " Cache has expired objects from Cache, count=" + removedEntries);
 	    }
+	}
+
+
+	/**
+	 * Notifies all listeners about 
+	 * @param entries
+	 * @param eventType
+	 */
+	protected void notifyListeners(Map<K, V> entries, EventType eventType)
+	{
+		TCacheJSR107<K, V> jsr107cache = jsr107cache();
+		List<TCacheEntryEvent<K,V>> events = new ArrayList<>(entries.size());
+		for (Entry<K, V> entry : entries.entrySet())
+		{
+			K key = entry.getKey();
+			V value = entry.getValue();
+			TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(jsr107cache, eventType, key, value);
+			events.add(event);
+		}
+		dispatchEventsToListeners(events, eventType);
 	}
 	
 	/**
@@ -1478,8 +1488,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
-	// TOOD should be package private
-	public void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
+	protected void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
 	{
 		for (ListenerEntry<K, V> listener : listeners)
 		{
@@ -1487,8 +1496,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 
-	// TOOD should be package private
-	public void dispatchEventsToListeners(Iterable<TCacheEntryEvent<K, V>> events, EventType eventType)
+	protected void dispatchEventsToListeners(Iterable<TCacheEntryEvent<K, V>> events, EventType eventType)
 	{
 		for (ListenerEntry<K, V> listener : listeners)
 		{
