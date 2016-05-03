@@ -112,20 +112,21 @@ public class ListenerEntry<K,V> // should be private to TCache
 	
 	
 	/**
-	 * Sends the events to the listener, if it passes the filter. Sending is either done synchronously or asynchronously
-	 * in batches of up to 256 events.
+	 * Sends the events to the listener, if it passes the filter. Sending is done in batches of up to 256 events,
+	 * either synchronously or asynchronously
 	 * All events in the list must have the same event type.
 	 * 
 	 * @param events The events to dispatch
 	 * @param eventType The event type
 	 */
+	// TODO This method should be package-private
 	public void dispatch(Iterable<TCacheEntryEvent<K, V>> events, EventType eventType)
 	{
 		if (eventManager == null)
 			return;
 
 		@SuppressWarnings("unchecked")
-		CacheEntryListener<K, V> listener = (CacheEntryListener<K, V>) this.listener;
+		CacheEntryListener<K, V> listenerRef = (CacheEntryListener<K, V>) this.listener;
 
 
 		int batchSize = 256;
@@ -149,7 +150,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 			if (i++ == batchSize)
 			{
 				sentBatches++;
-				sendEvents(interestingEvents, listener, eventType);
+				sendEvents(interestingEvents, listenerRef, eventType);
 				needsSend = false;
 				i = 0;
 			}
@@ -159,7 +160,7 @@ public class ListenerEntry<K,V> // should be private to TCache
 		if (needsSend)
 		{
 			sentBatches++;
-			sendEvents(interestingEvents, listener, eventType);
+			sendEvents(interestingEvents, listenerRef, eventType);
 		}
 		
 //		if (sentBatches > 0)
@@ -169,10 +170,11 @@ public class ListenerEntry<K,V> // should be private to TCache
 
 
 	/**
-	 * Sends the event to the listener, if it passes the filter. Sending is either done synchronously or asynchronously
+	 * Sends one event to the listener, if it passes the filter. Sending is either done synchronously or asynchronously
 	 * 
 	 * @param event The event to dispatch
 	 */
+	// TODO This method should be package-private
 	public void dispatch(TCacheEntryEvent<K, V> event)
 	{
 		if (eventManager == null)
@@ -183,11 +185,11 @@ public class ListenerEntry<K,V> // should be private to TCache
 
 		
 		@SuppressWarnings("unchecked")
-		CacheEntryListener<K, V> listener = (CacheEntryListener<K, V>) this.listener;
+		CacheEntryListener<K, V> listenerRef = (CacheEntryListener<K, V>) this.listener;
 
 		if (!dispatchMode.isAsync())
 		{
-			sendEvent(event, listener);
+			sendEvent(event, listenerRef);
 		}
 		else
 		{
@@ -346,13 +348,14 @@ public class ListenerEntry<K,V> // should be private to TCache
 
 		DispatchRunnable(String id)
 		{
-			super(id);
+			super("tCache-Notifier:" + id);
 			setDaemon(true);
 		}
 
 		@Override
 		public void run()
 		{
+			@SuppressWarnings("unchecked")
 			CacheEntryListener<K, V> listenerRef = (CacheEntryListener<K, V>) listener;
 
 			while (running)

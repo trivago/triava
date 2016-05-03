@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.cache.CacheManager;
 import javax.cache.Caching;
-import javax.cache.configuration.MutableConfiguration;
 import javax.cache.event.CacheEntryCreatedListener;
 import javax.cache.event.CacheEntryEvent;
 import javax.cache.event.CacheEntryExpiredListener;
@@ -35,7 +34,9 @@ import javax.cache.spi.CachingProvider;
 import com.trivago.triava.tcache.core.Builder;
 
 /**
- * Base class for implementing unit tests for Cache Listeners.
+ * Base class for implementing unit tests for Cache Listeners. Contains helper methods
+ * but no tests.
+ * 
  * @author cesken
  *
  */
@@ -51,8 +52,6 @@ public class CacheListenerTestBase
 	 // For Async mode, we wait a maximum time to wait for the notification
 	int maxWait = 0; //	max time
 	TimeUnit unit = TimeUnit.MILLISECONDS; // Unit
-	
-
 
 	
 	/**
