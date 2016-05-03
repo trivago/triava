@@ -173,6 +173,8 @@ public class CacheListenerTestBase
 	
 	class MyExpiredListener implements Serializable, CacheEntryExpiredListener<Integer, String>
 	{
+		private static final long serialVersionUID = 3609429653606739998L;
+
 		@Override
 		public void onExpired(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
