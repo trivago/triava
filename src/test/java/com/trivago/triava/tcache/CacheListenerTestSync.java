@@ -16,17 +16,21 @@
 
 package com.trivago.triava.tcache;
 
-import java.util.concurrent.TimeUnit;
-
 import org.junit.Test;
 
 public class CacheListenerTestSync extends CacheListenerTest
 {
+
+	public CacheListenerTestSync()
+	{
+		super();
+	}
 	
 	@Test
 	public void testListenerSynchronous()
 	{
-		testListener(true, 0, TimeUnit.MILLISECONDS);
-		testWriteMoreThanCapacity(true, 0, TimeUnit.MILLISECONDS);
+		testListener();
 	}	
+
+	// Eviction is always asynchronous, so we do not check this here. See CacheListenerTestAsync instead.
 }

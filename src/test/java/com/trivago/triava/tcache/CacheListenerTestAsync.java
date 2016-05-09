@@ -23,10 +23,21 @@ import org.junit.Test;
 public class CacheListenerTestAsync extends CacheListenerTest
 {
 	
-	@Test
-	public void testListenerAsynchronous()
+	public CacheListenerTestAsync()
 	{
-		testListener(false, 1000, TimeUnit.MILLISECONDS);
-		testWriteMoreThanCapacity(false, 0, TimeUnit.MILLISECONDS);
-	}	
+		super(1000, TimeUnit.MILLISECONDS);
+	}
+	
+	@Test
+	public void testListenerSynchronous()
+	{
+		testListener();
+	}
+
+	@Test
+	public void testWriteMoreThanCapacitySynchronous()
+	{
+		// Eviction is always asynchronous, and thus we do an ASYNC check here
+		testWriteMoreThanCapacity();
+	}
 }

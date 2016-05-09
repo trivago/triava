@@ -19,7 +19,6 @@ package com.trivago.triava.tcache.eviction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -34,7 +33,6 @@ import com.trivago.triava.annotations.ObjectSizeCalculatorIgnore;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.EvictionInterface;
-import com.trivago.triava.tcache.event.TCacheEntryEvent;
 import com.trivago.triava.tcache.statistics.SlidingWindowCounter;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 
@@ -290,6 +288,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		volatile boolean evictionIsRunning = false;
 		
 		Map<K,V> evictedElements = new HashMap<>();
+		boolean expiryNotification = false;
 		
 		// Future directions: Pass a "Listener" down here, instead of the full tcache 
 		public EvictionThread(String name)
@@ -310,6 +309,13 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					evictionNotifierQ.clear();  // get rid of further notifications (if any)
 					// --- clear() must be before evictionIsRunning = true;  // TODO Explain why!!! There is a race condition when we do not do this. But it needs an explanation
 					evictionIsRunning = true;
+					
+					expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
+					if (expiryNotification && evictedElements == null)
+					{
+						evictedElements = new HashMap<K,V>();
+					}
+
 //					if (LOG_INTERNAL_DATA && logInternalExtendedData())
 //						System.out.println("Evicting");
 					evict();
@@ -320,9 +326,12 @@ public class CacheLimit<K, V> extends Cache<K, V>
 						evictionNotifierDone.notifyAll();
 					}
 					
-					// Send "EXPIRED" notifications (this is EVICTION, but it is not documented in the JSR107 specs
-					// whether one should send "REMOVED" or "EXPIRED" for evictions.
-				    notifyListeners(evictedElements, EventType.EXPIRED);
+					if (expiryNotification)
+					{
+						// Send "EXPIRED" notifications (this is EVICTION, but it is not documented in the JSR107 specs
+						// whether one should send "REMOVED" or "EXPIRED" for evictions.
+						listeners.dispatchEvents(evictedElements, EventType.EXPIRED, true);
+					}
 				}
 				catch (InterruptedException e)
 				{
@@ -437,7 +446,8 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					 * the base class. Also if someone calls #remove(), the entry can disappear.
 					 */
 					++removedCount;
-					evictedElements.put(key, oldValue);
+					if (expiryNotification)
+						evictedElements.put(key, oldValue);
 					if (removedCount >= elemsToRemove)
 						break;
 				}

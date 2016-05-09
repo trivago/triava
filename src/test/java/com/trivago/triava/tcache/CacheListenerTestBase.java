@@ -16,9 +16,10 @@
 
 package com.trivago.triava.tcache;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.io.Serializable;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 import javax.cache.CacheManager;
@@ -49,10 +50,36 @@ public class CacheListenerTestBase
 	volatile NamedAtomicInteger removedListenerFiredCount = new NamedAtomicInteger("removed");
 	volatile NamedAtomicInteger expiredListenerFiredCount = new NamedAtomicInteger("expired");
 	
-	 // For Async mode, we wait a maximum time to wait for the notification
-	int maxWait = 0; //	max time
-	TimeUnit unit = TimeUnit.MILLISECONDS; // Unit
+	enum RunMode { SYNC, ASYNC }
+	
+	final RunMode runMode;
+	// For Async mode, we wait a maximum time to wait for the notification
+	final int maxWait; //	max time
+	final TimeUnit unit; // Unit
+	
+	final boolean printEventCounts = false; // for debugging purposes
 
+	/**
+	 * Constructor for SYNC mode
+	 */
+	CacheListenerTestBase()
+	{
+		runMode = RunMode.SYNC;
+		maxWait = 0; // irrelevant
+		unit = TimeUnit.MILLISECONDS;  // irrelevant 
+	}
+	
+	/**
+	 * Constructor for ASYNC mode
+	 * @param maxWait Max time to wait for result 
+	 * @param unit Unit of maxTime
+	 */
+	CacheListenerTestBase(int maxWait, TimeUnit unit)
+	{
+		runMode = RunMode.ASYNC;
+		this.maxWait = maxWait;
+		this.unit = unit; 		
+	}
 	
 	/**
 	 * Creates a Cache via plain JSR107 API. The Cache is configured with a default MutableConfiguration.
@@ -75,7 +102,7 @@ public class CacheListenerTestBase
 	
 	
 	/**
-	 * Returns a tCache CacheManager.  
+	 * Returns a CacheManager  
 	 * @return
 	 */
 	public synchronized CacheManager cacheManager()
@@ -161,6 +188,42 @@ public class CacheListenerTestBase
 		assertEquals(actual.name() + " listener has not fired the expected number of times", expected, actual.get());
 	}
 
+	/**
+	 * Waits a maximum time of {@link #maxWait} in the Unit {@link #unit} for actual value to get equal with expected or bigger.
+	 * A JUnit #assertEquals() is run when it is equal or the timeout has passed.
+	 * 
+	 * @param atLeast The expected value
+	 * @param actual The actual value.
+	 */
+	void checkEventCountAtLeast(int atLeast, NamedAtomicInteger actual)
+	{
+		if (maxWait > 0)
+		{
+			boolean done = false;
+			long timeLimit = System.currentTimeMillis() + unit.toMillis(maxWait);
+			while (!done)
+			{
+				if (actual.get() >= atLeast)
+					break;
+				
+				if (System.currentTimeMillis() >= timeLimit)
+					break;
+				
+				try
+				{
+					Thread.sleep(1);
+				}
+				catch (InterruptedException e)
+				{
+				}
+			}
+			
+		}
+
+		assertTrue(actual.name() + " listener has not fired the expected number of times. atLeast=" + atLeast + ", actual=" + actual, actual.get() >= atLeast);
+	}
+	
+	
 	void resetListenerCounts()
 	{
 		createdListenerFiredCount.set(0);
@@ -174,14 +237,29 @@ public class CacheListenerTestBase
 	class MyExpiredListener implements Serializable, CacheEntryExpiredListener<Integer, String>
 	{
 		private static final long serialVersionUID = 3609429653606739998L;
-
+		
 		@Override
 		public void onExpired(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
 		{
-			expiredListenerFiredCount.incrementAndGet();
+			String msg = "EXPIRED!";
+			int eventCount = countEvents(events, msg);
+			expiredListenerFiredCount.addAndGet(eventCount);
 		}
+
 		
+	}
+	
+	int countEvents(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events, String msg)
+	{
+		int eventCount = 0;
+		Iterator<CacheEntryEvent<? extends Integer, ? extends String>> iterator = events.iterator();
+		for ( ; iterator.hasNext() ; ++eventCount ) iterator.next();
+		if (printEventCounts)
+		{
+			System.out.println(msg + " Events: " + eventCount);
+		}
+		return eventCount;
 	}
 	
 	class UpdateListener implements Serializable, CacheEntryUpdatedListener<Integer, String>, CacheEntryCreatedListener<Integer, String>, CacheEntryRemovedListener<Integer, String>, CacheEntryExpiredListener<Integer, String> 
@@ -192,28 +270,36 @@ public class CacheListenerTestBase
 		public void onUpdated(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
 		{
-			updatedListenerFiredCount.incrementAndGet();
+			String msg = "UPDATED";
+			int eventCount = countEvents(events, msg);
+			updatedListenerFiredCount.addAndGet(eventCount);
 		}
 
 		@Override
 		public void onCreated(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
 		{
-			createdListenerFiredCount.incrementAndGet();
+			String msg = "CREATED";
+			int eventCount = countEvents(events, msg);
+			createdListenerFiredCount.addAndGet(eventCount);
 		}
 
 		@Override
 		public void onRemoved(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
 		{
-			removedListenerFiredCount.incrementAndGet();
+			String msg = "REMOVED";
+			int eventCount = countEvents(events, msg);
+			removedListenerFiredCount.addAndGet(eventCount);
 		}
 
 		@Override
 		public void onExpired(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
 		{
-			expiredListenerFiredCount.incrementAndGet();
+			String msg = "EXPIRED";
+			int eventCount = countEvents(events, msg);
+			expiredListenerFiredCount.addAndGet(eventCount);
 		}
 		
 	}

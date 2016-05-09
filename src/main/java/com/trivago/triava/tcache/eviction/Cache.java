@@ -16,22 +16,17 @@
 
 package com.trivago.triava.tcache.eviction;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
-import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.Factory;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
@@ -42,9 +37,7 @@ import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.StorageBackend;
-import com.trivago.triava.tcache.event.DispatchMode;
-import com.trivago.triava.tcache.event.ListenerEntry;
-import com.trivago.triava.tcache.event.TCacheEntryEvent;
+import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.statistics.HitAndMissDifference;
 import com.trivago.triava.tcache.statistics.NullStatisticsCalculator;
 import com.trivago.triava.tcache.statistics.StandardStatisticsCalculator;
@@ -321,7 +314,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	protected JamPolicy jamPolicy = JamPolicy.WAIT;
 	protected final CacheLoader<K, V> loader;
 
-	Set<ListenerEntry<K,V> > listeners = new HashSet<>();
+	final ListenerCollection<K,V> listeners;
 
 	final TCacheJSR107<K, V> tCacheJSR107;
 
@@ -375,10 +368,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		
 	    activateTimeSource();
 	    
-	    for (Iterator<CacheEntryListenerConfiguration<K, V>> it = builder.getCacheEntryListenerConfigurations().iterator(); it.hasNext(); )
-	    {
-	    	enableCacheEntryListener(it.next());
-	    }
+	    listeners = new ListenerCollection<>(this, builder);
 	    
 	    // TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
@@ -450,6 +440,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	{	
 		enableStatistics(false);
 		enableManagement(false);
+		listeners.shutdown();
 		String errorMsg = stopAndClear(MAX_SHUTDOWN_WAIT_MILLIS);
 		if (errorMsg != null)
 		{
@@ -731,12 +722,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 
-	public boolean replace(K key, V value)
-	{
-		V oldValue = getAndReplace(key, value);
-		return (oldValue != null);
-	}
-
 	/**
 	 * TCK-WORK JSR107 check statistics effect
 	 * 
@@ -748,9 +733,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread());
-		AccessTimeObjectHolder<V> oldValue = this.objects.replace(key, newHolder);
+		AccessTimeObjectHolder<V> oldHolder = this.objects.replace(key, newHolder);
 
-		return oldValue == null ? null : oldValue.peek();
+		if (oldHolder != null)
+		{
+			// replaced
+			V oldValue = oldHolder.peek();
+			listeners.dispatchEvent(EventType.UPDATED, key, value, oldValue);
+			return oldValue;
+
+		}
+		else
+		{
+			return null;
+		}
 	}
 	
 	/**
@@ -813,6 +809,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
+	public boolean replace(K key, V value)
+	{
+		verifyKeyAndValueNotNull(key, value);
+
+		V oldHolder = getAndReplace(key, value);
+		
+		return (oldHolder != null);
+	}
+
+	
 	public boolean replace(K key, V oldValue, V newValue)
 	{
 		verifyKeyAndValueNotNull(key, newValue);
@@ -828,6 +834,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		
 		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread());
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
+		if (replaced)
+			listeners.dispatchEvent(EventType.UPDATED, key, newValue, oldValue);
 
 		return replaced;
 		
@@ -1121,8 +1129,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	private void cleanUp()
 	{
-		Map<K,V> evictedElements = new HashMap<>();
-
+		boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
+		Map<K,V> evictedElements = expiryNotification ? new HashMap<K,V>() : null;
+		
 		// -1- Clean
 		int removedEntries = 0;
 	    for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = this.objects.entrySet().iterator(); iter.hasNext(); )
@@ -1134,14 +1143,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    	{
 	    		iter.remove();
 	    		V value = holder.peek();
-		    	evictedElements.put(entry.getKey(), value);
+	    		if (evictedElements != null)
+	    			evictedElements.put(entry.getKey(), value);
 	    		holder.release();
 	    		++removedEntries;
 	    	}
 	    }
 	    
 	    // -2- Notify listeners
-	    notifyListeners(evictedElements, EventType.EXPIRED);
+		if (evictedElements != null)
+			listeners.dispatchEvents(evictedElements, EventType.EXPIRED, true);
 
 
 		// -3- Stop Thread if cache is empty
@@ -1157,26 +1168,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
-	/**
-	 * Notifies all listeners that a given EventType has happened for all the given entries.
-	 *  
-	 * @param entries A Map with key-value pairs
-	 * @param eventType The event type
-	 */
-	protected void notifyListeners(Map<K, V> entries, EventType eventType)
-	{
-		TCacheJSR107<K, V> jsr107cache = jsr107cache();
-		List<TCacheEntryEvent<K,V>> events = new ArrayList<>(entries.size());
-		for (Entry<K, V> entry : entries.entrySet())
-		{
-			K key = entry.getKey();
-			V value = entry.getValue();
-			TCacheEntryEvent<K,V> event = new TCacheEntryEvent<>(jsr107cache, eventType, key, value);
-			events.add(event);
-		}
-		dispatchEventsToListeners(events, eventType);
-	}
-	
 	/**
 	 * @return count of cached objects
 	 */
@@ -1436,74 +1427,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	}
 
 
-	public void registerCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
-	{
-		throwISEwhenClosed();
-		
-		boolean added = enableCacheEntryListener(listenerConfiguration);
-		if (!added)
-		{
-			throw new IllegalArgumentException("Cache entry listener may not be added twice to " + this.id() + ": "+ listenerConfiguration);
-		}
-		else
-		{
-			// Reflect listener change in the configuration, as required by JSR107
-			builder.addCacheEntryListenerConfiguration(listenerConfiguration);
-		}
-	}
+
+
 	
-	/**
-	 * Enables a listener, without adding it to the Configuration. An  enabled listener can send events after this method returns.  
-	 * The caller must make sure that the
-	 * corresponding Configuration object reflects the change.
-	 * 
-	 * @param listenerConfiguration
-	 * @return
-	 */
-	boolean enableCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
-	{
-		DispatchMode dispatchMode = listenerConfiguration.isSynchronous() ? DispatchMode.SYNC : DispatchMode.ASYNC_TIMED;
-		boolean added = listeners.add(new ListenerEntry<K, V>(listenerConfiguration, this, dispatchMode));
-
-		return added;
-	}
 
 
-
-	public void deregisterCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
-	{
-		throwISEwhenClosed();
-		
-		Iterator<ListenerEntry<K, V>> it = listeners.iterator();
-		while (it.hasNext())
-		{
-			ListenerEntry<K, V> listenerEntry = it.next();
-			if (listenerConfiguration.equals(listenerEntry.getConfig()))
-			{
-				it.remove();
-				// Reflect listener change in the configuration, as required by JSR107
-				builder.removeCacheEntryListenerConfiguration(listenerConfiguration);
-				break; // Can be only one, as it is in the Spec that Listeners must not added twice.
-			}
-		}
-	}
-
-
-	protected void dispatchEventToListeners(TCacheEntryEvent<K, V> event)
-	{
-		for (ListenerEntry<K, V> listener : listeners)
-		{
-			listener.dispatch(event);
-		}
-	}
-
-	protected void dispatchEventsToListeners(Iterable<TCacheEntryEvent<K, V>> events, EventType eventType)
-	{
-		for (ListenerEntry<K, V> listener : listeners)
-		{
-			listener.dispatch(events, eventType);
-		}
-	}
 
 
 }

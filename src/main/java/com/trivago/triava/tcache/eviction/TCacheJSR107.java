@@ -16,11 +16,9 @@
 
 package com.trivago.triava.tcache.eviction;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,9 +35,8 @@ import javax.cache.processor.EntryProcessorResult;
 
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
-import com.trivago.triava.tcache.core.TCacheJSR107Entry;
+import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
-import com.trivago.triava.tcache.event.TCacheEntryEvent;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
@@ -89,7 +86,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 		
-		tcache.deregisterCacheEntryListener(listenerConfiguration);
+		tcache.listeners.deregisterCacheEntryListener(listenerConfiguration);
 	}
 
 	@Override
@@ -127,15 +124,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		
 		if (holder == null)
 		{
-		}
-		if (holder == null)
-		{
-			dispatchEvent(EventType.CREATED, key, value); // Future directions: Do a multi-dispatch here
+			tcache.listeners.dispatchEvent(EventType.CREATED, key, value);
 			return null;
 		}
 		else
 		{
-			dispatchEvent(EventType.UPDATED, key, value); // Future directions: Do a multi-dispatch here
+			tcache.listeners.dispatchEvent(EventType.UPDATED, key, value);
 			return holder.peek(); // TCK-WORK JSR107 check statistics effect
 		}
 	}
@@ -149,7 +143,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		V oldValue = tcache.remove(key);
 		boolean removed = oldValue != null;
 		if (removed)
-			dispatchEvent(EventType.REMOVED, key, null, oldValue);
+		{
+			// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
+			tcache.listeners.dispatchEvent(EventType.REMOVED, key, oldValue);
+		}
 		
 		return oldValue;
 	}
@@ -196,7 +193,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public <T> T invoke(K key, EntryProcessor<K, V, T> entryProcessor, Object... args) throws EntryProcessorException
 	{
 		throwISEwhenClosed();
-
+		if (entryProcessor == null)
+		{
+			// TCK CHALLENGE: While not explicitly mentioned in the Javadocs, the TCK requires a NullPointerException.
+			// This makes sense, but should be added to the Javadocs.
+			throw new NullPointerException("entryProcessor is null");
+		}
 		AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
 		if (holder == null)
 		{
@@ -219,6 +221,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			T result = processEntryProcessor(entryProcessor, me, args);
 			return result;
 		}
+		catch (EntryProcessorException epe)
+		{
+			// Do not wrap EntryProcessorException, to pass the JSR107 TCK. This is a likely a TCK bug. See https://github.com/jsr107/jsr107tck/issues/85
+			throw epe;
+		}
 		catch (Exception exc)
 		{
 			throw new EntryProcessorException(exc);
@@ -231,24 +238,29 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			Object... args)
 	{
 		throwISEwhenClosed();
-
+		if (entryProcessor == null)
+		{
+			// TCK CHALLENGE: While not explicitly mentioned in the Javadocs, the TCK requires a NullPointerException.
+			// This makes sense, but should be added to the Javadocs.
+			throw new NullPointerException("entryProcessor is null");
+		}
 		Map<K, EntryProcessorResult<T>> resultMap = new HashMap<>();
-		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : tcache.objects.entrySet())
+		for (K key : keys)
 		{
 			try
 			{
-				AccessTimeObjectHolder<V> holder = entry.getValue();
+				AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
 				V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
-				TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K,V>(entry.getKey(), value);
+				TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K,V>(key, value);
 				T result = processEntryProcessor(entryProcessor, me, args);
 				if (result != null)
 				{
-					resultMap.put(entry.getKey(), new EntryProcessorResultTCache<T>(result));
+					resultMap.put(key, new EntryProcessorResultTCache<T>(result));
 				}
 			}
 			catch (Exception exc)
 			{
-				resultMap.put(entry.getKey(), new EntryProcessorResultTCache<T>(exc));
+				resultMap.put(key, new EntryProcessorResultTCache<T>(exc));
 			}
 		}
 		
@@ -293,7 +305,15 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		EntryProcessorResultTCache(Exception exc)
 		{
-			this.result = new EntryProcessorException(exc);
+			if (exc instanceof EntryProcessorException)
+			{
+				// Do not wrap EntryProcessorException, to pass the JSR107 TCK. This is a likely a TCK bug. See https://github.com/jsr107/jsr107tck/issues/85
+				this.result = exc;
+			}
+			else
+			{
+				this.result = new EntryProcessorException(exc);
+			}
 		}
 
 		@Override
@@ -322,14 +342,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
-		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : tcache.objects.entrySet())
-		{
-			entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue()));
-		}
-		// TODO We need an own iterator, to support CacheListener REMOVE when someone calls it.remove() on the returned Iterator.
-		//      It is rquired by the Spec
-		return entries.iterator();
+		TCacheEntryIterator<K,V> it = new TCacheEntryIterator<K,V>(this, tcache.objects);
+		return it;
 	}
 
 	// TODO #loadAll() must be implemented ASYNCHRONOUSLY according to JSR107 Spec
@@ -393,10 +407,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
 //		tcache.put(key, value);
 		if (holder == null)
-			dispatchEvent(EventType.CREATED, key, value);
+			tcache.listeners.dispatchEvent(EventType.CREATED, key, value);
 		else
 		{
-			dispatchEvent(EventType.UPDATED, key, value);
+			tcache.listeners.dispatchEvent(EventType.UPDATED, key, value);
 		}
 	}
 
@@ -423,9 +437,9 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			V value = entry.getValue();
 			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
 			if (holder == null)
-				dispatchEvent(EventType.CREATED, key, value); // Future directions: Do a multi-dispatch here
+				tcache.listeners.dispatchEvent(EventType.CREATED, key, value); // Future directions: Do a multi-dispatch here
 			else
-				dispatchEvent(EventType.UPDATED, key, value); // Future directions: Do a multi-dispatch here
+				tcache.listeners.dispatchEvent(EventType.UPDATED, key, value); // Future directions: Do a multi-dispatch here
 		}
 	}
 
@@ -441,7 +455,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		boolean changed = oldValue == null;
 
 		if (changed)
-			dispatchEvent(EventType.CREATED, key, value);
+			tcache.listeners.dispatchEvent(EventType.CREATED, key, value);
 		
 		return changed;
 	}
@@ -451,19 +465,18 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 		
-		tcache.registerCacheEntryListener(listenerConfiguration);
+		tcache.listeners.registerCacheEntryListener(listenerConfiguration);
 	}
 
-
-	void dispatchEvent(EventType eventType, K key, V value)
-	{
-		tcache.dispatchEventToListeners(new TCacheEntryEvent<K, V>(this, eventType, key, value));
-	}
-
-	void dispatchEvent(EventType eventType, K key, V value, V oldValue)
-	{
-		tcache.dispatchEventToListeners(new TCacheEntryEvent<K, V>(this, eventType, key, value,oldValue));
-	}
+//	void dispatchEvent(EventType eventType, K key, V value)
+//	{
+//		tcache.listeners.dispatchEvent(eventType, key, value);
+//	}
+//
+//	void dispatchEvent(EventType eventType, K key, V value, V oldValue)
+//	{
+//		tcache.listeners.dispatchEvent(eventType, key, value, oldValue);
+//	}
 
 	/**
 	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is closed.
@@ -485,7 +498,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			// According to the JSR107 RI, we need to use oldValue as value. The Spec is not clear about this, but the TCK bombs
 			// us with NPE when we would use null as "value" and oldValue as "old value".
-			dispatchEvent(EventType.REMOVED, key, oldValue);
+			tcache.listeners.dispatchEvent(EventType.REMOVED, key, oldValue);
 		}
 		// JSR107 Return whether a value was removed
 		return removed;
@@ -505,7 +518,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		
 		boolean removed = tcache.remove(key, value);
 		if (removed)
-			dispatchEvent(EventType.REMOVED, key, value);
+			tcache.listeners.dispatchEvent(EventType.REMOVED, key, value);
 		
 		return removed;
 	}
@@ -531,7 +544,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			{
 				// Future direction: This could be optimized to do dispatchEvents(Event-List).
 				// To be done with the next major refactoring, as event lists need to be supported until the very bottom of the call-stack, namely until ListenerCacheEventManager.
-				dispatchEvent(EventType.REMOVED, key, null, oldValue);
+				tcache.listeners.dispatchEvent(EventType.REMOVED, key, null, oldValue);
 			}
 		}
 	}

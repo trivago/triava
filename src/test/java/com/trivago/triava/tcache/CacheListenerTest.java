@@ -24,14 +24,20 @@ import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
 
 public class CacheListenerTest extends CacheListenerTestBase
 {
-	public void testListener(boolean isSynchronous, int maxWait, TimeUnit unit)
+	CacheListenerTest()
 	{
-		this.maxWait = maxWait;
-		this.unit = unit;
+	}
+	
+	CacheListenerTest(int maxWait, TimeUnit unit)
+	{
+		super(maxWait, unit);
+	}
 
+	public void testListener()
+	{
 		try
 		{
-			javax.cache.Cache<Integer, String> cache = createCache("testListener", isSynchronous, null);
+			javax.cache.Cache<Integer, String> cache = createCache("testListener", null);
 
 			resetListenerCounts();
 			cache.put(1, "One");
@@ -59,30 +65,29 @@ public class CacheListenerTest extends CacheListenerTestBase
 		}
 	}
 
-	private javax.cache.Cache<Integer, String> createCache(String name, boolean isSynchronous, Integer size)
+	private javax.cache.Cache<Integer, String> createCache(String name, Integer size)
 	{
-		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + isSynchronous, size);
+		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + runMode, size);
 		Factory<UpdateListener> ulFactory = FactoryBuilder.factoryOf(new UpdateListener());
-		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(
-				ulFactory, null, false, isSynchronous);
+		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, runMode == RunMode.SYNC);
 		cache.registerCacheEntryListener(listenerConf);
 		return cache;
 	}
 	
-	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, boolean isSynchronous, Integer size)
+	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, Integer size)
 	{
-		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + isSynchronous, size);
+		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-" + runMode, size);
 		Factory<MyExpiredListener> ulFactory = FactoryBuilder.factoryOf(new MyExpiredListener());
-		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, isSynchronous);
+		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, runMode == RunMode.SYNC);
 		cache.registerCacheEntryListener(listenerConf);
 		return cache;
 	}
 	
-	public void testWriteMoreThanCapacity(boolean isSynchronous, int maxWait, TimeUnit unit)
+	public void testWriteMoreThanCapacity()
 	{
 //		Cache.setLogger(new TriavaConsoleLogger());
 		int capacity = 10000;
-		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testWriteMoreThanCapacity", isSynchronous, capacity);
+		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testWriteMoreThanCapacity", capacity);
 
 		resetListenerCounts();
 
@@ -90,6 +95,9 @@ public class CacheListenerTest extends CacheListenerTestBase
 		{
 			cache.put(i, "Value " + i);
 		}
+		
+		int expireAtLeast = 10 * capacity; // Actually 99*capacity or at least 90*capacity could be checked
+		checkEventCountAtLeast(expireAtLeast, expiredListenerFiredCount); 
 	}
 
 }

@@ -80,10 +80,28 @@ public class ListenerCacheEventManager<K, V> implements CacheEventManager<K, V>
 	}
 
 	@Override
-	public void expired(CacheEntryExpiredListener<K, V> listener, List<CacheEntryEvent<? extends K, ? extends V>> events)
+	public void created(CacheEntryCreatedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl)
 	{
-//		List<CacheEntryEvent<? extends K, ? extends V>> eventsCast = (List<CacheEntryEvent<? extends K, ? extends V>>)events;
-		listener.onExpired(events);
+		listener.onCreated(eventColl.events());
+	}
+	
+	@Override
+	public void updated(CacheEntryUpdatedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl)
+	{
+		listener.onUpdated(eventColl.events());
+	}
+	
+	@Override
+	public void removed(CacheEntryRemovedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl)
+	{
+		listener.onRemoved(eventColl.events());
+	}
+	
+	
+	@Override
+	public void expired(CacheEntryExpiredListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl)
+	{
+		listener.onExpired(eventColl.events());
 	}
 
 

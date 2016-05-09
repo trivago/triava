@@ -20,10 +20,11 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 
 ### Current compliance status:
 - All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 341/465 tests. (73%)
+- Passes 351/465 tests. (75%)
 
 ## Unclear JSR107 Specs, but compliant according to TCK
-The following tests or Specs are unclear and should be adressed to the JSR107 working group.
+The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
+	// TCK CHALLENGE
 
 # RemoveTest.remove_2arg_NullValue()
 	// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
@@ -60,8 +61,21 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	// Has no influence on test result, but wrong test output.
 	    assertEquals(result, "Sooty");
 	    assertEquals(result, "Trinity");
-	    
+
+# org.jsr107.tck.processor.CacheInvokeTest.noValueException()
+	// Observation: This test checks for IllegalAccessError, but the ThrowExceptionEntryProcessor class wraps it and throws "new EntryProcessorException(t);"
+	// An implementation should wrap EntryProcessor Exceptions also in EntryProcessorException, which means the IllegalAccessError gets double wrapped.
+	// The noValueException() test treats double wrapping as wrong, but IMO the Spec says to wrap ALL EntryProcessor Exceptions.
+	// Proposed solution: Change the TCK, or change the Spec to explicitly say that "exc instanceof EntryProcessorException" should not be wrapped again.  
+	// See: https://github.com/jsr107/jsr107tck/issues/85
+
+# org.jsr107.tck.processor.CacheInvokeTest
+	// nullProcessor() and invokeAll_nullProcessor() require a NullPointerException. It is not mentioned in the Spec. An alternative would be to ignore a null processor. 
+  	// Proposed solution: Add "@throws NullPointerException if entryProcessor is null" to Javadocs
+  	
 # Unclear spec which kind of Listener should fire on Evictions
 	// Observation: Spec is unlcear. It talks about "evictions" when doing "expiration", but not about "true" evicitions.
 	// ehcache sends EVICTED, it seems. I will go for it, but it should be clarified.
+	// Proposed solution: Clarification
+	
 	
