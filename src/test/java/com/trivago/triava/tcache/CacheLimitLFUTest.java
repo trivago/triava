@@ -215,15 +215,15 @@ public class CacheLimitLFUTest
 		CustomerType(int priority) { this.priority = priority; };
 	}
 		
-	@Ignore("Test is not reliable due to the asynchronous nature of evictions")
-	@Test
-	public void customEvictionTestForward()
-	{
-		// Test currently fails from time to time, e.g. 4 "bad" entries.
-		// Likely this test cannot work in 100% of the cases, due to the
-		// asynchronous nature of evictions.
-		customEvictionTest(false);
-	}
+//	@Ignore("Test is not reliable due to the asynchronous nature of evictions")
+//	@Test
+//	public void customEvictionTestForward()
+//	{
+//		// Test currently fails from time to time, e.g. 4 "bad" entries.
+//		// Likely this test cannot work in 100% of the cases, due to the
+//		// asynchronous nature of evictions.
+//		customEvictionTest(false);
+//	}
 	
 	@Ignore("Failure reason to be determined. A limit of 11% fails, but 26% works.")
 	@Test

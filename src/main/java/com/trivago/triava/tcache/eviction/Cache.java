@@ -30,12 +30,15 @@ import java.util.concurrent.TimeUnit;
 import javax.cache.configuration.Factory;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
+import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.core.CacheWriterWrapper;
+import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.StorageBackend;
 import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.statistics.HitAndMissDifference;
@@ -317,6 +320,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	final ListenerCollection<K,V> listeners;
 
 	final TCacheJSR107<K, V> tCacheJSR107;
+	final CacheWriter<K, V> cacheWriter;
 
 	/**
 	 * constructor with default cache time and expected map size.
@@ -359,6 +363,18 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		else
 		{
 			this.loader  = builder.getLoader();
+		}
+		
+		Factory<CacheWriter<? super K, ? super V>> cwFactory = builder.getCacheWriterFactory();
+		if (cwFactory == null)
+		{
+			this.cacheWriter = new NopCacheWriter<K,V>();
+		}
+		else
+		{
+			CacheWriter<? super K, ? super V> cw = cwFactory.create();
+			CacheWriterWrapper<K, V> cwWrapper = new CacheWriterWrapper<K,V>(cw, false);
+			this.cacheWriter = cwWrapper;
 		}
 
 		objects = createBackingMap(builder);
@@ -904,6 +920,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			try
 			{
 				V loadedValue = loader.load(key);
+				if (loadedValue == null)
+				{
+					// JSR107 TCK requires that a loader will not fail with NPE, even though the value is null.
+					return null;
+				}
+
 				holder = putToMap(key, loadedValue, defaultMaxIdleTime, cacheTimeSpread(), false, true);
 				loaded = true;
 				// ##LOADED_MISS_COUNT##

@@ -73,17 +73,20 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private TCacheFactory factory = null;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = false; // off by JSR107 default
-	private boolean management = false; // off by JSR107 default , TODO JSR107 implement
+	private boolean management = false; // off by JSR107 default
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
-	Class<K> keyType = objectKeyType();
-	Class<V> valueType = objectValueType();
+	private Class<K> keyType = objectKeyType();
+	private Class<V> valueType = objectValueType();
 	
-	Collection<CacheEntryListenerConfiguration<K, V>> listenerConfigurations = new ArrayList<>(0);
-	Factory<CacheWriter<? super K, ? super V>> writerFactory = null; // TODO Evaluate this in the Cache constructor
-	Factory<ExpiryPolicy> expiryPolicyFactory = EternalExpiryPolicy.factoryOf(); // TODO Evaluate this in the Cache constructor
+	private Collection<CacheEntryListenerConfiguration<K, V>> listenerConfigurations = new ArrayList<>(0);
+	private Factory<CacheWriter<? super K, ? super V>> writerFactory = null;
+	private Factory<ExpiryPolicy> expiryPolicyFactory = EternalExpiryPolicy.factoryOf(); // TODO Evaluate this in the Cache constructor
 
 	private CacheLoader<K, V> loader = null;
-	Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory = null;
+	private Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory = null;
+	
+	private boolean writeThrough = false;
+	private boolean readThrough = false;
 
 	/**
 	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
@@ -145,7 +148,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		if (factory == null)
 		{
 			factory = TCacheFactory.standardFactory();
-//			throw new IllegalStateException("No factory set in Builder. Make sure you retrieve your Builder from TCacheFactory.");
 		}
 		
 		if (id == null)
@@ -626,8 +628,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			}
 			target.listenerConfigurations = listenerConfsCopy;
 			
-			// target.writeThrough  // not supported
-			// target.readThrough  // not supported
+			target.writeThrough = cc.isWriteThrough();
+			target.readThrough =  cc.isWriteThrough(); // TODO readThrough not supported yet
 		}
 		
 		// JSR107 configuration follows
@@ -749,15 +751,13 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	@Override
 	public boolean isReadThrough()
 	{
-		// Does not support multi-level caching
-		return false;
+		return readThrough;
 	}
 
 	@Override
 	public boolean isWriteThrough()
 	{
-		// Does not support multi-level caching
-		return false;
+		return writeThrough;
 	}
 
 	@Override

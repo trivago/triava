@@ -37,6 +37,7 @@ import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
+import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
@@ -122,16 +123,22 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
 		
+		final EventType eventType;
+		final V result;
 		if (holder == null)
 		{
-			tcache.listeners.dispatchEvent(EventType.CREATED, key, value);
-			return null;
+			eventType = EventType.CREATED;
+			result = null;
 		}
 		else
 		{
-			tcache.listeners.dispatchEvent(EventType.UPDATED, key, value);
-			return holder.peek(); // TCK-WORK JSR107 check statistics effect
+			eventType = EventType.UPDATED;
+			result = holder.peek(); // TCK-WORK JSR107 check statistics effect
 		}
+		
+		tcache.listeners.dispatchEvent(eventType, key, value);
+		tcache.cacheWriter.write(new TCacheJSR107MutableEntry<K,V>(key, value));
+		return result;
 	}
 
 	@Override
@@ -146,6 +153,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
 			tcache.listeners.dispatchEvent(EventType.REMOVED, key, oldValue);
+			tcache.cacheWriter.delete(key);
 		}
 		
 		return oldValue;
@@ -156,7 +164,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		return tcache.getAndReplace(key, value);
+		V oldValue = tcache.getAndReplace(key, value);
+		if (oldValue != null)
+		{
+			// replaced
+			tcache.cacheWriter.write(new TCacheJSR107MutableEntry<K,V>(key, value));
+		}
+		return oldValue;				
 	}
 
 	@Override
@@ -199,6 +213,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			// This makes sense, but should be added to the Javadocs.
 			throw new NullPointerException("entryProcessor is null");
 		}
+		
+		// -1- Load if not present via Loader
 		AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
 		if (holder == null)
 		{
@@ -208,12 +224,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				V value = loader.load(key);
 				if (value != null)
 				{
-					put(key, value);
-					holder = tcache.objects.get(key); // Future directions: Use a put() that returns the holder
+					holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, true);
 				}
 			}
 		}
-		
+
+		// -2- Run EntryProcessor
 		V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
 		TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K, V>(key, value);
 		try
@@ -280,13 +296,20 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	private <T> T processEntryProcessor(EntryProcessor<K, V, T> entryProcessor, TCacheJSR107MutableEntry<K, V> me, Object... args)
 	{
 		T result = entryProcessor.process(me, args);
+		K key;
+		V value;
 		switch (me.operation())
 		{
 			case REMOVE:
-				remove(me.getKey());
+				key = me.getKey();
+				remove(key);
+				tcache.cacheWriter.delete(key);
 				break;
 			case SET:
-				put(me.getKey(), me.getValue());
+				key = me.getKey();
+				value = me.getValue();
+				put(key, value);
+				tcache.cacheWriter.write(new TCacheJSR107MutableEntry<K,V>(key, value));
 				break;
 			default:
 				break;
@@ -361,17 +384,16 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			return;
 		}
 
-		final Set<K> finalKeys;
-
 		try
 		{
+			Map<K, V> loadedEntries = null;
 			if (replaceExistingValues)
 			{
-				loader.loadAll(keys);
+				loadedEntries = loader.loadAll(keys);
 			}
 			else
 			{
-				finalKeys = new HashSet<>();
+				final Set<K> finalKeys = new HashSet<>();
 				
 				// Only a single Thread may iterate keys (may be a not thread-safe Set)
 				for (K key : keys)
@@ -382,7 +404,23 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 					}
 				}
 
-				loader.loadAll(finalKeys);
+				loadedEntries = loader.loadAll(finalKeys);
+			}
+			
+			if (loadedEntries != null)
+			{
+				Map<K, V> cleanedEntries = new HashMap<>(2*loadedEntries.size());
+				for (java.util.Map.Entry<K, V> entry: loadedEntries.entrySet())
+				{
+					K key = entry.getKey();
+					V value = entry.getValue();
+					if (key == null || value == null)
+						continue; //invalid => do not load
+					
+					cleanedEntries.put(key, value);
+				}
+				
+				putAll(cleanedEntries);
 			}
 			
 			if (listener != null)
@@ -405,13 +443,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		//defaultMaxIdleTime, cacheTimeSpread()
 		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
-//		tcache.put(key, value);
 		if (holder == null)
 			tcache.listeners.dispatchEvent(EventType.CREATED, key, value);
 		else
 		{
 			tcache.listeners.dispatchEvent(EventType.UPDATED, key, value);
 		}
+		
+		tcache.cacheWriter.write(new TCacheJSR107MutableEntry<K,V>(key, value));
 	}
 
 	@Override
@@ -431,16 +470,31 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			tcache.verifyKeyAndValueNotNull(key, value);
 		}
 		
+		ListenerCollection<K, V> listeners = tcache.listeners;
+		Map<K,V> createdEntries = listeners.hasListenerFor(EventType.CREATED) ? new HashMap<K,V>() : null; 
+		Map<K,V> updatedEntries = listeners.hasListenerFor(EventType.UPDATED) ? new HashMap<K,V>() : null;
+		final boolean anyListenerInterested = createdEntries != null || updatedEntries != null;
 		for (java.util.Map.Entry<? extends K, ? extends V> entry : entries.entrySet())
 		{
 			K key = entry.getKey();
 			V value = entry.getValue();
 			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
-			if (holder == null)
-				tcache.listeners.dispatchEvent(EventType.CREATED, key, value); // Future directions: Do a multi-dispatch here
-			else
-				tcache.listeners.dispatchEvent(EventType.UPDATED, key, value); // Future directions: Do a multi-dispatch here
+			
+			if (anyListenerInterested)
+			{
+				Map<K,V> mapToAdd = (holder == null) ? createdEntries : updatedEntries;
+				if (mapToAdd != null) // mapToAdd could be null here, if anyListenerInterested == true, but only one (iow: CREATED xor UPDATED)
+					mapToAdd.put(key, value); 
+			}
 		}
+		
+		if (createdEntries != null)
+			tcache.listeners.dispatchEvents(createdEntries, EventType.CREATED, false);
+		if (updatedEntries != null)
+			tcache.listeners.dispatchEvents(updatedEntries, EventType.UPDATED, false);
+		
+//		tcache.cacheWriter.writeAll(createdEntries);
+
 	}
 
 	@Override

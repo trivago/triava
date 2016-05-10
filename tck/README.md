@@ -20,7 +20,7 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 
 ### Current compliance status:
 - All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 351/465 tests. (75%)
+- Passes 380/465 tests. (82%)
 
 ## Unclear JSR107 Specs, but compliant according to TCK
 The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
@@ -77,5 +77,11 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	// Observation: Spec is unlcear. It talks about "evictions" when doing "expiration", but not about "true" evicitions.
 	// ehcache sends EVICTED, it seems. I will go for it, but it should be clarified.
 	// Proposed solution: Clarification
+
+# Spec: CacheWriter table
+	//  V getAndReplace(K key, V value)
+	// Observed: "Yes, if this method returns true"
+	//
+	// To be changed: "Yes, if this method returns a non-null value"
 	
 	

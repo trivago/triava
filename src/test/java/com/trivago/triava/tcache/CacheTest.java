@@ -28,12 +28,12 @@ import javax.cache.CacheException;
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.eviction.TCacheJSR107;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
 
 /**
@@ -283,8 +283,6 @@ public class CacheTest
 		assertEquals("Value in Cache is not identical", value2, cache2.get(key));
 	}
 	
-	// TODO JSR107 compliance
-	@Ignore("This test is for JSR107 compliance. Right now tcache gracefully returns null instead of IllegalStateException, so we cannot do this test")
 	@Test
 	public void testNoWriteAfterDestroy()
 	{
@@ -299,11 +297,17 @@ public class CacheTest
 		assertEquals("Value in Cache is not identical", value, cache1.get(key));
 
 		cacheManager.destroyCache(cacheName);
+		
+		// tCache silently ignores operations after destroying, but JCache requires IllegalStateException. Check both.
+		// a) tCache
+		cache1.put(key,value);
+		TCacheJSR107<String, Integer> jcache1 = cache1.jsr107cache();
+		// b) jcache
 		boolean correctExceptionThrown = false;
 		try
 		{
 			// Explicitly checking this code position instead of marking the the whole test with expected=IllegalStateException.class 
-			cache1.put(key,value);
+			jcache1.put(key,value);
 		}
 		catch (IllegalStateException e)
 		{
