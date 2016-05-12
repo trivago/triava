@@ -9,14 +9,14 @@ import javax.cache.integration.CacheWriterException;
 public class CacheWriterWrapper<K,V> implements CacheWriter<K,V>
 {
 	private CacheWriter<K, V> cacheWriter;
-	private boolean isAsync;
+//	private boolean isAsync;
 
 	public CacheWriterWrapper(CacheWriter<? super K, ? super V> cw, boolean isAsync)
 	{
 		@SuppressWarnings("unchecked")
 		CacheWriter<K, V> cw2 = (CacheWriter<K, V>) cw;
 		this.cacheWriter = cw2;
-		this.isAsync = isAsync;
+//		this.isAsync = isAsync;
 	}
 	
 	@Override

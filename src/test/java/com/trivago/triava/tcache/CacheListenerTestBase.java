@@ -57,7 +57,7 @@ public class CacheListenerTestBase
 	final int maxWait; //	max time
 	final TimeUnit unit; // Unit
 	
-	final boolean printEventCounts = false; // for debugging purposes
+	final static boolean printEventCounts = false; // for debugging purposes
 
 	/**
 	 * Constructor for SYNC mode
@@ -250,7 +250,7 @@ public class CacheListenerTestBase
 		
 	}
 	
-	int countEvents(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events, String msg)
+	static int countEvents(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events, String msg)
 	{
 		int eventCount = 0;
 		Iterator<CacheEntryEvent<? extends Integer, ? extends String>> iterator = events.iterator();

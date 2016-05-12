@@ -59,7 +59,7 @@ public class TCKMBeanServerBuilder extends MBeanServerBuilder {
    * property so that the TCK can precisely identify the correct MBeanServer
    * when running tests.
    */
-  public class RIMBeanServerDelegate extends MBeanServerDelegate {
+  public static class RIMBeanServerDelegate extends MBeanServerDelegate {
 
     private final MBeanServerDelegate delegate;
 

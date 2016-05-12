@@ -175,7 +175,7 @@ public class CacheJSR107Example
 		return cache;
 	}
 	
-	class EvictByNumber extends FreezingEvictor<Integer, Integer>
+	static class EvictByNumber extends FreezingEvictor<Integer, Integer>
 	{
 
 		@Override

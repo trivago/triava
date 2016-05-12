@@ -38,11 +38,6 @@ import org.junit.Test;
 public class CacheLoaderTest
 {
 	CacheManager cacheManager;
-	
-	 // For Async mode, we wait a maximum time to wait for the notification
-	int maxWait = 0; //	max time
-	TimeUnit unit = TimeUnit.MILLISECONDS; // Unit
-	
 
 	/**
 	 * Returns a tCache CacheManager.  

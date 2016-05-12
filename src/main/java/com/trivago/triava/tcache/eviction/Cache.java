@@ -96,7 +96,7 @@ import com.trivago.triava.time.TimeSource;
  */
 public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 {
-	protected static TriavaLogger logger = new TriavaNullLogger();
+	static TriavaLogger logger = new TriavaNullLogger();
 
 	public static final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	{
@@ -1021,8 +1021,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	private long cacheHitRatePreviousTimeMillis = System.currentTimeMillis();
 	private boolean managementEnabled = false;
 //	@ObjectSizeCalculatorIgnore
-	protected static TimeSource millisEstimator = null; 
-	protected static Object millisEstimatorLock = new Object(); 
+	static TimeSource millisEstimator = null; 
+	final static Object millisEstimatorLock = new Object(); 
 
 	/**
 	 * Returns the Cache hit rate. The returned value is the average of the last n measurements (2012-10-16: n=5).
