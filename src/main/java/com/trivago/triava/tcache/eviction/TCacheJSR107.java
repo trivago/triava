@@ -16,18 +16,22 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import javax.cache.CacheException;
 import javax.cache.CacheManager;
 import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Configuration;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
+import javax.cache.integration.CacheLoaderException;
 import javax.cache.integration.CompletionListener;
 import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
@@ -36,6 +40,7 @@ import javax.cache.processor.EntryProcessorResult;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.core.TCacheEntryIterator;
+import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
@@ -219,7 +224,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		if (holder == null)
 		{
 			CacheLoader<K, V> loader = tcache.loader;
-			if (loader != null)
+			if (loader != null  && tcache.builder.isReadThrough())
 			{
 				V value = loader.load(key);
 				if (value != null)
@@ -268,7 +273,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
 				V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
 				TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K,V>(key, value);
-				T result = processEntryProcessor(entryProcessor, me, args);
+				T result = processEntryProcessor(entryProcessor, me, args); // TODO CacheWriter behavior is here not JSR107 compliant. writeAll() must be called instead of individual write() calls 
 				if (result != null)
 				{
 					resultMap.put(key, new EntryProcessorResultTCache<T>(result));
@@ -375,36 +380,53 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		CacheLoader<K, V> loader = tcache.loader;
+		for (K key : keys) // implicit null check on keys => will throw NPE
+		{
+			tcache.verifyKeyNotNull(key);
+		}
 		
+		CacheLoader<K, V> loader = tcache.loader;
+
 		if (loader == null)
 		{
 			if (listener != null)
-				listener.onException(new UnsupportedOperationException("Cache does not support loadAll as no CacheLoader is defined: " + this.getName()));
+				listener.onException(new CacheException("Cache does not support loadAll as no CacheLoader is defined: " + this.getName()));
 			return;
 		}
 
 		try
 		{
 			Map<K, V> loadedEntries = null;
-			if (replaceExistingValues)
+			try
 			{
-				loadedEntries = loader.loadAll(keys);
-			}
-			else
-			{
-				final Set<K> finalKeys = new HashSet<>();
-				
-				// Only a single Thread may iterate keys (may be a not thread-safe Set)
-				for (K key : keys)
+				if (replaceExistingValues)
 				{
-					if (!containsKey(key))
-					{
-						finalKeys.add(key);
-					}
+					loadedEntries = loader.loadAll(keys);
 				}
-
-				loadedEntries = loader.loadAll(finalKeys);
+				else
+				{
+					final Set<K> finalKeys = new HashSet<>();
+					
+					// Only a single Thread may iterate keys (may be a not thread-safe Set)
+					for (K key : keys)
+					{
+						if (!containsKey(key))
+						{
+							finalKeys.add(key);
+						}
+					}
+	
+					loadedEntries = loader.loadAll(finalKeys);
+				}
+			}
+			catch (Exception exc)
+			{
+				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.  
+				
+				// TODO Check back after clarifying whether this requirement is a TCK bug:
+				// https://github.com/jsr107/jsr107tck/issues/99
+				String message = "CacheLoader " + tcache.id() + " failed to load keys";
+				throw new CacheLoaderException(message + " This is a wrapped exception. See https://github.com/jsr107/jsr107tck/issues/99", exc);
 			}
 			
 			if (loadedEntries != null)
@@ -420,7 +442,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 					cleanedEntries.put(key, value);
 				}
 				
-				putAll(cleanedEntries);
+				putAll(cleanedEntries, false);
 			}
 			
 			if (listener != null)
@@ -456,6 +478,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void putAll(Map<? extends K, ? extends V> entries)
 	{
+		putAll(entries, true);
+	}
+	
+	private void putAll(Map<? extends K, ? extends V> entries, boolean callWriter)
+	{
 		throwISEwhenClosed();
 
 		if (entries.isEmpty())
@@ -473,12 +500,17 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		ListenerCollection<K, V> listeners = tcache.listeners;
 		Map<K,V> createdEntries = listeners.hasListenerFor(EventType.CREATED) ? new HashMap<K,V>() : null; 
 		Map<K,V> updatedEntries = listeners.hasListenerFor(EventType.UPDATED) ? new HashMap<K,V>() : null;
+		Collection<javax.cache.Cache.Entry<? extends K, ? extends V>> writerEntries = null;
+		if (callWriter)
+			writerEntries = new ArrayList<>(entries.size());
 		final boolean anyListenerInterested = createdEntries != null || updatedEntries != null;
 		for (java.util.Map.Entry<? extends K, ? extends V> entry : entries.entrySet())
 		{
 			K key = entry.getKey();
 			V value = entry.getValue();
 			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
+			if (callWriter)
+				writerEntries.add(new TCacheJSR107Entry<K,V>(key, value));
 			
 			if (anyListenerInterested)
 			{
@@ -493,7 +525,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		if (updatedEntries != null)
 			tcache.listeners.dispatchEvents(updatedEntries, EventType.UPDATED, false);
 		
-//		tcache.cacheWriter.writeAll(createdEntries);
+		if (callWriter)
+		{
+			tcache.cacheWriter.writeAll(writerEntries);
+		}
 
 	}
 

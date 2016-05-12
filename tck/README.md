@@ -20,7 +20,7 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 
 ### Current compliance status:
 - All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 380/465 tests. (82%)
+- Passes 392/465 tests. (84%)
 
 ## Unclear JSR107 Specs, but compliant according to TCK
 The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
@@ -65,23 +65,51 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 # org.jsr107.tck.processor.CacheInvokeTest.noValueException()
 	// Observation: This test checks for IllegalAccessError, but the ThrowExceptionEntryProcessor class wraps it and throws "new EntryProcessorException(t);"
 	// An implementation should wrap EntryProcessor Exceptions also in EntryProcessorException, which means the IllegalAccessError gets double wrapped.
-	// The noValueException() test treats double wrapping as wrong, but IMO the Spec says to wrap ALL EntryProcessor Exceptions.
+	
+	// Issue: The noValueException() test treats double wrapping as wrong, but IMO the Spec says to wrap ALL EntryProcessor Exceptions.
+	
 	// Proposed solution: Change the TCK, or change the Spec to explicitly say that "exc instanceof EntryProcessorException" should not be wrapped again.  
 	// See: https://github.com/jsr107/jsr107tck/issues/85
 
 # org.jsr107.tck.processor.CacheInvokeTest
-	// nullProcessor() and invokeAll_nullProcessor() require a NullPointerException. It is not mentioned in the Spec. An alternative would be to ignore a null processor. 
-  	// Proposed solution: Add "@throws NullPointerException if entryProcessor is null" to Javadocs
-  	
+	// Observation: nullProcessor() and invokeAll_nullProcessor() require a NullPointerException.
+
+	// Issue: It is not mentioned in the Spec. An alternative would be to ignore a null processor. 
+
+	// Proposed solution: Add "@throws NullPointerException if entryProcessor is null" to Javadocs
+
+# org.jsr107.tck.integration.CacheLoaderTest
+	// Observation: shouldPropagateExceptionUsingLoadAll() requires a CacheLoaderException
+	
+	// Issue: Javadocs do not mandate this for Cache.loadAll().
+	//    a) Javadoc states: "If a problem is
+	//     encountered during the retrieving or loading of the objects,
+	//     an exception is provided to the {@link CompletionListener}."
+	//     b) The @throws declaration is "@throws CacheException        thrown if there is a problem performing the load."
+	
+	// Proposed change: Change Cacheload test to check for CacheException
+	// See: https://github.com/jsr107/jsr107tck/issues/99	
+
+# org.jsr107.tck.integration.CacheLoaderWithoutReadThroughTest
+- Observation: shouldLoadWhenAccessingWithEntryProcessor() requires that no load takes place for cache.invoke() in case of no-read-through
+- Issue: While the Spec has a nice table about read-through and is clear about it, Javadocs do not mention it:
+
+	// "If an {@link Entry} does not exist for the specified key, an attempt is made to load it (if a loader is configured)" (no mention of read-through)
+	
+- Proposed change: invoke() has fairly complex behaviour, and the documentation should be as clear as possible. 
+	// Old: "an attempt is made to load it (if a loader is configured)"
+	// New: "an attempt is made to load it (if the cache is read-through)"
+	
 # Unclear spec which kind of Listener should fire on Evictions
 	// Observation: Spec is unlcear. It talks about "evictions" when doing "expiration", but not about "true" evicitions.
 	// ehcache sends EVICTED, it seems. I will go for it, but it should be clarified.
-	// Proposed solution: Clarification
+	
+	// Proposed change: Clarification
 
 # Spec: CacheWriter table
 	//  V getAndReplace(K key, V value)
-	// Observed: "Yes, if this method returns true"
-	//
-	// To be changed: "Yes, if this method returns a non-null value"
+	// Observation: Wrong description "Yes, if this method returns true"
+
+	// Proposed change: "Yes, if this method returns a non-null value"
 	
 	

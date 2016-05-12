@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import javax.cache.configuration.Factory;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
+import javax.cache.integration.CacheLoaderException;
 import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.logging.TriavaLogger;
@@ -824,6 +826,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 
+	public void verifyKeysNotNull(Set<? extends K> keys)
+	{
+		if(keys == null)
+		{
+			throw new NullPointerException("null key set is not allowed. cache=" + id);
+		}
+	}
+
 
 	public boolean replace(K key, V value)
 	{
@@ -914,7 +924,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		AccessTimeObjectHolder<V> holder = this.objects.get(key);
 
 		boolean loaded = false;
-		if (holder == null && loader != null)
+		if (holder == null && loader != null && builder.isReadThrough())
 		{
 			// Data not present, but can be loaded
 			try
@@ -933,8 +943,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			}
 			catch (Exception exc)
 			{
-				throw new RuntimeException("CacheLoader " + id + " failed to load key=" + key, exc);
+				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.  
+				
+				// TODO Check back after clarifying whether this requirement is a TCK bug:
+				// https://github.com/jsr107/jsr107tck/issues/99
+				
+				String message = "CacheLoader " + id + " failed to load key=" + key;
+				throw new CacheLoaderException(message + " This is a wrapped exception. See https://github.com/jsr107/jsr107tck/issues/99", exc);
 			}
+
 		}
 		
 		if (holder == null)
@@ -1447,13 +1464,5 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		if (isClosed())
 			throw new IllegalStateException("Cache already closed: " + id());
 	}
-
-
-
-
-	
-
-
-
 
 }
