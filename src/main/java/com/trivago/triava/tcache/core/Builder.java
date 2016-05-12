@@ -629,7 +629,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			target.listenerConfigurations = listenerConfsCopy;
 			
 			target.writeThrough = cc.isWriteThrough();
-			target.readThrough =  cc.isWriteThrough(); // TODO readThrough not supported yet
+			target.readThrough =  cc.isReadThrough();
 		}
 		
 		// JSR107 configuration follows
