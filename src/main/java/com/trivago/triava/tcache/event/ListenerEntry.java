@@ -35,20 +35,21 @@ import javax.cache.event.EventType;
 import com.trivago.triava.tcache.eviction.Cache;
 
 /**
- * Holds a CacheEntryListenerConfiguration and the two "listeners" created from it,
- * the CacheEntryEventFilter and the CacheEntryListener. The {@link #hashCode()} and
- * {@link #equals(Object)} are only looking whether the CacheEntryListenerConfiguration are the identical object (reference comparison),
- * which makes it easy to follow the JSR107 requirement that the same CacheEntryListenerConfiguration
- * must be registered only once via {@link javax.cache.Cache#registerCacheEntryListener(CacheEntryListenerConfiguration)}.  
+ * Holds a CacheEntryListenerConfiguration, and the objects created from it: CacheEntryEventFilter and
+ * CacheEntryListener. The {@link #hashCode()} and {@link #equals(Object)} are only looking whether the
+ * CacheEntryListenerConfiguration are the identical object (reference comparison), which makes it easy to
+ * follow the JSR107 requirement that the same CacheEntryListenerConfiguration must be registered only once
+ * via {@link javax.cache.Cache#registerCacheEntryListener(CacheEntryListenerConfiguration)}.
  * <p>
- * This class is strictly internal: Fields should be private and this class should provide only package-private methods.
+ * This class is strictly internal: Fields should be private and this class should provide only
+ * package-private methods.
  * 
  * @author cesken
  *
  * @param <K> The Key type
  * @param <V> The Value type
  */
-public final class ListenerEntry<K,V> // should be private to TCache
+final class ListenerEntry<K,V>
 {
 	private final CacheEntryListenerConfiguration<K, V> config;
 
@@ -89,7 +90,7 @@ public final class ListenerEntry<K,V> // should be private to TCache
 				if (filterFactory != null)
 					filter = filterFactory.create();
 				
-				em = ListenerCacheEventManager.instance();
+				em = new ListenerCacheEventManager<K,V>();
 			}
 		}
 		
@@ -279,26 +280,28 @@ public final class ListenerEntry<K,V> // should be private to TCache
 	private void sendEvent(CacheEntryEvent<? extends K, ? extends V> event, CacheEntryListener<K, V> listener)
 	{
 //		System.out.println("sendEvent: 1 (single)");
+
+		TCacheEntryEventCollection<K, V> singleEvent = createSingleEvent(event);
 		switch (event.getEventType())
         {
             case CREATED:
                 if (listener instanceof CacheEntryCreatedListener)
-                    eventManager.created((CacheEntryCreatedListener<K, V>)listener, event);
+                    eventManager.created((CacheEntryCreatedListener<K, V>)listener, singleEvent);
                 break;
 
             case EXPIRED:
                 if (listener instanceof CacheEntryExpiredListener)
-                    eventManager.expired((CacheEntryExpiredListener<K, V>)listener,  event);
+                    eventManager.expired((CacheEntryExpiredListener<K, V>)listener,  createSingleEvent(event));
                 break;
 
             case UPDATED:
                 if (listener instanceof CacheEntryUpdatedListener)
-                    eventManager.updated((CacheEntryUpdatedListener<K,V>)listener,  event);
+                    eventManager.updated((CacheEntryUpdatedListener<K,V>)listener,  createSingleEvent(event));
                 break;
 
             case REMOVED:
                 if (listener instanceof CacheEntryRemovedListener)
-                    eventManager.removed((CacheEntryRemovedListener<K,V>)listener,  event);
+                    eventManager.removed((CacheEntryRemovedListener<K,V>)listener,  createSingleEvent(event));
                 break;
 
             default:
@@ -404,9 +407,9 @@ public final class ListenerEntry<K,V> // should be private to TCache
 	{
 		private volatile boolean running = true;
 
-		DispatchRunnable(String id)
+		DispatchRunnable(String cacheId)
 		{
-			super("tCache-Notifier:" + id);
+			super("tCache-Notifier:" + cacheId);
 			setDaemon(true);
 		}
 
@@ -456,12 +459,29 @@ public final class ListenerEntry<K,V> // should be private to TCache
 	 */
 	private DispatchRunnable ensureListenerThreadIsRunning()
 	{
-		dispatchThread = new DispatchRunnable("tCacheEventDispatcher-" + tcache.id());
+		dispatchThread = new DispatchRunnable(tcache.id());
 		dispatchThread.start();
 		
 		return dispatchThread;
 	}
 
+	
+
+
+	/**
+	 * Creates an Iterable with a single element in it 
+	 * @param event The event to make available
+	 * @return The Iterable
+	 */
+	private TCacheEntryEventCollection<K, V> createSingleEvent(
+			CacheEntryEvent<? extends K, ? extends V> event)
+	{
+		List<CacheEntryEvent<? extends K, ? extends V>> list = new ArrayList<>();
+		list.add(event);
+		TCacheEntryEventCollection<K,V> coll = new TCacheEntryEventCollection<>(list, event.getEventType());
+		return coll;
+	}
+	
 	/**
 	 * Returns whether this {@link ListenerEntry} is listening to the given eventType
 	 * @param eventType The event Type

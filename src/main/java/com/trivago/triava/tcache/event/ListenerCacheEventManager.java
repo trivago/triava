@@ -13,18 +13,13 @@
 
 package com.trivago.triava.tcache.event;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.cache.event.CacheEntryCreatedListener;
-import javax.cache.event.CacheEntryEvent;
 import javax.cache.event.CacheEntryExpiredListener;
 import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 
 /**
- * A CacheEventManager that operates JSR107 compliant. It filters, and sends the wanted events to the
- * listener.
+ * A {@link CacheEventManager} that only sends the events to the listener.
  * 
  * @author cesken
  *
@@ -35,50 +30,6 @@ import javax.cache.event.CacheEntryUpdatedListener;
  */
 public class ListenerCacheEventManager<K, V> implements CacheEventManager<K, V>
 {
-	private ListenerCacheEventManager()
-	{
-	}
-
-	public static <K, V> ListenerCacheEventManager<K, V> instance()
-	{
-		return new ListenerCacheEventManager<K, V>();
-	}
-
-
-
-	@Override
-	public void created(CacheEntryCreatedListener<K, V> listener,
-			CacheEntryEvent<? extends K, ? extends V> event)
-	{
-		Iterable<CacheEntryEvent<? extends K, ? extends V>> events = createSingleEvent(event);
-		listener.onCreated(events);
-	}
-
-	@Override
-	public void updated(CacheEntryUpdatedListener<K, V> listener,
-			CacheEntryEvent<? extends K, ? extends V> event)
-	{
-		Iterable<CacheEntryEvent<? extends K, ? extends V>> events = createSingleEvent(event);
-		listener.onUpdated(events);
-	}
-
-	@Override
-	public void removed(CacheEntryRemovedListener<K, V> listener,
-			CacheEntryEvent<? extends K, ? extends V> event)
-	{
-		Iterable<CacheEntryEvent<? extends K, ? extends V>> events = createSingleEvent(event);
-		listener.onRemoved(events);
-	}
-
-	@Override
-	public void expired(CacheEntryExpiredListener<K, V> listener,
-			CacheEntryEvent<? extends K, ? extends V> event)
-	{
-		Iterable<CacheEntryEvent<? extends K, ? extends V>> events = createSingleEvent(event);
-		listener.onExpired(events);
-
-	}
-
 	@Override
 	public void created(CacheEntryCreatedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl)
 	{
@@ -104,19 +55,6 @@ public class ListenerCacheEventManager<K, V> implements CacheEventManager<K, V>
 		listener.onExpired(eventColl.events());
 	}
 
-
-	/**
-	 * Creates an Iterable with a single element in it 
-	 * @param event The event to make available
-	 * @return The Iterable
-	 */
-	private Iterable<CacheEntryEvent<? extends K, ? extends V>> createSingleEvent(
-			CacheEntryEvent<? extends K, ? extends V> event)
-	{
-		List<CacheEntryEvent<? extends K, ? extends V>> list = new ArrayList<>();
-		list.add(event);
-		return list;
-	}
 
 
 }

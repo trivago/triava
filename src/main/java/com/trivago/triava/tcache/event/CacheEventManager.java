@@ -17,22 +17,28 @@
 package com.trivago.triava.tcache.event;
 
 import javax.cache.event.CacheEntryCreatedListener;
-import javax.cache.event.CacheEntryEvent;
 import javax.cache.event.CacheEntryExpiredListener;
 import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 
+/**
+ * An interface for a manager that forwards the given events to the given listener.
+ * {@link ListenerCacheEventManager} actually only forwards the events. This interface
+ * is here to be able to create decorators that e.g. also log the event, proxy it to
+ * a remote service, or globally filter events.
+ * <p>
+ * Implementation note: At the moment you cannot inject decorators from outside, neither
+ * by code nor by configuration. But this is an option that should be 
+ * 
+ * @author cesken
+ *
+ * @param <K> The key class
+ * @param <V> The value class
+ */
 public interface CacheEventManager<K,V>
 {
-	// Single event methods
-	void created(CacheEntryCreatedListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);
-	void updated(CacheEntryUpdatedListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);
-	void removed(CacheEntryRemovedListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);
-	void expired(CacheEntryExpiredListener<K, V> listener, CacheEntryEvent<? extends K, ? extends V> event);	
-	
-	// Multiple event methods
 	void created(CacheEntryCreatedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl);
 	void updated(CacheEntryUpdatedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl);
 	void removed(CacheEntryRemovedListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl);
-	void expired(CacheEntryExpiredListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl);	
+	void expired(CacheEntryExpiredListener<K, V> listener, TCacheEntryEventCollection<K, V> eventColl);
 }
