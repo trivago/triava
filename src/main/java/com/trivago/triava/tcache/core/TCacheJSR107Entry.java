@@ -16,9 +16,6 @@
 
 package com.trivago.triava.tcache.core;
 
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
-
 /**
  * tCache implementation of {@link javax.cache.Cache.Entry}. It is based on the native tCache entry
  * and can be unwrapped to it via unwrap(TCacheHolder.class)
@@ -31,19 +28,18 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
 public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>
 {
 	final K key;
-	final AccessTimeObjectHolder<V> holder;
-	
+	final V value;
 	
 	/**
 	 * Creates an instance based on the native tCache entry plus the key.
 	 * 
 	 * @param key The key
-	 * @param holder The holder
+	 * @param value The value
 	 */
-	public TCacheJSR107Entry(K key, AccessTimeObjectHolder<V> holder)
+	public TCacheJSR107Entry(K key, V value)
 	{
 		this.key = key;
-		this.holder = holder;
+		this.value = value;
 	}
 
 	@Override
@@ -55,7 +51,7 @@ public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>
 	@Override
 	public V getValue()
 	{
-		return holder.peek();
+		return value;
 	}
 
 	@Override
@@ -65,13 +61,6 @@ public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>
 		{
 			@SuppressWarnings("unchecked")
 			T holderCast = (T) this;
-			return holderCast;
-		}
-
-		if (clazz.isAssignableFrom(TCacheHolder.class) || clazz.isAssignableFrom(AccessTimeObjectHolder.class))
-		{
-			@SuppressWarnings("unchecked")
-			T holderCast = (T) holder;
 			return holderCast;
 		}
 

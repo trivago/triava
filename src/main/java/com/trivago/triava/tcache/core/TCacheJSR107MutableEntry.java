@@ -31,7 +31,7 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 {
 	public enum Operation { NOP, REMOVE, SET }
 	private Operation operation = Operation.NOP;
-	V value = null;
+	V valueNew = null;
 	
 	/**
 	 * Creates an instance based on the native tCache entry plus the key.
@@ -42,13 +42,13 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	public TCacheJSR107MutableEntry(K key, V value)
 	{
 		super(key, null);
-		this.value = value;
+		this.valueNew = value;
 	}
 
 	@Override
 	public boolean exists()
 	{
-		return operation != Operation.REMOVE && value != null;
+		return operation != Operation.REMOVE && valueNew != null;
 	}
 
 	@Override
@@ -61,14 +61,14 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	public V getValue()
 	{
 		// Overriding, to return the possibly mutated value
-		return this.value;
+		return this.valueNew;
 	}
 	
 	@Override
 	public void setValue(V value)
 	{
 		operation = Operation.SET;
-		this.value = value;
+		this.valueNew = value;
 	}
 
 	/**

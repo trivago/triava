@@ -32,7 +32,7 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
 		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : objects.entrySet())
 		{
-			entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue()));
+			entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue().peek()));
 		}
 
 		this.cache = cache;
@@ -51,7 +51,7 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 		try
 		{
 			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = mapIterator.next();
-			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue());
+			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue().peek());
 			return currentElement;
 			
 		}
