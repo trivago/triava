@@ -1224,6 +1224,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public boolean remove(K key, V value)
 	{
+		verifyKeyAndValueNotNull(key, value);
+		
 		AccessTimeObjectHolder<V> holder = objects.get(key);
 		if (holder == null)
 			return false;
@@ -1251,7 +1253,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public V remove(K key)
 	{
+		verifyKeyNotNull(key);
+
 		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
+		if (holder != null)
+		{
+			// removed
+			statisticsCalculator.incrementRemoveCount();
+		}
 		return releaseHolder(holder);
 	}
 

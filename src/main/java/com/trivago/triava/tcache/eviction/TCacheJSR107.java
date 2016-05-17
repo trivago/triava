@@ -158,8 +158,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
 			tcache.listeners.dispatchEvent(EventType.REMOVED, key, oldValue);
-			tcache.cacheWriter.delete(key);
 		}
+		tcache.cacheWriter.delete(key);
 		
 		return oldValue;
 	}
@@ -308,13 +308,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			case REMOVE:
 				key = me.getKey();
 				remove(key);
-				tcache.cacheWriter.delete(key);
 				break;
 			case SET:
 				key = me.getKey();
 				value = me.getValue();
 				put(key, value);
-				tcache.cacheWriter.write(new TCacheJSR107MutableEntry<K,V>(key, value));
 				break;
 			default:
 				break;
@@ -588,6 +586,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			// According to the JSR107 RI, we need to use oldValue as value. The Spec is not clear about this, but the TCK bombs
 			// us with NPE when we would use null as "value" and oldValue as "old value".
 			tcache.listeners.dispatchEvent(EventType.REMOVED, key, oldValue);
+			tcache.cacheWriter.delete(key);
 		}
 		// JSR107 Return whether a value was removed
 		return removed;
@@ -598,16 +597,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 		
-		if (value == null)
-		{
-			// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
-			// While a JCache may not contain null values, this does not mean to throw NPE. I would expect to return false.
-			throw new NullPointerException("value is null");
-		}
-		
 		boolean removed = tcache.remove(key, value);
 		if (removed)
+		{
 			tcache.listeners.dispatchEvent(EventType.REMOVED, key, value);
+			tcache.cacheWriter.delete(key);
+		}
 		
 		return removed;
 	}

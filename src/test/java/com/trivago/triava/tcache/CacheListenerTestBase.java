@@ -89,18 +89,25 @@ public class CacheListenerTestBase
 	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName, Integer size)
 	{
 		CacheManager cm = cacheManager();
-		
-		Builder<Integer, String> mc = TCacheFactory.standardFactory().builder();
-		if (size != null)
-		{
-			mc.setExpectedMapSize(size);
-		}
+		Builder<Integer, String> mc = createCacheBuilder(size);
 		javax.cache.Cache<Integer, String> cache = cm.createCache(cacheName, mc); // Build
 		
 		return cache;
 	}
 	
+	Builder<Integer, String> createCacheBuilder(Integer size)
+	{
+		CacheManager cm = cacheManager();
+		
+		Builder<Integer, String> builder = TCacheFactory.standardFactory().builder();
+		if (size != null)
+		{
+			builder.setExpectedMapSize(size);
+		}
+		return builder;
+	}
 	
+
 	/**
 	 * Returns a CacheManager  
 	 * @return
