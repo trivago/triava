@@ -499,12 +499,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		return loaderFactory;
 	}
 
-	public Builder<K, V> setCacheLoaderFactory(Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory)
-	{
-		this.loaderFactory = loaderFactory;
-		return this;
-	}
 
+	@SuppressWarnings("unchecked")
 	@Override // JSR107
 	public Class<K> getKeyType()
 	{
@@ -752,6 +748,33 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	public boolean isReadThrough()
 	{
 		return readThrough;
+	}
+
+	
+	public Builder<K, V> setCacheLoaderFactory(Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory)
+	{
+		this.loaderFactory = loaderFactory;
+		return this;
+	}
+
+	@SuppressWarnings("unchecked")
+	public Builder<K, V> setCacheWriterFactory(
+			Factory<? extends CacheWriter<? super K, ? super V>> factory)
+	{
+		this.writerFactory = (Factory<CacheWriter<? super K, ? super V>>) factory;
+		return this;
+	}
+	
+	public Builder<K, V> setReadThrough(boolean isReadThrough)
+	{
+		this.readThrough = isReadThrough;
+		return this;
+	}
+
+	public Builder<K, V> setWriteThrough(boolean isWriteThrough)
+	{
+		this.writeThrough = isWriteThrough;
+		return this;
 	}
 
 	@Override
