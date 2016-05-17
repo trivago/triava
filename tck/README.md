@@ -20,7 +20,7 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 
 ### Current compliance status:
 - All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 392/465 tests. (84%)
+- Passes 402/465 tests. (87%)
 
 ## Unclear JSR107 Specs, but compliant according to TCK
 The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
