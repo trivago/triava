@@ -26,10 +26,6 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
 	// TCK CHALLENGE
 
-### RemoveTest.remove_2arg_NullValue()
-	// The TCK test demands that we throw a NPE, which is IMO not required by the JSR107 Spec.
-	// While a JCache may not contain null values, this does not mean to throw NPE. I would expect to return false.
-
 ### PutTest.putAll_NullKey()
 	// It disallows partial success, even though this is not explicitly required, instead the Spec reads:
 	//
