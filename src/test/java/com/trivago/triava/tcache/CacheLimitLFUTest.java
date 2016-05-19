@@ -197,10 +197,6 @@ public class CacheLimitLFUTest
 		public long getFreezeValue(Integer userId, TCacheHolder<CustomerType> customerType)
 		{
 			int priority = customerType.peek().getPriority();
-			if (priority == 0)
-			{
-//				System.out.println("0");
-			}
 			return priority;
 		}
 	}
@@ -306,10 +302,10 @@ public class CacheLimitLFUTest
 			}
 		}
 		
-		System.out.println(ccache.statistics());
+//		System.out.println(ccache.statistics());
 		int size1 = ccache.size();
 		int allowedNonPremium1 = size1 * ACCEPTABLE_NON_PREMIUM_RATE / 100;
-		System.out.println("countNonPremium=" + countNonPremium + ", allowedNonPremium=" + allowedNonPremium1);
+//		System.out.println("countNonPremium=" + countNonPremium + ", allowedNonPremium=" + allowedNonPremium1);
 		// -5- Check whether the outcome is acceptable
 		if (reverse)
 		{
