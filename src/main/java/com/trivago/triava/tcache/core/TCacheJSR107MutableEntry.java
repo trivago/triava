@@ -16,6 +16,8 @@
 
 package com.trivago.triava.tcache.core;
 
+import java.io.Serializable;
+
 import javax.cache.processor.MutableEntry;
 
 /**
@@ -27,8 +29,10 @@ import javax.cache.processor.MutableEntry;
  * @param <K> The key class
  * @param <V> The value class
  */
-public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V> implements MutableEntry<K, V>
+public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V> implements MutableEntry<K, V>, Serializable
 {
+	private static final long serialVersionUID = 6472791726900271842L;
+
 	public enum Operation { NOP, REMOVE, SET }
 	private Operation operation = Operation.NOP;
 	V valueNew = null;
@@ -41,20 +45,24 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	 */
 	public TCacheJSR107MutableEntry(K key, V value)
 	{
-		super(key, null);
+		super(key, value);
 		this.valueNew = value;
 	}
 
 	@Override
 	public boolean exists()
 	{
-		return operation != Operation.REMOVE && valueNew != null;
+		return valueNew != null;
 	}
 
 	@Override
 	public void remove()
 	{
-		operation = Operation.REMOVE;
+		valueNew = null;
+		if (oldValue() != null)
+			operation = Operation.REMOVE;
+		else
+			operation = Operation.NOP;  // Was not set before, thus means DELETE is actually a NOP
 	}
 
 	@Override
@@ -71,6 +79,11 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 		this.valueNew = value;
 	}
 
+	private V oldValue()
+	{
+		return value;
+	}
+	
 	/**
 	 * Returns the operation that should be performed on this MutableEntry after the EntryProcessor has returned.
 	 * A entry that was not changed by an EntryProcessor returns {@link Operation#NOP}, which means no operation
