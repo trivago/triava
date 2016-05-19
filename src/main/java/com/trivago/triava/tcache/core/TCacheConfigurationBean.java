@@ -20,7 +20,6 @@ import javax.cache.configuration.Configuration;
 import javax.cache.management.CacheMXBean;
 
 import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.TCacheJSR107;
 
 public class TCacheConfigurationBean<K,V> implements CacheMXBean
 {
@@ -34,33 +33,33 @@ public class TCacheConfigurationBean<K,V> implements CacheMXBean
 	@Override
 	public String getKeyType()
 	{
-		Configuration<K,V> config = getCacheConfiguration();
+		Configuration<K,V> config = tcache.builder();
 		return config.getKeyType().getCanonicalName();
 	}
 
 	@Override
 	public String getValueType()
 	{
-		Configuration<K,V> config = getCacheConfiguration();
+		Configuration<K,V> config = tcache.builder();
 		return config.getValueType().getCanonicalName();
 	}
 
 	@Override
 	public boolean isReadThrough()
 	{
-		return false; // tCache is single-level Cache => always false
+		return tcache.builder().isReadThrough();
 	}
 
 	@Override
 	public boolean isWriteThrough()
 	{
-		return false; // tCache is single-level Cache => always false
+		return tcache.builder().isWriteThrough();
 	}
 
 	@Override
 	public boolean isStoreByValue()
 	{
-		return tcache.isStoreByValue();
+		return tcache.builder().isStoreByValue();
 	}
 
 	@Override
@@ -73,18 +72,5 @@ public class TCacheConfigurationBean<K,V> implements CacheMXBean
 	public boolean isManagementEnabled()
 	{
 		return tcache.isManagementEnabled();
-	}
-
-
-	/**
-	 * Returns the Configuration object of the corresponding Cache.
-	 * @return
-	 */
-	private Configuration<K,V> getCacheConfiguration()
-	{
-		TCacheJSR107<K, V> jsr107cache = tcache.jsr107cache();
-		@SuppressWarnings("unchecked")
-		Configuration<K,V> config = (Configuration<K,V>)jsr107cache.getConfiguration(Configuration.class);
-		return config;
 	}
 }

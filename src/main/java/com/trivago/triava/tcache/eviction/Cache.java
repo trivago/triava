@@ -38,6 +38,7 @@ import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
+import com.trivago.triava.tcache.core.ActionDispatcher;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
 import com.trivago.triava.tcache.core.NopCacheWriter;
@@ -324,6 +325,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	final TCacheJSR107<K, V> tCacheJSR107;
 	final CacheWriter<K, V> cacheWriter;
 
+	final ActionDispatcher<K,V> actionDispatcher;
+
 	/**
 	 * constructor with default cache time and expected map size.
 	 * @param maxIdleTime Maximum idle time in seconds
@@ -387,7 +390,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    activateTimeSource();
 	    
 	    listeners = new ListenerCollection<>(this, builder);
-	    
+
+		this.actionDispatcher = new ActionDispatcher<>(listeners, cacheWriter);
+
 	    // TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
 	}
@@ -420,6 +425,13 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	{
 		return id;
 	}
+
+	// TODO Make package private
+	public Builder<K, V> builder()
+	{
+		return builder;
+	}
+
 
 	/**
 	 * Can be overridden by implementations, if they require a custom clean up.
@@ -578,6 +590,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	
 	Random randomCacheTime = new Random(System.currentTimeMillis());
 	
+	/**
+	 * Returns a pseudorandom, uniformly distributed cache time in seconds between {@link #maxCacheTime} and {@link #maxCacheTime} + {@link #maxCacheTimeSpread} -1.
+	 * 
+	 * @return The cache time
+	 */
 	long cacheTimeSpread()
 	{
 		if (maxCacheTimeSpread == 0)
@@ -1445,12 +1462,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 		managementEnabled = enable;
 	}
-
-	public boolean isStoreByValue()
-	{
-		return builder.isStoreByValue();
-	}
-
 
 	public boolean isStatisticsEnabled()
 	{
