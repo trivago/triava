@@ -1,5 +1,6 @@
 package com.trivago.triava.tcache.core;
 
+import javax.cache.Cache;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheWriter;
 import javax.cache.integration.CacheWriterException;
@@ -7,8 +8,15 @@ import javax.cache.integration.CacheWriterException;
 import com.trivago.triava.tcache.event.ListenerCollection;
 
 /**
- * An ActionDispatchher delivers actions to all interested parties.
- * This implementation delivers actions to CacheWriter and ListenerCollection
+ * An ActionDispatcher delivers actions to all interested parties.
+ * This implementation delivers actions to CacheWriter and ListenerCollection.
+ * <p> 
+ * The ActionDispatcher is useful in all situations that require to deliver actions to multiple interested parties at the same time.
+ * Most API calls in the {@link Cache} interface that mutate the Cache can use the ActionDispatcher, but
+ * notable exceptions are the bulk operations Cache.setAll() and Cache.deleteAll(). They require to first run write-through, and only possibly call the Listeners
+ * (usually yes, but there are exceptions like errors in the CacheWriter). Implementation hint:  Cache.setAll() and Cache.deleteAll() do currently not use the
+ * ActionDispatcher, but call listeners and cacheWriter manually.
+ * 
  * @author cesken
  *
  * @param <K> The key type
