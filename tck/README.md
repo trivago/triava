@@ -4,8 +4,11 @@ This folder contains all information to check standards compliance via
 Technology Compatibility Kits (TCK). 
 
 ## JSR107 - Java Caching compliance
-- All core functionality tests pass. This includes creating and destroying caches. Also all put, get, replace, delete Operations work compliant. 
-- Passes 413/465 tests. (89%)
+- All core functionality tests pass. This includes creating and destroying caches.
+- PASS: put, get, replace, delete Operations
+- PASS: Listeners, Write-Through, Read-Through
+- Not passing fully: Statistics, Expiration, StoreByValue 
+- Passes 417/465 tests. (90%)
 
 To verify compliance, clone the Technology Compatibility Kit from https://github.com/jsr107/jsr107tck .
 ```
@@ -118,3 +121,10 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 	
 	// Proposed action: Clarify. Possibly add "Serializable" requirement to Spec
 	
+###org.jsr107.tck.RemoveTest
+- Observation: shouldWriteThroughRemove_SpecificEntry() mandates that remove(key,value) only(!) writes-through, if we happen to have the
+  (key,value) combination in the local cache.
+- Issue: This can lead to non-deterministic behavior if the local cache has evicted
+  that Cache entry. It is also inconsistent with all other methods: Usually the write-through is always done, and the local
+  Cache get mutated for the successfully written-through entries. But here the local Cache is inspected first.
+- Proposed change: Unclear. The reason could be an omission in the CacheWriter Interface: It does not have a write(key,value) method. To be discussed.
