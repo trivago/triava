@@ -5,6 +5,7 @@ import javax.cache.event.EventType;
 import javax.cache.integration.CacheWriter;
 import javax.cache.integration.CacheWriterException;
 
+import com.trivago.triava.tcache.action.ActionRunner;
 import com.trivago.triava.tcache.event.ListenerCollection;
 
 /**
@@ -16,6 +17,8 @@ import com.trivago.triava.tcache.event.ListenerCollection;
  * notable exceptions are the bulk operations Cache.setAll() and Cache.deleteAll(). They require to first run write-through, and only possibly call the Listeners
  * (usually yes, but there are exceptions like errors in the CacheWriter). Implementation hint:  Cache.setAll() and Cache.deleteAll() do currently not use the
  * ActionDispatcher, but call listeners and cacheWriter manually.
+ * 
+ * @deprecated Replaced by {@link ActionRunner}
  * 
  * @author cesken
  *
