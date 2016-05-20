@@ -33,7 +33,7 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 {
 	private static final long serialVersionUID = 6472791726900271842L;
 
-	public enum Operation { NOP, REMOVE, SET }
+	public enum Operation { NOP, REMOVE, SET, REMOVE_WRITE_THROUGH }
 	private Operation operation = Operation.NOP;
 	V valueNew = null;
 	
@@ -58,11 +58,23 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	@Override
 	public void remove()
 	{
-		valueNew = null;
 		if (oldValue() != null)
 			operation = Operation.REMOVE;
 		else
-			operation = Operation.NOP;  // Was not set before, thus means DELETE is actually a NOP
+		{
+			// TCK Challenge
+			// CacheWriterTest.shouldWriteThroughUsingInvoke_setValue_CreateEntryThenRemove()
+			// It demands that no action (INCLUDING write-through) is done, if the State-transistion is:
+			// SURROGATE -> SET -> REMOVED     : Result NOP
+			// SURROGATE -> REMOVED            : Result REMOVE_WRITE_THROUGH
+			// I do not see why we should skip write-through in this case
+			if (valueNew != null)
+				operation = Operation.NOP;
+			else
+			operation = Operation.REMOVE_WRITE_THROUGH;  // Was not set before, thus means DELETE is actually a NOP
+		}
+
+		valueNew = null;
 	}
 
 	@Override

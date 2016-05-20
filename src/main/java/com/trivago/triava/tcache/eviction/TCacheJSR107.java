@@ -39,6 +39,12 @@ import javax.cache.processor.EntryProcessor;
 import javax.cache.processor.EntryProcessorException;
 import javax.cache.processor.EntryProcessorResult;
 
+import com.trivago.triava.tcache.action.Action;
+import com.trivago.triava.tcache.action.ActionRunner;
+import com.trivago.triava.tcache.action.DeleteAction;
+import com.trivago.triava.tcache.action.DeleteOnValueAction;
+import com.trivago.triava.tcache.action.PutAction;
+import com.trivago.triava.tcache.action.WriteThroughActionRunner;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
@@ -167,6 +173,16 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
 		tcache.actionDispatcher.delete(key, oldValue, removed);
 		
+		if (removed)
+		{
+			tcache.statisticsCalculator.incrementHitCount();
+		}
+		else
+		{
+			tcache.statisticsCalculator.incrementMissCount();
+			// remvoveCOunt already done in tcache.remove(key);
+		}
+
 		return oldValue;
 	}
 
@@ -180,7 +196,6 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			// replaced
 			tcache.actionDispatcher.write(key, value, null);
-//			tcache.cacheWriter.write(new TCacheJSR107MutableEntry<K,V>(key, value));
 		}
 		return oldValue;				
 	}
@@ -278,9 +293,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			try
 			{
 				AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
-				V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
-				TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K,V>(key, value);
-				T result = processEntryProcessor(entryProcessor, me, args); // TODO CacheWriter behavior is here not JSR107 compliant. writeAll() must be called instead of individual write() calls 
+				V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing
+				TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K, V>(key, value);
+				// TODO CacheWriter behavior is
+				// here not JSR107 compliant.
+				// writeAll() must be called
+				// instead of individual write()
+				// calls
+				T result = processEntryProcessor(entryProcessor, me, args);
 				if (result != null)
 				{
 					resultMap.put(key, new EntryProcessorResultTCache<T>(result));
@@ -296,9 +316,9 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	}
 
 	/**
-	 * Process the given EntryProcessor and apply the change (delete or setValue) requested by that EntryProcessor.
-	 * Mutable changes have no direct impact, but are be applied after after the EntryProcessor has returned, but
-	 * before this method returns.
+	 * Process the given EntryProcessor and apply the change (delete or setValue) requested by that
+	 * EntryProcessor. Mutable changes have no direct impact, but are be applied after after the
+	 * EntryProcessor has returned, but before this method returns.
 	 * 
 	 * @param entryProcessor The entry processor to execute
 	 * @param me The MutableEntry
@@ -320,6 +340,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				key = me.getKey();
 				value = me.getValue();
 				put(key, value);
+				break;
+			case REMOVE_WRITE_THROUGH:
+				key = me.getKey();
+				remove(key, false);
 				break;
 			default:
 				break;
@@ -375,7 +399,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		TCacheEntryIterator<K,V> it = new TCacheEntryIterator<K,V>(this, tcache.objects);
+		TCacheEntryIterator<K, V> it = new TCacheEntryIterator<K,V>(this, tcache.objects);
 		return it;
 	}
 
@@ -426,8 +450,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			}
 			catch (Exception exc)
 			{
-				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.  
-				
+				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.
+
 				// TODO Check back after clarifying whether this requirement is a TCK bug:
 				// https://github.com/jsr107/jsr107tck/issues/99
 				String message = "CacheLoader " + tcache.id() + " failed to load keys";
@@ -463,16 +487,26 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 	}
 
+	ActionRunner actionRunner = new WriteThroughActionRunner(); // TODO Move to constructor
+
 	@Override
 	public void put(K key, V value)
 	{
 		throwISEwhenClosed();
 
-		//defaultMaxIdleTime, cacheTimeSpread()
-		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
-		EventType eventType = holder == null ? EventType.CREATED : EventType.UPDATED;
-		
-		tcache.actionDispatcher.write(key, value, eventType);
+		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, tcache);
+
+		if (actionRunner.preMutate(action))
+		{
+			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(),
+					tcache.cacheTimeSpread(), false, false);
+	
+			EventType eventType = holder == null ? EventType.CREATED : EventType.UPDATED;
+			action.setEventType(eventType);
+			actionRunner.postMutate(action, true);	
+		}
+		action.close();
+//		tcache.actionDispatcher.write(key, value, eventType);
 	}
 
 	@Override
@@ -490,7 +524,6 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		verifyEntriesNotNull(entries);
 
-		
 		// -1- Run Writer ---
 		// Hint: A CacheWriter dictates what to put for batch operations. If it fails to put, we must also not add it locally.
 		// This is a requirement from JSR107 and possibly meant to keep the Cache consistent.
@@ -520,22 +553,21 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			}
 			catch (Exception exc)
 			{
-				//  Quoting the JavaDocs of CacheWriterException:
+				// Q uoting the JavaDocs of CacheWriterException:
 				//    "A Caching Implementation must wrap any {@link Exception} thrown by a {@link CacheWriter} in this exception".
 				cacheWriterException = new CacheWriterException(exc);
 			}
 		}
 
 		// -2- Write to Cache -----------------------------------
-		
-//		System.out.println("putAll(): Writer size: " + ((writerEntries == null) ? "null" : "" + writerEntries.size()));
-		
+
 		ListenerCollection<K, V> listeners = tcache.listeners;
-		Map<K,V> createdEntries = listeners.hasListenerFor(EventType.CREATED) ? new HashMap<K,V>() : null; 
+		Map<K,V> createdEntries = listeners.hasListenerFor(EventType.CREATED) ? new HashMap<K,V>() : null;
 		Map<K,V> updatedEntries = listeners.hasListenerFor(EventType.UPDATED) ? new HashMap<K,V>() : null;
 
 		final boolean anyListenerInterested = createdEntries != null || updatedEntries != null;
-		// Future directions: Micro-Benchmark this loop. Optimize it if necessary with a "no-writer-nor-listener" version that contains no "if" checks
+		// Future directions: Micro-Benchmark this loop. Optimize it if necessary with a
+		// "no-writer-nor-listener" version that contains no "if" checks
 		
 		final Map<? extends K, ? extends V> finalEntries;
 		if (writerEntries != null)
@@ -546,13 +578,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				K key = writerEntry.getKey();
 				if (finalEntries.containsKey(key))
 				{
-
-//					System.out.println("putAll(): NOT Putting key=" + key);
 					finalEntries.remove(key);
-				}
-				else
-				{
-//					System.out.println("putAll(): Putting key=" + key + ", value=" + writerEntry.getValue());
 				}
 			}
 		}
@@ -568,18 +594,18 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			V value = entry.getValue();
 
 			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
-			
+
 			if (anyListenerInterested)
 			{
-				Map<K,V> mapToAdd = (holder == null) ? createdEntries : updatedEntries;
-				if (mapToAdd != null) // mapToAdd could be null here, if anyListenerInterested == true, but only one (iow: CREATED xor UPDATED)
-					mapToAdd.put(key, value); 
+				Map<K, V> mapToAdd = (holder == null) ? createdEntries : updatedEntries;
+				if (mapToAdd != null) // mapToAdd could be null here, if anyListenerInterested == true, but
+										// only one (iow: CREATED xor UPDATED)
+					mapToAdd.put(key, value);
 			}
 		}
 
 		// -2- Notify Listeners -----------------------------------
 
-		// actionDispatcher		
 		if (createdEntries != null)
 			tcache.listeners.dispatchEvents(createdEntries, EventType.CREATED, false);
 		if (updatedEntries != null)
@@ -602,12 +628,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			tcache.verifyKeyAndValueNotNull(key, value);
 		}
 	}
-	
 
 	private void verifyKeysNotNull(Set<? extends K> keys)
 	{
-		// JSR107 spec clarification needed. The TCK check removeAll_1arg_NullKey(org.jsr107.tck.RemoveTest) requires a total failure, and disallows partial success.
-		// This is not explicitly in the Specs. Until this clarification is done, we do an explicit key and value null check before starting to put values in the cache.
+		// JSR107 spec clarification needed. The TCK check removeAll_1arg_NullKey(org.jsr107.tck.RemoveTest)
+		// requires a total failure, and disallows partial success.
+		// This is not explicitly in the Specs. Until this clarification is done, we do an explicit key and
+		// value null check before starting to put values in the cache.
 		for (K key : keys)
 		{
 			tcache.verifyKeyNotNull(key);
@@ -628,10 +655,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		if (added)
 		{
 			tcache.actionDispatcher.write(key, value, EventType.CREATED);
-//			tcache.listeners.dispatchEvent(EventType.CREATED, key, value);
 		}
-			
-		
+
 		return added;
 	}
 
@@ -643,18 +668,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		tcache.listeners.registerCacheEntryListener(listenerConfiguration);
 	}
 
-//	void dispatchEvent(EventType eventType, K key, V value)
-//	{
-//		tcache.listeners.dispatchEvent(eventType, key, value);
-//	}
-//
-//	void dispatchEvent(EventType eventType, K key, V value, V oldValue)
-//	{
-//		tcache.listeners.dispatchEvent(eventType, key, value, oldValue);
-//	}
 
 	/**
-	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is closed.
+	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is
+	 * closed.
 	 */
 	private void throwISEwhenClosed()
 	{
@@ -665,32 +682,87 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public boolean remove(K key)
 	{
-		throwISEwhenClosed();
-		
-		V oldValue = tcache.remove(key);
-		boolean removed = oldValue != null;
-		// TCK challenge
-		// According to the JSR107 RI, we need to use oldValue as value. The Spec is not clear about this, but the TCK bombs
-		// us with NPE when we would use null as "value" and oldValue as "old value".
-		tcache.actionDispatcher.delete(key, oldValue, removed);
-		
-		// JSR107 Return whether a value was removed
-		return removed;
+		return remove(key, true);
 	}
 
+	boolean remove(K key, boolean mutateLocal)
+	{
+		throwISEwhenClosed();
+		tcache.verifyKeyNotNull(key);
+		
+		return removeInternal(key, null, mutateLocal);
+	}
+
+	
 	@Override
 	public boolean remove(K key, V value)
 	{
 		throwISEwhenClosed();
+		tcache.verifyKeyAndValueNotNull(key, value);
+
+		return removeInternal(key, value, true);
+	}
+
+	/**
+	 * Internal remove code. Handles both 1-arg and 2-arg remove() methods.
+	 * @param key
+	 * @param value
+	 * @param mutateLocal
+	 * @return
+	 */
+	boolean removeInternal(K key, V value, boolean mutateLocal)
+	{
 		
-		boolean removed = tcache.remove(key, value);
-		if (removed)
+		boolean mustWriteThrough = true;
+		if (value != null)
 		{
-			tcache.actionDispatcher.delete(key, value, true); // TCK challenge value instead of oldValue
-//			tcache.listeners.dispatchEvent(EventType.REMOVED, key, value);
-//			tcache.cacheWriter.delete(key);
+			// 2-arg remove()
+			/**
+			 * 
+			// TCK challenge
+			// RemoveTest.shouldWriteThroughRemove_SpecificEntry() mandates that we only write through, if we happen to have the
+			// (key,value) combination in the local cache. This can lead to non-deterministic behavior if the local cache has evicted
+			// that Cache entry. It is also inconsistent with all other methods: Usually the write-through is always done, and the local
+			// Cache get mutated for the successfully written-through entries. But here the local Cache is inspected first.
+			 * 
+			 * The reason could be an omission in the CacheWriter Interface: It simply does not have a write(key,value) method. To be discussed
+			 */
+			
+			V valueInCache = tcache.get(key);
+			mustWriteThrough = value.equals(valueInCache);
 		}
 		
+		final Action<K,V,Object> action = mustWriteThrough ? new DeleteAction<>(key, tcache) : new DeleteOnValueAction<>(key, tcache);
+
+		boolean removed = false;
+		if (actionRunner.preMutate(action))
+		{
+			if (mutateLocal)
+			{
+				if (value == null)
+				{
+					// 1-arg remove()
+					V oldValue = tcache.remove(key);
+					removed = oldValue != null;
+					actionRunner.postMutate(action, removed, oldValue);
+				}
+				else
+				{
+					// 2-arg remove()
+					removed = tcache.remove(key, value);
+					actionRunner.postMutate(action, removed, value);
+				}
+			}
+			else
+			{
+				// Only Write-Through
+				actionRunner.postMutate(action, false);
+			}
+		}
+
+		action.close();
+		
+		// JSR107 Return whether a value was removed
 		return removed;
 	}
 
@@ -706,11 +778,17 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public void removeAll(Set<? extends K> keys)
 	{
 		throwISEwhenClosed();
+		if (keys.isEmpty())
+		{
+			// If keys are empty, the CacheWriter must not be called => do an explicit check
+			return;
+		}
 		verifyKeysNotNull(keys);
 
 		CacheWriterException cacheWriterException = null;
-		
-		// A CacheWriter dictates what to delete for batch operations. If it fails to delete, we must keep it also locally.
+
+		// A CacheWriter dictates what to delete for batch operations. If it fails to delete, we must keep it
+		// also locally.
 		// This is a requirement from JSR107 and possibly meant to keep the Cache consistent.
 		Set<? extends K> keysFromCacheWriter = null;
 		CacheWriter<K, V> writer = tcache.cacheWriter;
@@ -726,12 +804,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		}
 		catch (Exception exc)
 		{
-			//  Quoting the JavaDocs of CacheWriterException:
-			//    "A Caching Implementation must wrap any {@link Exception} thrown by a {@link CacheWriter} in this exception".
+			// Quoting the JavaDocs of CacheWriterException:
+			// "A Caching Implementation must wrap any {@link Exception} thrown by a {@link CacheWriter} in
+			// this exception".
 			cacheWriterException = new CacheWriterException(exc);
 		}
 
-//		System.out.println("removeAll() keys=" + keys.size() + ", failedKeys=" + ((keysFromCacheWriter==null) ? "null" : "" + keysFromCacheWriter.size()));
 		for (K key : keys)
 		{
 			if (keysFromCacheWriter != null)
@@ -744,22 +822,20 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			}
 			V oldValue = tcache.remove(key);
 			boolean removed = oldValue != null;
-//			System.out.println("removeAll() key=" + key + ", hasRemoved=" + removed);
 			if (removed)
 			{
 				// Future direction: This could be optimized to do dispatchEvents(Event-List).
-				// To be done with the next major refactoring, as event lists need to be supported until the very bottom of the call-stack, namely until ListenerCacheEventManager.
+				// To be done with the next major refactoring, as event lists need to be supported until the
+				// very bottom of the call-stack, namely until ListenerCacheEventManager.
 				tcache.listeners.dispatchEvent(EventType.REMOVED, key, null, oldValue);
 			}
 		}
 
-		
 		if (cacheWriterException != null)
 		{
 			throw cacheWriterException;
 		}
 	}
-
 
 	@Override
 	public boolean replace(K key, V value)

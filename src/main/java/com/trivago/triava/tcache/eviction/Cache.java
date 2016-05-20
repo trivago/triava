@@ -1485,4 +1485,25 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 			throw new IllegalStateException("Cache already closed: " + id());
 	}
 
+
+	// TODO Make this package-private / refactor
+	public CacheWriter<K, V> cacheWriter()
+	{
+		return cacheWriter;
+	}
+
+
+	// TODO Make this package-private / refactor
+	public ListenerCollection<K, V> listeners()
+	{
+		return listeners;
+	}
+
+
+	// TODO Make this package-private / refactor
+	public StatisticsCalculator statisticsCalculator()
+	{
+		return statisticsCalculator;
+	}
+
 }
