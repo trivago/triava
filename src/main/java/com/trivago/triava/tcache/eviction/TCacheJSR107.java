@@ -44,6 +44,7 @@ import com.trivago.triava.tcache.action.ActionRunner;
 import com.trivago.triava.tcache.action.DeleteAction;
 import com.trivago.triava.tcache.action.DeleteOnValueAction;
 import com.trivago.triava.tcache.action.PutAction;
+import com.trivago.triava.tcache.action.WriteBehindActionRunner;
 import com.trivago.triava.tcache.action.WriteThroughActionRunner;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.NopCacheWriter;
@@ -191,12 +192,15 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		V oldValue = tcache.getAndReplace(key, value);
-		if (oldValue != null)
+		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.UPDATED, tcache, false);
+		V oldValue = null;
+		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			// replaced
-			tcache.actionDispatcher.write(key, value, null);
+			oldValue = tcache.getAndReplace(key, value);
+			boolean replaced = oldValue != null;
+			actionRunnerWriteBehind.postMutate(action, replaced);
 		}
+		action.close();
 		return oldValue;				
 	}
 
@@ -242,19 +246,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		}
 		
 		// -1- Load if not present via Loader
-		AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
-		if (holder == null)
-		{
-			CacheLoader<K, V> loader = tcache.loader;
-			if (loader != null  && tcache.builder.isReadThrough())
-			{
-				V value = loader.load(key);
-				if (value != null)
-				{
-					holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, true);
-				}
-			}
-		}
+		AccessTimeObjectHolder<V> holder = tcache.getFromMap(key);
 
 		// -2- Run EntryProcessor
 		V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
@@ -399,7 +391,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		TCacheEntryIterator<K, V> it = new TCacheEntryIterator<K,V>(this, tcache.objects);
+		TCacheEntryIterator<K, V> it = new TCacheEntryIterator<K,V>(this.tcache, tcache.objects);
 		return it;
 	}
 
@@ -488,13 +480,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	}
 
 	ActionRunner actionRunner = new WriteThroughActionRunner(); // TODO Move to constructor
+	ActionRunner actionRunnerWriteBehind = new WriteBehindActionRunner(); // TODO Move to constructor
 
 	@Override
 	public void put(K key, V value)
 	{
 		throwISEwhenClosed();
 
-		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, tcache);
+		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, tcache, false);
 
 		if (actionRunner.preMutate(action))
 		{
@@ -506,7 +499,6 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			actionRunner.postMutate(action, true);	
 		}
 		action.close();
-//		tcache.actionDispatcher.write(key, value, eventType);
 	}
 
 	@Override
@@ -841,10 +833,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean replace(K key, V value)
 	{
 		throwISEwhenClosed();
+		tcache.verifyKeyAndValueNotNull(key, value);
 		
-		boolean replaced = tcache.replace(key, value);
-		if (replaced)
-			tcache.actionDispatcher.write(key, value, null);
+		V oldHolder = getAndReplace(key, value);
+		boolean replaced = (oldHolder != null);
 		
 		return replaced;
 	}

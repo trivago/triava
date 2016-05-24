@@ -774,7 +774,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		{
 			// replaced
 			V oldValue = oldHolder.peek();
-			listeners.dispatchEvent(EventType.UPDATED, key, value, oldValue);
 			return oldValue;
 
 		}
@@ -851,16 +850,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 
-
-	public boolean replace(K key, V value)
-	{
-		verifyKeyAndValueNotNull(key, value);
-
-		V oldHolder = getAndReplace(key, value);
-		
-		return (oldHolder != null);
-	}
-
 	
 	public boolean replace(K key, V oldValue, V newValue)
 	{
@@ -935,6 +924,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public V get(K key) throws RuntimeException
 	{
+		AccessTimeObjectHolder<V> holder = getFromMap(key);
+		return holder == null ? null : holder.get();
+	}
+	
+	AccessTimeObjectHolder<V> getFromMap(K key) throws RuntimeException
+	{
 		throwISEwhenClosed();
 		verifyKeyNotNull(key);
 
@@ -995,7 +990,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		// debugLogger.debug("1lCache GET key:"+pKey.hashCode()+"; CACHE:hit");
 		incrementUseCount(holder);
 		statisticsCalculator.incrementHitCount();
-		return holder.get();
+		return holder;
 	}
 
 	protected void incrementUseCount(AccessTimeObjectHolder<V> holder)
