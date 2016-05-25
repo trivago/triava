@@ -17,63 +17,44 @@
 package com.trivago.triava.tcache.action;
 
 import javax.cache.event.EventType;
-import javax.cache.integration.CacheWriter;
 import javax.cache.integration.CacheWriterException;
-
-import com.trivago.triava.tcache.event.ListenerCollection;
-import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 
 public abstract class Action<K,V,W>
 {
 	final K key;
 	final V value;
 	EventType eventType;
-	final CacheWriter<K, V> cacheWriter;
-	final ListenerCollection<K, V> listeners;
-	final StatisticsCalculator stats;
 	
 	// Result
 	CacheWriterException writeThroughException = null;
 	
-	Action(K key, V value, EventType eventType, Cache<K,V> actionContext)
+	Action(K key, V value, EventType eventType)
 	{
 		this.key = key;
 		this.value = value;
-		this.setEventType(eventType);
-		
-		// actionContext. It is currently taken directly from the Cache
-		this.cacheWriter = actionContext.cacheWriter();
-		this.listeners = actionContext.listeners();
-		this.stats = actionContext.statisticsCalculator();
+		this.setEventType(eventType);		
 	}
 	
 	
-	public W writeThrough()
+	public void writeThrough(ActionRunner<K,V> actionRunner)
 	{
-		if (cacheWriter == null)
-			return null;
-		return writeThroughImpl();
+		writeThroughImpl(actionRunner);
 
 	}
 	
-	public void notifyListeners(Object... args)
+	public void notifyListeners(ActionRunner<K,V> actionRunner, Object... args)
 	{
-		if (listeners != null)
-			notifyListenersImpl(args);
+		notifyListenersImpl(actionRunner, args);
 	}
 	
-	public void statistics()
+	public void statistics(ActionRunner<K,V> actionRunner, Object... args)
 	{
-		if (stats != null)
-		{
-			statisticsImpl();
-		}
+		statisticsImpl(actionRunner, args);
 	}
 
-	abstract W writeThroughImpl();
-	abstract void notifyListenersImpl(Object... args);
-	abstract void statisticsImpl();
+	abstract W writeThroughImpl(ActionRunner<K,V> actionRunner);
+	abstract void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object... args);
+	abstract void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args);
 	
 	public void close() throws CacheWriterException
 	{

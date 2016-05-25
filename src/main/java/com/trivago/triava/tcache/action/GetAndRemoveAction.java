@@ -16,25 +16,24 @@
 
 package com.trivago.triava.tcache.action;
 
-import com.trivago.triava.tcache.eviction.Cache;
-
-public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
+public class GetAndRemoveAction<K,V,W> extends DeleteAction<K, V, W>
 {
-	V value;
-	
-	public DeleteOnValueAction(K key)
+	public GetAndRemoveAction(K key)
 	{
 		super(key);
 	}
 
-	/**
-	 * Cache.remove(key, value) should not write through. There is not even a 2-arg version of CacheWriter.delete(key, value).
-	 * Also org.jsr107.tck.integration.CacheWriterTest#shouldWriteThroughRemove_SpecificEntry() enforces that no write-through is being done.
-	 * at org.jsr107.tck.integration.CacheWriterTest.shouldWriteThroughRemove_SpecificEntry(CacheWriterTest.java:808)
-	 */
 	@Override
-	W writeThroughImpl(ActionRunner<K,V> actionRunner)
+	void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args)
 	{
-		return null;
+		if (args[1] == Boolean.TRUE)
+		{
+			actionRunner.stats.incrementHitCount();
+		}
+		else
+		{
+			actionRunner.stats.incrementMissCount();
+		}
+		super.statisticsImpl(actionRunner);
 	}
 }

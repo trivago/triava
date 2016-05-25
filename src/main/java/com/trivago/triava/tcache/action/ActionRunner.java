@@ -16,8 +16,26 @@
 
 package com.trivago.triava.tcache.action;
 
-public abstract class ActionRunner
+import javax.cache.integration.CacheWriter;
+
+import com.trivago.triava.tcache.event.ListenerCollection;
+import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.statistics.StatisticsCalculator;
+
+public abstract class ActionRunner<K,V>
 {
-	public abstract boolean preMutate(Action<?,?,?> action);
-	public abstract void postMutate(Action<?,?,?> action, boolean mutated, Object... args);
+	final CacheWriter<K, V> cacheWriter;
+	final ListenerCollection<K, V> listeners;
+	final StatisticsCalculator stats;
+	
+	ActionRunner(Cache<K,V> actionContext)
+	{
+		// actionContext. It is currently taken directly from the Cache
+		this.cacheWriter = actionContext.cacheWriter();
+		this.listeners = actionContext.listeners();
+		this.stats = actionContext.statisticsCalculator();		
+	}
+	
+	public abstract boolean preMutate(Action<K,V,?> action);
+	public abstract void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object... args);
 }

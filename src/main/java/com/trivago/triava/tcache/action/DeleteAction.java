@@ -19,22 +19,20 @@ package com.trivago.triava.tcache.action;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheWriterException;
 
-import com.trivago.triava.tcache.eviction.Cache;
-
 public class DeleteAction<K,V,W> extends Action<K,V,W>
 {
 
-	public DeleteAction(K key, Cache<K,V> actionContext)
+	public DeleteAction(K key)
 	{
-		super(key, null, EventType.REMOVED, actionContext);
+		super(key, null, EventType.REMOVED);
 	}
 
 	@Override
-	W writeThroughImpl()
+	W writeThroughImpl(ActionRunner<K,V> actionRunner)
 	{
 		try
 		{
-			cacheWriter.delete(key);
+			actionRunner.cacheWriter.delete(key);
 		}
 		catch (Exception exc)
 		{
@@ -44,15 +42,15 @@ public class DeleteAction<K,V,W> extends Action<K,V,W>
 	}
 
 	@Override
-	void notifyListenersImpl(Object... args)
+	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object... args)
 	{
 		@SuppressWarnings("unchecked")
 		V oldValue = (V)(args[0]); // This can actually be oldValue or value
-		listeners.dispatchEvent(eventType, key, oldValue);
+		actionRunner.listeners.dispatchEvent(eventType, key, oldValue);
 	}
 
 	@Override
-	void statisticsImpl()
+	void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args)
 	{
 		// TODO Move statistics from Cache to here for the Delete operation 
 //		stats.incrementRemoveCount();

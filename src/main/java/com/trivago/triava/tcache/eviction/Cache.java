@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +37,6 @@ import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
-import com.trivago.triava.tcache.core.ActionDispatcher;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
 import com.trivago.triava.tcache.core.NopCacheWriter;
@@ -52,6 +50,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatistics;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsMBean;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
+import com.trivago.triava.tcache.util.KeyValueUtil;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 import com.trivago.triava.tcache.util.TCacheConfigurationMBean;
 import com.trivago.triava.time.EstimatorTimeSource;
@@ -324,8 +323,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 
 	final TCacheJSR107<K, V> tCacheJSR107;
 	final CacheWriter<K, V> cacheWriter;
-
-	final ActionDispatcher<K,V> actionDispatcher;
+	
+	final KeyValueUtil<K,V> kvUtil;
 
 	/**
 	 * constructor with default cache time and expected map size.
@@ -349,6 +348,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	{
 		this.id = builder.getId();
 		this.strictJSR107 = builder.isStrictJSR107();
+		this.kvUtil = new KeyValueUtil<K,V>(id);
 		this.builder = builder;
 		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
 		this.maxCacheTime = builder.getMaxCacheTime();
@@ -391,8 +391,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	    
 	    listeners = new ListenerCollection<>(this, builder);
 
-		this.actionDispatcher = new ActionDispatcher<>(listeners, cacheWriter);
-
+	    tCacheJSR107.refreshActionRunners();
 	    // TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
 	}
@@ -690,7 +689,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 				return null;
 		}
 
-		verifyKeyAndValueNotNull(key, data);
+		kvUtil.verifyKeyAndValueNotNull(key, data);
 		
 		if (idleTime < 0)
 		{
@@ -764,7 +763,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public V getAndReplace(K key, V value)
 	{
-		verifyKeyAndValueNotNull(key, value);
+		kvUtil.verifyKeyAndValueNotNull(key, value);
 		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread());
@@ -783,79 +782,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		}
 	}
 	
-	/**
-	 * Checks whether key or value are null. If at least one parameter is null, NullPointerException is thrown. Otherwise
-	 * this method returns without any side-effects.
-	 * 
-	 * <p>
-	 * JSR107 mandates to throw NullPointerException. This is not in the Javadoc of JSR107, but in the
-	 * general part of the specification document:
-	 * "Any attempt to use null for keys or values will result in a NullPointerException being thrown, regardless of the use." 
-	 * 
-	 * @param key The key
-	 * @param value The value
-	 * @throws  NullPointerException if at least one parameter is null 
-	 */
-	void verifyKeyAndValueNotNull(K key, V value)
-	{
-		verifyKeyNotNull(key);
-		verifyValueNotNull(value);
-	}
-	
-	/**
-	 * Checks whether key is null. If it is null, NullPointerException is thrown. Otherwise
-	 * this method returns without any side-effects.
-	 * 
-	 * <p>
-	 * JSR107 mandates to throw NullPointerException. This is not in the Javadoc of JSR107, but in the
-	 * general part of the specification document:
-	 * "Any attempt to use null for keys or values will result in a NullPointerException being thrown, regardless of the use." 
-	 * 
-	 * @param key The key
-	 * @throws  NullPointerException if key is null 
-	 */
-	void verifyKeyNotNull(K key)
-	{
-		if(key == null)
-		{
-			throw new NullPointerException("null key is not allowed. cache=" + id);
-		}
-	}
-
-	/**
-	 * Checks whether key is null. If it is null, NullPointerException is thrown. Otherwise
-	 * this method returns without any side-effects.
-	 * 
-	 * <p>
-	 * JSR107 mandates to throw NullPointerException. This is not in the Javadoc of JSR107, but in the
-	 * general part of the specification document:
-	 * "Any attempt to use null for keys or values will result in a NullPointerException being thrown, regardless of the use." 
-	 * 
-	 * @param key The key
-	 * @throws  NullPointerException if key is null 
-	 */
-	void verifyValueNotNull(V value)
-	{
-		if(value == null)
-		{
-			throw new NullPointerException("null value is not allowed. cache=" + id);
-		}
-	}
-
-	public void verifyKeysNotNull(Set<? extends K> keys)
-	{
-		if(keys == null)
-		{
-			throw new NullPointerException("null key set is not allowed. cache=" + id);
-		}
-	}
-
-	
 	public boolean replace(K key, V oldValue, V newValue)
 	{
-		verifyKeyAndValueNotNull(key, newValue);
-		verifyValueNotNull(oldValue);
-		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		AccessTimeObjectHolder<V> oldHolder; // holder for the object in the Cache
 		oldHolder = objects.get(key);
@@ -866,8 +794,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		
 		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread());
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
-		if (replaced)
-			listeners.dispatchEvent(EventType.UPDATED, key, newValue, oldValue);
 
 		return replaced;
 		
@@ -931,7 +857,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	AccessTimeObjectHolder<V> getFromMap(K key) throws RuntimeException
 	{
 		throwISEwhenClosed();
-		verifyKeyNotNull(key);
+		kvUtil.verifyKeyNotNull(key);
 
 		AccessTimeObjectHolder<V> holder = this.objects.get(key);
 
@@ -1236,7 +1162,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public boolean remove(K key, V value)
 	{
-		verifyKeyAndValueNotNull(key, value);
+		kvUtil.verifyKeyAndValueNotNull(key, value);
 		
 		AccessTimeObjectHolder<V> holder = objects.get(key);
 		if (holder == null)
@@ -1265,7 +1191,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 	 */
 	public V remove(K key)
 	{
-		verifyKeyNotNull(key);
+		kvUtil.verifyKeyNotNull(key);
 
 		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
 		if (holder != null)

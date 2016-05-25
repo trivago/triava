@@ -43,6 +43,8 @@ import com.trivago.triava.tcache.action.Action;
 import com.trivago.triava.tcache.action.ActionRunner;
 import com.trivago.triava.tcache.action.DeleteAction;
 import com.trivago.triava.tcache.action.DeleteOnValueAction;
+import com.trivago.triava.tcache.action.GetAndRemoveAction;
+import com.trivago.triava.tcache.action.PostMutateAction;
 import com.trivago.triava.tcache.action.PutAction;
 import com.trivago.triava.tcache.action.WriteBehindActionRunner;
 import com.trivago.triava.tcache.action.WriteThroughActionRunner;
@@ -56,6 +58,7 @@ import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
+import com.trivago.triava.tcache.util.KeyValueUtil;
 
 /**
  * A Java Caching implementation.
@@ -78,12 +81,24 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	final Cache<K,V> tcache;
 	final CacheManager cacheManager;
 	final TCacheConfigurationBean<K,V> configurationBean;
+	final KeyValueUtil<K,V> kvUtil;
+	volatile ActionRunner<K,V> actionRunner;
+	volatile ActionRunner<K,V> actionRunnerWriteBehind;
+
 
 	TCacheJSR107(Cache<K,V> tcache, CacheManager cacheManager)
 	{
 		this.tcache = tcache;
 		this.cacheManager = cacheManager;
 		this.configurationBean = new TCacheConfigurationBean<K,V>(tcache);
+		this.kvUtil = new KeyValueUtil<K,V>(tcache.id());
+		refreshActionRunners();
+	}
+
+	void refreshActionRunners()
+	{
+		this.actionRunner = new WriteThroughActionRunner<K,V>(tcache);
+		this.actionRunnerWriteBehind = new WriteBehindActionRunner<K,V>(tcache);
 	}
 	
 	@Override
@@ -112,6 +127,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		throwISEwhenClosed();
 		
 		tcache.listeners.deregisterCacheEntryListener(listenerConfiguration);
+		refreshActionRunners();
 	}
 
 	@Override
@@ -145,22 +161,23 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
-		
-		final EventType eventType;
-		final V result;
-		if (holder == null)
+		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.CREATED, false);
+		V result = null;
+		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			eventType = EventType.CREATED;
-			result = null;
-		}
-		else
-		{
-			eventType = EventType.UPDATED;
-			result = holder.peek(); // TCK-WORK JSR107 check statistics effect
+			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
+		
+			if (holder != null)
+			{
+				action.setEventType(EventType.UPDATED);
+				result = holder.peek(); // TCK-WORK JSR107 check statistics effect
+			}
+			// else: result = null and eventType = EventType.CREATED
+
+			actionRunnerWriteBehind.postMutate(action, PostMutateAction.ALL);
 		}
 		
-		tcache.actionDispatcher.write(key, value, eventType);
+		action.close();
 		return result;
 	}
 
@@ -169,22 +186,18 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		V oldValue = tcache.remove(key);
-		boolean removed = oldValue != null;
-		// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
-		tcache.actionDispatcher.delete(key, oldValue, removed);
-		
-		if (removed)
+		Action<K, V, Object> action = new GetAndRemoveAction<K, V, Object>(key);
+		if (actionRunner.preMutate(action))
 		{
-			tcache.statisticsCalculator.incrementHitCount();
-		}
-		else
-		{
-			tcache.statisticsCalculator.incrementMissCount();
-			// remvoveCOunt already done in tcache.remove(key);
-		}
 
-		return oldValue;
+			V oldValue = tcache.remove(key);
+			boolean removed = oldValue != null;
+			// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
+			actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), oldValue, Boolean.TRUE);			
+			return oldValue;
+		}
+	
+		return null;
 	}
 
 	@Override
@@ -192,13 +205,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.UPDATED, tcache, false);
+		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.UPDATED, false);
 		V oldValue = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
 			oldValue = tcache.getAndReplace(key, value);
 			boolean replaced = oldValue != null;
-			actionRunnerWriteBehind.postMutate(action, replaced);
+			actionRunnerWriteBehind.postMutate(action, PostMutateAction.statsOrAll(replaced));
 		}
 		action.close();
 		return oldValue;				
@@ -403,7 +416,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		for (K key : keys) // implicit null check on keys => will throw NPE
 		{
-			tcache.verifyKeyNotNull(key);
+			kvUtil.verifyKeyNotNull(key);
 		}
 		
 		CacheLoader<K, V> loader = tcache.loader;
@@ -479,15 +492,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 	}
 
-	ActionRunner actionRunner = new WriteThroughActionRunner(); // TODO Move to constructor
-	ActionRunner actionRunnerWriteBehind = new WriteBehindActionRunner(); // TODO Move to constructor
-
 	@Override
 	public void put(K key, V value)
 	{
 		throwISEwhenClosed();
+		kvUtil.verifyKeyAndValueNotNull(key, value);
 
-		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, tcache, false);
+		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, false);
 
 		if (actionRunner.preMutate(action))
 		{
@@ -496,7 +507,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	
 			EventType eventType = holder == null ? EventType.CREATED : EventType.UPDATED;
 			action.setEventType(eventType);
-			actionRunner.postMutate(action, true);	
+			actionRunner.postMutate(action, PostMutateAction.ALL);	
 		}
 		action.close();
 	}
@@ -617,7 +628,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			K key = entry.getKey();
 			V value = entry.getValue();
-			tcache.verifyKeyAndValueNotNull(key, value);
+			kvUtil.verifyKeyAndValueNotNull(key, value);
 		}
 	}
 
@@ -629,7 +640,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		// value null check before starting to put values in the cache.
 		for (K key : keys)
 		{
-			tcache.verifyKeyNotNull(key);
+			kvUtil.verifyKeyNotNull(key);
 		}
 	}
 
@@ -638,15 +649,17 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		V oldValue = tcache.putIfAbsent(key, value);
-		// For JSR107 putIfAbsent() should return whether a value was set.
-		// As tcache.putIfAbsent() has the semantics of ConcurrentMap#putIfAbsent(), we can check for
-		// oldValue == null.
-		boolean added = oldValue == null;
-
-		if (added)
+		PutAction<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, false);
+		boolean added = false;
+		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			tcache.actionDispatcher.write(key, value, EventType.CREATED);
+			V oldValue = tcache.putIfAbsent(key, value);
+			// For JSR107 putIfAbsent() should return whether a value was set.
+			// As tcache.putIfAbsent() has the semantics of ConcurrentMap#putIfAbsent(), we can check for
+			// oldValue == null.
+			added = oldValue == null;
+			if (added)
+				actionRunnerWriteBehind.postMutate(action, PostMutateAction.ALL);
 		}
 
 		return added;
@@ -658,6 +671,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		throwISEwhenClosed();
 		
 		tcache.listeners.registerCacheEntryListener(listenerConfiguration);
+		refreshActionRunners();
 	}
 
 
@@ -680,7 +694,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	boolean remove(K key, boolean mutateLocal)
 	{
 		throwISEwhenClosed();
-		tcache.verifyKeyNotNull(key);
+		kvUtil.verifyKeyNotNull(key);
 		
 		return removeInternal(key, null, mutateLocal);
 	}
@@ -690,7 +704,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean remove(K key, V value)
 	{
 		throwISEwhenClosed();
-		tcache.verifyKeyAndValueNotNull(key, value);
+		kvUtil.verifyKeyAndValueNotNull(key, value);
 
 		return removeInternal(key, value, true);
 	}
@@ -714,8 +728,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			// TCK challenge
 			// RemoveTest.shouldWriteThroughRemove_SpecificEntry() mandates that we only write through, if we happen to have the
 			// (key,value) combination in the local cache. This can lead to non-deterministic behavior if the local cache has evicted
-			// that Cache entry. It is also inconsistent with all other methods: Usually the write-through is always done, and the local
-			// Cache get mutated for the successfully written-through entries. But here the local Cache is inspected first.
+			// that Cache entry.
 			 * 
 			 * The reason could be an omission in the CacheWriter Interface: It simply does not have a write(key,value) method. To be discussed
 			 */
@@ -724,7 +737,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			mustWriteThrough = value.equals(valueInCache);
 		}
 		
-		final Action<K,V,Object> action = mustWriteThrough ? new DeleteAction<>(key, tcache) : new DeleteOnValueAction<>(key, tcache);
+		final Action<K,V,Object> action = mustWriteThrough ? new DeleteAction<K,V,Object>(key) : new DeleteOnValueAction<K,V,Object>(key);
 
 		boolean removed = false;
 		if (actionRunner.preMutate(action))
@@ -736,19 +749,19 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 					// 1-arg remove()
 					V oldValue = tcache.remove(key);
 					removed = oldValue != null;
-					actionRunner.postMutate(action, removed, oldValue);
+					actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), oldValue);
 				}
 				else
 				{
 					// 2-arg remove()
 					removed = tcache.remove(key, value);
-					actionRunner.postMutate(action, removed, value);
+					actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), value);
 				}
 			}
 			else
 			{
 				// Only Write-Through
-				actionRunner.postMutate(action, false);
+				actionRunner.postMutate(action, PostMutateAction.WRITETHROUGH_ONLY);
 			}
 		}
 
@@ -833,7 +846,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean replace(K key, V value)
 	{
 		throwISEwhenClosed();
-		tcache.verifyKeyAndValueNotNull(key, value);
+		kvUtil.verifyKeyAndValueNotNull(key, value);
 		
 		V oldHolder = getAndReplace(key, value);
 		boolean replaced = (oldHolder != null);
@@ -845,10 +858,19 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	public boolean replace(K key, V oldValue, V newValue)
 	{
 		throwISEwhenClosed();
+		kvUtil.verifyKeyAndValueNotNull(key, newValue);
+		kvUtil.verifyValueNotNull(oldValue);
 		
-		boolean replaced = tcache.replace(key, oldValue, newValue);
-		if (replaced)
-			tcache.actionDispatcher.write(key, newValue, null);
+		boolean replaced = false;
+		Action<K, V, Object> action = new PutAction<K, V, Object>(key, newValue, EventType.UPDATED, false);
+		if (actionRunnerWriteBehind.preMutate(action))
+		{
+			replaced = tcache.replace(key, oldValue, newValue);
+			if (replaced)
+			{
+				actionRunnerWriteBehind.postMutate(action, PostMutateAction.ALL);
+			}
+		}
 
 		return replaced;
 	}

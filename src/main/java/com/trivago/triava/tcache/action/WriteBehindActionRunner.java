@@ -16,34 +16,40 @@
 
 package com.trivago.triava.tcache.action;
 
+import com.trivago.triava.tcache.eviction.Cache;
+
 /**
  * An ActionRunner with the following behavior:
  * <ul>
- * <li> {@link #preMutate(Action)} : NOP</li> 
- * <li> {@link #postMutate(Action, boolean, Object...)} : If mutated: statistics, notifyListeners, writeThrough</li>
+ * <li> preMutate() : NOP</li> 
+ * <li> postMutate() : If mutated: statistics, notifyListeners, writeThrough</li>
  * </ul>
  * @author cesken
  *
  */
 
-public class WriteBehindActionRunner extends ActionRunner
+public class WriteBehindActionRunner<K,V> extends ActionRunner<K,V>
 {
+	public WriteBehindActionRunner(Cache<K,V> actionContext)
+	{
+		super(actionContext);
+	}
+	
 	@Override
-	public
-	boolean preMutate(Action<?,?,?> action)
+	public boolean preMutate(Action<K,V,?> action)
 	{
 		return true;
 	}
 
 	@Override
-	public
-	void postMutate(Action<?,?,?> action, boolean mutated, Object... args)
+	public void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object... args)
 	{
-		if (mutated)
-		{
-			action.statistics();
-			action.notifyListeners(args);
-			action.writeThrough(); // Should run async and possibly batched for efficient write-behind
-		}
+		if (stats != null && mutateAction.runStatistics())
+			action.statistics(this, args);
+		if (listeners != null && mutateAction.runListener())
+			action.notifyListeners(this, args);
+		if (cacheWriter != null && mutateAction.runWriteThrough())
+			action.writeThrough(this); // Should run async and possibly batched for efficient write-behind
+		action.close();
 	}
 }

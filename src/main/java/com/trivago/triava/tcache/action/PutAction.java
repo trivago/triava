@@ -20,24 +20,31 @@ import javax.cache.event.EventType;
 import javax.cache.integration.CacheWriterException;
 
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
-import com.trivago.triava.tcache.eviction.Cache;
 
+/**
+ * An action suitable for any put-action like put, putIfAbsent, putAndRemove
+ * @author cesken
+ *
+ * @param <K> The key class
+ * @param <V> The value class
+ * @param <W> The return type of the {@link #writeThroughImpl(ActionRunner)}
+ */
 public class PutAction<K,V,W> extends Action<K,V,W>
 {
 
 	final boolean countStatistics;
-	public PutAction(K key, V value, EventType eventType, Cache<K,V> actionContext, boolean countStatistics)
+	public PutAction(K key, V value, EventType eventType, boolean countStatistics)
 	{
-		super(key, value, eventType, actionContext);
+		super(key, value, eventType);
 		this.countStatistics = false;
 	}
 
 	@Override
-	W writeThroughImpl()
+	W writeThroughImpl(ActionRunner<K,V> actionRunner)
 	{
 		try
 		{
-			cacheWriter.write(new TCacheJSR107Entry<K,V>(key, value));
+			actionRunner.cacheWriter.write(new TCacheJSR107Entry<K,V>(key, value));
 		}
 		catch (Exception exc)
 		{
@@ -47,16 +54,16 @@ public class PutAction<K,V,W> extends Action<K,V,W>
 	}
 
 	@Override
-	void notifyListenersImpl(Object... args)
+	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object... args)
 	{
-		listeners.dispatchEvent(eventType, key, value);
+		actionRunner.listeners.dispatchEvent(eventType, key, value);
 	}
 
 	@Override
-	void statisticsImpl()
+	void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args)
 	{
 		if (countStatistics)
-			stats.incrementPutCount();
+			actionRunner.stats.incrementPutCount();
 	}
 
 }
