@@ -46,7 +46,7 @@ public class CacheTest
 	private static final int DEFAULT_CAPACITY = 10;
 	private static final long maxIdleTime = 100L;
 	private static final long maxCacheTime = 1000L;
-	private static Cache<String, Integer> cache = createCache("CacheTest", maxIdleTime, maxCacheTime, 10);
+	private Cache<String, Integer> cache;
 
 	boolean runAcceptanceTests = false;
 
