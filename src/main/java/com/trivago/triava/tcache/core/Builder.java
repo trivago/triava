@@ -827,6 +827,10 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		return expiryPolicyFactory;
 	}
 
+	void setExpiryPolicyFactory(Factory<ExpiryPolicy> expiryPolicyFactory)
+	{
+		this.expiryPolicyFactory = expiryPolicyFactory;
+	}
 	
 
 	/**
