@@ -16,8 +16,6 @@
 
 package com.trivago.triava.tcache.action;
 
-import com.trivago.triava.tcache.eviction.Cache;
-
 /**
  * An ActionRunner with the following behavior:
  * <ul>
@@ -30,7 +28,7 @@ import com.trivago.triava.tcache.eviction.Cache;
 
 public class WriteBehindActionRunner<K,V> extends ActionRunner<K,V>
 {
-	public WriteBehindActionRunner(Cache<K,V> actionContext)
+	public WriteBehindActionRunner(ActionContext<K,V> actionContext)
 	{
 		super(actionContext);
 	}

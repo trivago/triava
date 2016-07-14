@@ -29,7 +29,7 @@ import com.trivago.triava.tcache.eviction.Cache;
  */
 public class WriteThroughActionRunner<K,V> extends ActionRunner<K,V>
 {
-	public WriteThroughActionRunner(Cache<K,V> actionContext)
+	public WriteThroughActionRunner(ActionContext<K,V> actionContext)
 	{
 		super(actionContext);
 	}
