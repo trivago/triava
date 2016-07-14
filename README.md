@@ -41,10 +41,8 @@ dependencies {
 - 0.9.4
     - cache: Listener support for synchronous and asynchronous events.
     - cache: Support CacheLoader, ListenerConfiguration, MutableEntry, EntryProcessor
-    - util: Add a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W". The Unit formatter supports different Unit Systems:
-        - SI units (1000 based, kilo, k)
-        - IEC60027-2 units (1024 based, kibi, Ki)
-        - JEDEC (1024 based, Kilo, K)
+    - util:  Added a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W". The Unit formatter
+             supports SI units (1000 based, kilo, k), IEC60027-2 units (1024 based, kibi, Ki) and JEDEC units (1024 based, Kilo, K)
 
 
 ## Building:
