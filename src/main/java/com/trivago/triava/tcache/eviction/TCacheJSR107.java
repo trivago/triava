@@ -79,17 +79,15 @@ import com.trivago.triava.tcache.util.KeyValueUtil;
 public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 {
 	final Cache<K,V> tcache;
-	final CacheManager cacheManager;
 	final TCacheConfigurationBean<K,V> configurationBean;
 	final KeyValueUtil<K,V> kvUtil;
 	volatile ActionRunner<K,V> actionRunner;
 	volatile ActionRunner<K,V> actionRunnerWriteBehind;
 
 
-	TCacheJSR107(Cache<K,V> tcache, CacheManager cacheManager)
+	TCacheJSR107(Cache<K,V> tcache)
 	{
 		this.tcache = tcache;
-		this.cacheManager = cacheManager;
 		this.configurationBean = new TCacheConfigurationBean<K,V>(tcache);
 		this.kvUtil = new KeyValueUtil<K,V>(tcache.id());
 		refreshActionRunners();
@@ -205,13 +203,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.UPDATED, false);
+		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.UPDATED, true);
 		V oldValue = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
 			oldValue = tcache.getAndReplace(key, value);
 			boolean replaced = oldValue != null;
-			actionRunnerWriteBehind.postMutate(action, PostMutateAction.statsOrAll(replaced));
+			actionRunnerWriteBehind.postMutate(action, PostMutateAction.statsOrAll(replaced), replaced);
 		}
 		action.close();
 		return oldValue;				
@@ -220,7 +218,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public CacheManager getCacheManager()
 	{
-		return cacheManager;
+		return tcache.builder.getFactory();
 	}
 
 	@SuppressWarnings("unchecked")

@@ -37,6 +37,7 @@ import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
+import com.trivago.triava.tcache.action.ActionContext;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
 import com.trivago.triava.tcache.core.NopCacheWriter;
@@ -94,7 +95,7 @@ import com.trivago.triava.time.TimeSource;
  * @since 2009-06-10
  *
  */
-public class Cache<K, V> implements Thread.UncaughtExceptionHandler
+public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionContext<K, V>
 {
 	static TriavaLogger logger = new TriavaNullLogger();
 
@@ -350,7 +351,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler
 		this.strictJSR107 = builder.isStrictJSR107();
 		this.kvUtil = new KeyValueUtil<K,V>(id);
 		this.builder = builder;
-		tCacheJSR107 = new TCacheJSR107<K, V>(this, builder.getFactory());
+		tCacheJSR107 = new TCacheJSR107<K, V>(this);
 		this.maxCacheTime = builder.getMaxCacheTime();
 		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
 		this.defaultMaxIdleTime = builder.getMaxIdleTime();
