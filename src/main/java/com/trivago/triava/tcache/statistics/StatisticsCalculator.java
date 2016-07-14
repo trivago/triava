@@ -26,7 +26,7 @@ package com.trivago.triava.tcache.statistics;
  * @author cesken
  *
  */
-public interface StatisticsCalculator
+public interface StatisticsCalculator extends java.io.Serializable
 {
 	// --- Methods for counting --- 
 	void incrementHitCount();

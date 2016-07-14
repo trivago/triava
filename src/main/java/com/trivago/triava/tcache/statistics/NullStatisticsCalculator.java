@@ -24,8 +24,10 @@ package com.trivago.triava.tcache.statistics;
  * @author cesken
  *
  */
-public class NullStatisticsCalculator implements StatisticsCalculator
+public class NullStatisticsCalculator implements StatisticsCalculator, java.io.Serializable
 {
+	private static final long serialVersionUID = 1291619594880844249L;
+	
 	static HitAndMissDifference dummyDifference = new HitAndMissDifference(0, 0);
 	@Override
 	public void incrementHitCount()

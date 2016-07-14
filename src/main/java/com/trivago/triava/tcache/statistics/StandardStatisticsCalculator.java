@@ -23,8 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author cesken
  *
  */
-public class StandardStatisticsCalculator implements StatisticsCalculator
+public class StandardStatisticsCalculator implements StatisticsCalculator, java.io.Serializable
 {
+	private static final long serialVersionUID = -4811885483869803392L;
+	
 	private final AtomicLong cacheHitCount  = new AtomicLong();
 	private final AtomicLong cacheMissCount = new AtomicLong();
 	private final AtomicLong cachePutCount = new AtomicLong();
