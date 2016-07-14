@@ -36,7 +36,7 @@ public class PutAction<K,V,W> extends Action<K,V,W>
 	public PutAction(K key, V value, EventType eventType, boolean countStatistics)
 	{
 		super(key, value, eventType);
-		this.countStatistics = false;
+		this.countStatistics = countStatistics;
 	}
 
 	@Override

@@ -16,12 +16,8 @@
 
 package com.trivago.triava.tcache.action;
 
-import com.trivago.triava.tcache.eviction.Cache;
-
 public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
 {
-	V value;
-	
 	public DeleteOnValueAction(K key)
 	{
 		super(key);
