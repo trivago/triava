@@ -182,7 +182,7 @@ public class CacheLimitLFUTest
 		
 		for (int i = 0; i < count; i++)
 		{
-			cache.putIfAbsent(String.valueOf(i), new Integer(i), maxIdleTime, maxCacheTime);
+			cache.putIfAbsent(String.valueOf(i), i, maxIdleTime, maxCacheTime);
 		}
 	}
 
@@ -303,8 +303,8 @@ public class CacheLimitLFUTest
 		}
 		
 //		System.out.println(ccache.statistics());
-		int size1 = ccache.size();
-		int allowedNonPremium1 = size1 * ACCEPTABLE_NON_PREMIUM_RATE / 100;
+//		int size1 = ccache.size();
+//		int allowedNonPremium1 = size1 * ACCEPTABLE_NON_PREMIUM_RATE / 100;
 //		System.out.println("countNonPremium=" + countNonPremium + ", allowedNonPremium=" + allowedNonPremium1);
 		// -5- Check whether the outcome is acceptable
 		if (reverse)

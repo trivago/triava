@@ -41,9 +41,11 @@ import com.trivago.triava.tcache.core.Builder;
  * @author cesken
  *
  */
-public class CacheListenerTestBase
+public class CacheListenerTestBase implements Serializable
 {
-	CacheManager cacheManager;
+	private static final long serialVersionUID = -7258104888811145129L;
+
+	transient CacheManager cacheManager;
 	
 	volatile NamedAtomicInteger createdListenerFiredCount = new NamedAtomicInteger("created");
 	volatile NamedAtomicInteger updatedListenerFiredCount = new NamedAtomicInteger("updated");
@@ -97,8 +99,6 @@ public class CacheListenerTestBase
 	
 	Builder<Integer, String> createCacheBuilder(Integer size)
 	{
-		CacheManager cm = cacheManager();
-		
 		Builder<Integer, String> builder = TCacheFactory.standardFactory().builder();
 		if (size != null)
 		{
