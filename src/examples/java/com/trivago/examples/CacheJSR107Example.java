@@ -29,7 +29,7 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Examples for creating a Cache using the Java Caching API (JSR107). This example shows basic operations like
- * creating a Cache, put and get. Additionaly it does an introduction into the Cache statistics, available via
+ * creating a Cache, put and get. Additionally it does an introduction into the Cache statistics, available via
  * MBean or a native tCache statistics object.
  *
  * @author cesken
@@ -149,7 +149,7 @@ public class CacheJSR107Example
 
 		return cache;
 	}
-	
+
 	/**
 	 * Creates a Cache via JSR107 API, but an extended Configuration object. Namely a tCache Builder is used, that extends the JSR107 Configuration.
 	 * 
