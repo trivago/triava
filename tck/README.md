@@ -8,7 +8,7 @@ Technology Compatibility Kits (TCK).
 - PASS: put, get, replace, delete Operations
 - PASS: Listeners, Write-Through, Read-Through
 - Not passing fully: Statistics, Expiration, StoreByValue 
-- Passes 423/465 tests. (91%)
+- Passes 426/465 tests. (92%)
 
 To verify compliance, clone the Technology Compatibility Kit from https://github.com/jsr107/jsr107tck .
 ```
