@@ -393,6 +393,18 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
+	 * Sets whether management should be enabled.
+	 * 
+	 * @param management true, if you want to switch on management 
+	 * @return This Builder
+	 */
+	public Builder<K,V> setManagement(boolean management)
+	{
+		this.management = management;
+		return this;
+	}
+
+	/**
 	 * @return the id
 	 */
 	public String getId()
