@@ -55,6 +55,11 @@ public class NullStatisticsCalculator implements StatisticsCalculator, java.io.S
 	}
 
 	@Override
+	public void incrementRemoveCount(int removedCount)
+	{
+	}
+
+	@Override
 	public HitAndMissDifference tick()
 	{
 		return dummyDifference;
@@ -88,6 +93,11 @@ public class NullStatisticsCalculator implements StatisticsCalculator, java.io.S
 	public long getRemoveCount()
 	{
 		return 0;
+	}
+
+	@Override
+	public void clear()
+	{
 	}
 
 }

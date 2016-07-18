@@ -58,6 +58,19 @@ public class StandardStatisticsCalculator implements StatisticsCalculator, java.
 		return new HitAndMissDifference(hitDifference, missDifference);
 	}
 	
+	@Override
+	public void clear()
+	{
+		cacheHitCount.set(0);
+		cacheMissCount.set(0);
+		cachePutCount.set(0);
+		cacheRemoveCount.set(0);
+		cacheDropCount.set(0);
+		cacheHitCountPrevious.set(0);
+		cacheMissCountPrevious.set(0);
+	}
+
+	
 	/**
 	 * @return the cacheHitCount
 	 */
@@ -122,9 +135,24 @@ public class StandardStatisticsCalculator implements StatisticsCalculator, java.
 	}
 
 	@Override
+	public void incrementRemoveCount(int removedCount)
+	{
+		cacheRemoveCount.addAndGet(removedCount);
+	}
+
+	@Override
 	public long getRemoveCount()
 	{
 		return cacheRemoveCount.get();
 	}
 
+	@Override
+	public String toString()
+	{
+		return "StandardStatisticsCalculator [cacheHitCount=" + cacheHitCount + ", cacheMissCount=" + cacheMissCount
+				+ ", cachePutCount=" + cachePutCount + ", cacheRemoveCount=" + cacheRemoveCount + ", cacheDropCount="
+				+ cacheDropCount + "]";
+	}
+
+	
 }

@@ -28,12 +28,16 @@ package com.trivago.triava.tcache.statistics;
  */
 public interface StatisticsCalculator extends java.io.Serializable
 {
+	// Clear all statistics
+	void clear();
+	
 	// --- Methods for counting --- 
 	void incrementHitCount();
 	void incrementMissCount();
 	void incrementPutCount();
 	void incrementDropCount();
 	void incrementRemoveCount();
+	void incrementRemoveCount(int removedCount);
 
 	// --- Methods for calculating the change --- 
 	/**
