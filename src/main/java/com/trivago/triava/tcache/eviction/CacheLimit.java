@@ -455,6 +455,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			}
 			
 			evictionCount.addAndGet(removedCount);			
+			statisticsCalculator.incrementRemoveCount(removedCount);
 			evictionRateCounter.registerEvents(millisEstimator.seconds(), removedCount);
 		}
 

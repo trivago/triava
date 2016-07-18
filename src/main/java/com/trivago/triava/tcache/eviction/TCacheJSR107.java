@@ -43,9 +43,11 @@ import com.trivago.triava.tcache.action.Action;
 import com.trivago.triava.tcache.action.ActionRunner;
 import com.trivago.triava.tcache.action.DeleteAction;
 import com.trivago.triava.tcache.action.DeleteOnValueAction;
+import com.trivago.triava.tcache.action.GetAndPutAction;
 import com.trivago.triava.tcache.action.GetAndRemoveAction;
 import com.trivago.triava.tcache.action.PostMutateAction;
 import com.trivago.triava.tcache.action.PutAction;
+import com.trivago.triava.tcache.action.ReplaceAction;
 import com.trivago.triava.tcache.action.WriteBehindActionRunner;
 import com.trivago.triava.tcache.action.WriteThroughActionRunner;
 import com.trivago.triava.tcache.core.Builder;
@@ -58,6 +60,7 @@ import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
+import com.trivago.triava.tcache.util.ChangeStatus;
 import com.trivago.triava.tcache.util.KeyValueUtil;
 
 /**
@@ -159,20 +162,26 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.CREATED, false);
+		Action<K, V, Object> action = new GetAndPutAction<K, V, Object>(key, value, EventType.CREATED);
 		V result = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
 			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
 		
+			final ChangeStatus changeStatus;
 			if (holder != null)
 			{
 				action.setEventType(EventType.UPDATED);
-				result = holder.peek(); // TCK-WORK JSR107 check statistics effect
+				result = holder.peek();
+				changeStatus = ChangeStatus.CHANGED;
 			}
-			// else: result = null and eventType = EventType.CREATED
+			else
+			{
+				// else: result = null and eventType = EventType.CREATED
+				changeStatus = ChangeStatus.CREATED;
+			}
 
-			actionRunnerWriteBehind.postMutate(action, PostMutateAction.ALL);
+			actionRunnerWriteBehind.postMutate(action, changeStatus);
 		}
 		
 		action.close();
@@ -187,11 +196,10 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		Action<K, V, Object> action = new GetAndRemoveAction<K, V, Object>(key);
 		if (actionRunner.preMutate(action))
 		{
-
 			V oldValue = tcache.remove(key);
 			boolean removed = oldValue != null;
 			// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
-			actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), oldValue, Boolean.TRUE);			
+			actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), oldValue);			
 			return oldValue;
 		}
 	
@@ -203,13 +211,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		Action<K, V, Object> action = new PutAction<K, V, Object>(key, value, EventType.UPDATED, true);
+		Action<K, V, Object> action = new ReplaceAction<K, V, Object>(key, value, EventType.UPDATED);
 		V oldValue = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
 			oldValue = tcache.getAndReplace(key, value);
 			boolean replaced = oldValue != null;
-			actionRunnerWriteBehind.postMutate(action, PostMutateAction.statsOrAll(replaced), replaced);
+			ChangeStatus changeStatus = replaced ? ChangeStatus.CHANGED : ChangeStatus.UNCHANGED;
+			actionRunnerWriteBehind.postMutate(action, changeStatus);
 		}
 		action.close();
 		return oldValue;				
@@ -337,7 +346,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			case REMOVE:
 				key = me.getKey();
-				remove(key);
+				boolean res = remove(key);
+//				System.out.println("EP remove key " + key + " = " +  res);
 				break;
 			case SET:
 				key = me.getKey();
@@ -505,7 +515,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	
 			EventType eventType = holder == null ? EventType.CREATED : EventType.UPDATED;
 			action.setEventType(eventType);
-			actionRunner.postMutate(action, PostMutateAction.ALL);	
+			actionRunner.postMutate(action);	
 		}
 		action.close();
 	}
@@ -657,7 +667,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			// oldValue == null.
 			added = oldValue == null;
 			if (added)
-				actionRunnerWriteBehind.postMutate(action, PostMutateAction.ALL);
+				actionRunnerWriteBehind.postMutate(action);
 		}
 
 		return added;
@@ -716,11 +726,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	 */
 	boolean removeInternal(K key, V value, boolean mutateLocal)
 	{
+		final DeleteAction<K,V,Object> action;
 		
-		boolean mustWriteThrough = true;
-		if (value != null)
+		boolean twoArgRemove = (value != null);		
+		if (twoArgRemove)
 		{
-			// 2-arg remove()
 			/**
 			 * 
 			// TCK challenge
@@ -732,10 +742,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			 */
 			
 			V valueInCache = tcache.get(key);
-			mustWriteThrough = value.equals(valueInCache);
+			boolean mustWriteThrough = value.equals(valueInCache);
+			action = new DeleteOnValueAction<K,V,Object>(key, mustWriteThrough);
 		}
-		
-		final Action<K,V,Object> action = mustWriteThrough ? new DeleteAction<K,V,Object>(key) : new DeleteOnValueAction<K,V,Object>(key);
+		else
+		{
+			action =  new DeleteAction<K,V,Object>(key);
+		}
 
 		boolean removed = false;
 		if (actionRunner.preMutate(action))
@@ -747,19 +760,25 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 					// 1-arg remove()
 					V oldValue = tcache.remove(key);
 					removed = oldValue != null;
-					actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), oldValue);
+					action.setRemoved(removed);
+					actionRunner.postMutate(action, oldValue);
 				}
 				else
 				{
 					// 2-arg remove()
+					boolean log = false; // value.equals("Sooty");
+					if (log) System.out.println("About ot remove Sooty: " + key + "stats: " + tcache.statisticsCalculator);
 					removed = tcache.remove(key, value);
-					actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), value);
+					action.setRemoved(removed);   // TODO tcache.remove() already counts statistics. Thus currently suppressing it here
+					if (log) System.out.println("After remove Sooty: " + key + "removed=" + removed + ", action=" + action + "stats: " + tcache.statisticsCalculator);
+					actionRunner.postMutate(action, value);
+					if (log) System.out.println("After postMutate Sooty: " + key + "removed=" + removed + ", action=" + action + "stats: " + tcache.statisticsCalculator);
 				}
 			}
 			else
 			{
 				// Only Write-Through
-				actionRunner.postMutate(action, PostMutateAction.WRITETHROUGH_ONLY);
+				actionRunner.postMutate(action, PostMutateAction.WRITETHROUGH_ONLY, null);
 			}
 		}
 
@@ -827,6 +846,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			boolean removed = oldValue != null;
 			if (removed)
 			{
+				tcache.statisticsCalculator.incrementRemoveCount();
 				// Future direction: This could be optimized to do dispatchEvents(Event-List).
 				// To be done with the next major refactoring, as event lists need to be supported until the
 				// very bottom of the call-stack, namely until ListenerCacheEventManager.
@@ -860,14 +880,12 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		kvUtil.verifyValueNotNull(oldValue);
 		
 		boolean replaced = false;
-		Action<K, V, Object> action = new PutAction<K, V, Object>(key, newValue, EventType.UPDATED, false);
+		Action<K, V, Object> action = new ReplaceAction<K, V, Object>(key, newValue, EventType.UPDATED);
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			replaced = tcache.replace(key, oldValue, newValue);
-			if (replaced)
-			{
-				actionRunnerWriteBehind.postMutate(action, PostMutateAction.ALL);
-			}
+			ChangeStatus changeStatus = tcache.replace(key, oldValue, newValue);
+			actionRunnerWriteBehind.postMutate(action, changeStatus);
+			replaced = changeStatus == ChangeStatus.CHANGED;
 		}
 
 		return replaced;

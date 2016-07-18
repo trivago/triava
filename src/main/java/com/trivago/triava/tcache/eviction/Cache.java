@@ -51,6 +51,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatistics;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsMBean;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
+import com.trivago.triava.tcache.util.ChangeStatus;
 import com.trivago.triava.tcache.util.KeyValueUtil;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 import com.trivago.triava.tcache.util.TCacheConfigurationMBean;
@@ -783,20 +784,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		}
 	}
 	
-	public boolean replace(K key, V oldValue, V newValue)
+	public ChangeStatus replace(K key, V oldValue, V newValue)
 	{
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		AccessTimeObjectHolder<V> oldHolder; // holder for the object in the Cache
 		oldHolder = objects.get(key);
 		if (oldHolder == null)
-			return false; // Not in backing store => cannot replace
+			return ChangeStatus.UNCHANGED; // Not in backing store => cannot replace
 		if (! oldHolder.peek().equals(oldValue))
-			return false; // oldValue does not match => do not replace
+			return ChangeStatus.CAS_FAILED_EQUALS; // oldValue does not match => do not replace
 		
 		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread());
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
 
-		return replaced;
+		return replaced ? ChangeStatus.CHANGED : ChangeStatus.UNCHANGED;
 		
 	}
 	
@@ -1178,7 +1179,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (removed)
 		{
 			releaseHolder(holder);
-			statisticsCalculator.incrementRemoveCount();
 		}
 		return removed;
 	}
@@ -1195,11 +1195,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		kvUtil.verifyKeyNotNull(key);
 
 		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
-		if (holder != null)
-		{
-			// removed
-			statisticsCalculator.incrementRemoveCount();
-		}
+//		if (holder != null)
+//		{
+//			// removed
+//			statisticsCalculator.incrementRemoveCount();
+//		}
 		return releaseHolder(holder);
 	}
 
@@ -1361,12 +1361,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			{
 				statisticsCalculator = new StandardStatisticsCalculator();
 				TCacheStatisticsMBean.instance().register(this);
+				jsr107cache().refreshActionRunners(); // Action runner must use the new statistics 
 			}
 		}
 		else
 		{
 			statisticsCalculator = new NullStatisticsCalculator();
 			TCacheStatisticsMBean.instance().unregister(this);
+			jsr107cache().refreshActionRunners(); // Action runner should stopupdating statistics 
 		}
 		
 	}
