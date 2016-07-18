@@ -35,6 +35,17 @@ public abstract class ActionRunner<K,V>
 		this.stats = actionContext.statisticsCalculator();		
 	}
 	
-	public abstract boolean preMutate(Action<K,V,?> action);
-	public abstract void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object... args);
+	public abstract boolean preMutate(Action<K,V,?> action, Object arg);
+	public boolean preMutate(Action<K,V,?> action)
+	{
+		return preMutate(action, null);
+	}
+	
+	public void postMutate(Action<K,V,?> action)
+	{
+		postMutate(action, null);
+	}
+	public abstract void postMutate(Action<K,V,?> action, Object arg);
+	
+	public abstract void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object arg);
 }

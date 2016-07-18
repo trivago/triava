@@ -24,16 +24,9 @@ public class GetAndRemoveAction<K,V,W> extends DeleteAction<K, V, W>
 	}
 
 	@Override
-	void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args)
+	void statisticsImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		if (Boolean.TRUE.equals(args[1]))
-		{
-			actionRunner.stats.incrementHitCount();
-		}
-		else
-		{
-			actionRunner.stats.incrementMissCount();
-		}
-		super.statisticsImpl(actionRunner);
+		actionRunner.stats.incrementHitCount();
+		super.statisticsImpl(actionRunner, arg);
 	}
 }

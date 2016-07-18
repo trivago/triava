@@ -21,14 +21,15 @@ import javax.cache.integration.CacheWriterException;
 
 public class DeleteAction<K,V,W> extends Action<K,V,W>
 {
-
+	boolean removed = false;
+	
 	public DeleteAction(K key)
 	{
 		super(key, null, EventType.REMOVED);
 	}
 
 	@Override
-	W writeThroughImpl(ActionRunner<K,V> actionRunner)
+	W writeThroughImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
 		try
 		{
@@ -42,18 +43,27 @@ public class DeleteAction<K,V,W> extends Action<K,V,W>
 	}
 
 	@Override
-	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object... args)
+	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
 		@SuppressWarnings("unchecked")
-		V oldValue = (V)(args[0]); // This can actually be oldValue or value
+		V oldValue = (V)arg; // This can actually be oldValue or value
 		actionRunner.listeners.dispatchEvent(eventType, key, oldValue);
 	}
 
 	@Override
-	void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args)
+	void statisticsImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		// TODO Move statistics from Cache to here for the Delete operation 
-//		stats.incrementRemoveCount();
+		System.out.println("statisticsImpl removed=" + removed);
+		if (removed)
+		{
+			System.out.println("statisticsImpl BS removed=" + removed + " stats: " + actionRunner.stats);
+			actionRunner.stats.incrementRemoveCount();
+			System.out.println("statisticsImpl AS sremoved=" + removed + " stats: " + actionRunner.stats);
+		}
 	}
 
+	public void setRemoved(boolean removed)
+	{
+		this.removed = removed;
+	}
 }

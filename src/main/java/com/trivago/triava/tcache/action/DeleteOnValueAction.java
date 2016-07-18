@@ -18,9 +18,12 @@ package com.trivago.triava.tcache.action;
 
 public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
 {
-	public DeleteOnValueAction(K key)
+	final boolean writeThrough;
+	
+	public DeleteOnValueAction(K key, boolean writeThrough)
 	{
 		super(key);
+		this.writeThrough = writeThrough;
 	}
 
 	/**
@@ -29,8 +32,28 @@ public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
 	 * at org.jsr107.tck.integration.CacheWriterTest.shouldWriteThroughRemove_SpecificEntry(CacheWriterTest.java:808)
 	 */
 	@Override
-	W writeThroughImpl(ActionRunner<K,V> actionRunner)
+	W writeThroughImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		return null;
+		if (writeThrough)
+			return super.writeThroughImpl(actionRunner, arg);
+		else
+			return null;
+	}
+	
+	@Override
+	void statisticsImpl(ActionRunner<K, V> actionRunner, Object arg)
+	{
+		// We should do hit- and miss-counts, but the 2-arg remove method is doing a tcache.get() at the beginning to determine the need for write-through.
+		// The tcache.get() also does the hit- and miss-counts, so we remove them here for now.
+/*
+		// DeletOnValue is a "delete-if".Thus we need hit counting for the "if value"
+		if (removed)
+		{
+			actionRunner.stats.incrementHitCount();
+		}
+		else
+			actionRunner.stats.incrementMissCount();
+*/		
+		super.statisticsImpl(actionRunner, arg);
 	}
 }

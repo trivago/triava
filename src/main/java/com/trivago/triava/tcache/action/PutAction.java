@@ -27,7 +27,7 @@ import com.trivago.triava.tcache.core.TCacheJSR107Entry;
  *
  * @param <K> The key class
  * @param <V> The value class
- * @param <W> The return type of the {@link #writeThroughImpl(ActionRunner)}
+ * @param <W> The return type of the writeThroughImpl (unused)
  */
 public class PutAction<K,V,W> extends Action<K,V,W>
 {
@@ -40,7 +40,7 @@ public class PutAction<K,V,W> extends Action<K,V,W>
 	}
 
 	@Override
-	W writeThroughImpl(ActionRunner<K,V> actionRunner)
+	W writeThroughImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
 		try
 		{
@@ -54,13 +54,13 @@ public class PutAction<K,V,W> extends Action<K,V,W>
 	}
 
 	@Override
-	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object... args)
+	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
 		actionRunner.listeners.dispatchEvent(eventType, key, value);
 	}
 
 	@Override
-	void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args)
+	void statisticsImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
 		if (countStatistics)
 			actionRunner.stats.incrementPutCount();

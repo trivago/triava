@@ -16,8 +16,6 @@
 
 package com.trivago.triava.tcache.action;
 
-import com.trivago.triava.tcache.eviction.Cache;
-
 /**
  * An ActionRunner with the following behavior:
  * <ul>
@@ -35,20 +33,28 @@ public class WriteThroughActionRunner<K,V> extends ActionRunner<K,V>
 	}
 	
 	@Override
-	public boolean preMutate(Action<K,V,?> action)
+	public boolean preMutate(Action<K,V,?> action, Object arg)
 	{
 		if (cacheWriter != null)
-			action.writeThrough(this);
+			action.writeThrough(this, arg);
 		return action.successful();
 	}
 
 	@Override
-	public void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object... args)
+	public void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object arg)
 	{
 		if (stats != null && mutateAction.runStatistics())
-			action.statistics(this, args);
+			action.statistics(this, arg);
 		if (listeners != null && mutateAction.runListener())
-			action.notifyListeners(this, args);
+			action.notifyListeners(this, arg);
+		action.close();
+	}
+
+	@Override
+	public void postMutate(Action<K, V, ?> action, Object arg)
+	{
+		action.statistics(this, arg);
+		action.notifyListeners(this, arg);
 		action.close();
 	}
 

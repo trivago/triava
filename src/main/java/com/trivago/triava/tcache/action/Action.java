@@ -36,25 +36,25 @@ public abstract class Action<K,V,W>
 	}
 	
 	
-	public void writeThrough(ActionRunner<K,V> actionRunner)
+	public void writeThrough(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		writeThroughImpl(actionRunner);
+		writeThroughImpl(actionRunner, arg);
 
 	}
 	
-	public void notifyListeners(ActionRunner<K,V> actionRunner, Object... args)
+	public void notifyListeners(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		notifyListenersImpl(actionRunner, args);
+		notifyListenersImpl(actionRunner, arg);
 	}
 	
-	public void statistics(ActionRunner<K,V> actionRunner, Object... args)
+	public void statistics(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		statisticsImpl(actionRunner, args);
+		statisticsImpl(actionRunner, arg);
 	}
 
-	abstract W writeThroughImpl(ActionRunner<K,V> actionRunner);
-	abstract void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object... args);
-	abstract void statisticsImpl(ActionRunner<K,V> actionRunner, Object... args);
+	abstract W writeThroughImpl(ActionRunner<K,V> actionRunner, Object arg);
+	abstract void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object arg);
+	abstract void statisticsImpl(ActionRunner<K,V> actionRunner, Object arg);
 	
 	public void close() throws CacheWriterException
 	{
