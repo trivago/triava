@@ -16,6 +16,14 @@
 
 package com.trivago.triava.tcache.action;
 
+import com.trivago.triava.tcache.util.ChangeStatus;
+
+/**
+ * @deprecated Migrate to {@link ChangeStatus}
+ * @author cesken
+ *
+ */
+@Deprecated
 public class PostMutateAction
 {
 	public static final PostMutateAction STATS_ONLY = new PostMutateAction(false, false, false);
