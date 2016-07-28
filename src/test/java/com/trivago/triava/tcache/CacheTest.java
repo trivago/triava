@@ -66,6 +66,38 @@ public class CacheTest
 	}
 	
 	@Test
+	public void testLimitToMaxInt()
+	{
+		assertEquals(0, limitToPositiveInt(0));
+		assertEquals(1, limitToPositiveInt(1));
+		assertEquals(0, limitToPositiveInt(-1));
+		assertEquals(0, limitToPositiveInt(Integer.MIN_VALUE));
+		assertEquals(0, limitToPositiveInt(Long.MIN_VALUE));
+		assertEquals(Integer.MAX_VALUE, limitToPositiveInt(Integer.MAX_VALUE));
+		assertEquals(Integer.MAX_VALUE, limitToPositiveInt(((long)Integer.MAX_VALUE)+1));
+		assertEquals(Integer.MAX_VALUE, limitToPositiveInt(((long)Integer.MAX_VALUE)+2));
+		assertEquals(Integer.MAX_VALUE, limitToPositiveInt(Long.MAX_VALUE));
+	}
+	
+
+	/**
+	 * This is a copy from the Cache class. It is not public there, but we would like to do some unit tests on it.
+	 */
+	static int limitToPositiveInt(long value)
+	{
+		if (value > (long)Integer.MAX_VALUE)
+		{
+			return Integer.MAX_VALUE;
+		}
+		else if  (value < 0)
+		{
+			return 0;
+		}
+		return (int)value;
+	}
+	
+	
+	@Test
 	public void testCacheConstructor()
 	{
 		try

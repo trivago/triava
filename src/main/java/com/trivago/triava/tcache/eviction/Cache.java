@@ -131,8 +131,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.data = data;
 
 			setInputDate();
-			this.maxIdleTime = limitToMaxInt(maxIdleTime);
-			this.maxCacheTime = limitToMaxInt(maxCacheTime);
+			this.maxIdleTime = limitToPositiveInt(maxIdleTime);
+			this.maxCacheTime = limitToPositiveInt(maxCacheTime);
 		}
 
 
@@ -1230,7 +1230,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (holder.maxCacheTime == 0 || delaySecs < holder.maxCacheTime)
 		{
 			// holder.maxCacheTime was not set (never expires), or new value is smaller => use it 
-			holder.maxCacheTime = limitToMaxInt(delaySecs);
+			holder.maxCacheTime = limitToPositiveInt(delaySecs);
 		}
 		// else: Keep delay, as holder will already expire sooner than delaySecs.
 	}
@@ -1292,10 +1292,28 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return this.objects.containsKey(key);
 	}
 
-	
-	static int limitToMaxInt(long value)
+
+	/**
+	 * Limits the given long value to values between [0, Integer.MAX_VALUE].
+	 * Values < 0 will be adjusted to 0, and values > Integer.MAX_VALUE are adjusted to Integer.MAX_VALUE.
+	 * <p>
+	 * Implementation note: This method is not public. To do Unit tests, copy this method to CacheTest after changing it. 
+	 * 
+	 * 
+	 * @param value The value to limit
+	 * @return The adjusted value
+	 */
+	static int limitToPositiveInt(long value)
 	{
-		return Math.min((int)value, Integer.MAX_VALUE);
+		if (value > (long)Integer.MAX_VALUE)
+		{
+			return Integer.MAX_VALUE;
+		}
+		else if  (value < 0)
+		{
+			return 0;
+		}
+		return (int)value;
 	}
 
 	/**
