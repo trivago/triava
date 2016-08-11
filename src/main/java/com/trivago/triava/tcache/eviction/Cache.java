@@ -729,12 +729,24 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			if (holder == null)
 			{
 				statisticsCalculator.incrementPutCount();
-				statisticsCalculator.incrementMissCount();
+				if (!strictJSR107)
+				{
+					// TCK CHALLENGE
+					// JSR107 TCK does not allow incrementing the miss count. CacheMBStatisticsBeanTest.java:607 , testPutIfAbsent()
+					// So we only go here in native tcache mode (== !strictJSR107)
+					statisticsCalculator.incrementMissCount();
+				}
 				effectiveHolder = newHolder;
 			}
 			else
 			{
-				statisticsCalculator.incrementHitCount();
+				if (!strictJSR107)
+				{
+					// TCK CHALLENGE
+					// JSR107 TCK does not allow incrementing the hit count. CacheMBStatisticsBeanTest.java:616 , testPutIfAbsent()
+					// So we only go here in native tcache mode (== !strictJSR107)
+					statisticsCalculator.incrementHitCount();
+				}
 				incrementUseCount(holder);
 				effectiveHolder = holder;
 			}

@@ -28,6 +28,22 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
 ## Unclear JSR107 Specs, but compliant according to TCK
 The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
 	// TCK CHALLENGE
+	
+### CacheMBStatisticsBeanTest.testPutIfAbsent()
+- Observation: First assertEquals(missCount, ...) requires missCount == 0, but there was a miss (value not present before the call, but after the call)
+- Observation: Second assertEquals(hitCount, ...) requires hitCount == 0, but there was a hit (value present both before and after the call)
+- Issue: It is not clear why this check are in the TCK. The spec does not specify when the mapping must be in the table (before or after the call). But
+         no matter if it is before or after: At least one of theTCK checks seem to be wrong.
+- Proposed change: Clarify. Create ticket on TCK
+
+
+----------------------------------------------------------------------------------------------------------------
+--- ABOVE: NEW QUESTIONS
+----------------------------------------------------------------------------------------------------------------
+--- BELOW: OLD QUESTIONS
+----------------------------------------------------------------------------------------------------------------
+
+	
 
 ### PutTest.putAll_NullKey()
 	// It disallows partial success, even though this is not explicitly required, instead the Spec reads:

@@ -193,13 +193,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		Action<K, V, Object> action = new GetAndRemoveAction<K, V, Object>(key);
+		GetAndRemoveAction<K, V, Object> action = new GetAndRemoveAction<K, V, Object>(key);
 		if (actionRunner.preMutate(action))
 		{
 			V oldValue = tcache.remove(key);
-			boolean removed = oldValue != null;
+			action.setRemoved(oldValue != null);
+
 			// TCK CHALLENGE oldValue needs to be passed as (old)Value, otherwise NPE at org.jsr107.tck.event.CacheListenerTest$MyCacheEntryEventFilter.evaluate(CacheListenerTest.java:344)
-			actionRunner.postMutate(action, PostMutateAction.statsOrAll(removed), oldValue);			
+			actionRunner.postMutate(action, oldValue);			
 			return oldValue;
 		}
 	
