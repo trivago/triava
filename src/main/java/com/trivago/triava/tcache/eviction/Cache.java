@@ -36,6 +36,7 @@ import javax.cache.integration.CacheWriter;
 import com.trivago.triava.collections.HashInterner;
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
+import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.action.ActionContext;
@@ -51,6 +52,8 @@ import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsMBean;
+import com.trivago.triava.tcache.storage.ByteArray;
+import com.trivago.triava.tcache.storage.ConcurrentKeyDeserMap;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ChangeStatus;
 import com.trivago.triava.tcache.util.KeyValueUtil;
@@ -217,8 +220,22 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private ConcurrentMap<K, AccessTimeObjectHolder<V>> createBackingMap(Builder<K, V> builder)
 	{
 		StorageBackend<K, V> storageFactory = builder.storageFactory();
+
 		ConcurrentMap<K, ? extends TCacheHolder<V>> map = storageFactory.createMap(builder, evictionExtraSpace(builder));
-		return (ConcurrentMap<K,AccessTimeObjectHolder<V>>)map;
+
+		CacheWriteMode cacheWriteMode = builder.getCacheWriteMode();
+		if (cacheWriteMode.isStoreByValue())
+		{
+			ConcurrentMap<ByteArray, AccessTimeObjectHolder<V>> castedMap = (ConcurrentMap<ByteArray, AccessTimeObjectHolder<V>>)map;
+			return new ConcurrentKeyDeserMap<K, AccessTimeObjectHolder<V>>(castedMap, cacheWriteMode);
+
+		}
+		else
+		{
+			ConcurrentMap<K, AccessTimeObjectHolder<V>> castedMap = (ConcurrentMap<K,AccessTimeObjectHolder<V>>)map;
+			return castedMap;			
+		}
+
 	}
 
 	/**
@@ -1101,6 +1118,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 */
 	public boolean containsKey(K key)
 	{
+		kvUtil.verifyKeyNotNull(key);
 		return this.objects.containsKey(key);
 	}
 
