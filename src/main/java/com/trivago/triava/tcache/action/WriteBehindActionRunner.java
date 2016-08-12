@@ -40,24 +40,12 @@ public class WriteBehindActionRunner<K,V> extends ActionRunner<K,V>
 	}
 
 	@Override
-	public void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object arg)
-	{
-		if (stats != null && mutateAction.runStatistics())
-			action.statistics(this, arg);
-		if (listeners != null && mutateAction.runListener())
-			action.notifyListeners(this, arg);
-		if (cacheWriter != null && mutateAction.runWriteThrough())
-			action.writeThrough(this, arg); // Should run async and possibly batched for efficient write-behind
-		action.close();
-	}
-
-
-	@Override
 	public void postMutate(Action<K, V, ?> action, Object arg)
 	{
 		action.statistics(this, arg);
 		action.notifyListeners(this, arg);
-		action.writeThrough(this, arg); // Should run async and possibly batched for efficient write-behind
+		if (cacheWriter != null)
+			action.writeThrough(this, arg); // Should run async and possibly batched for efficient write-behind
 		action.close();
 		
 	}

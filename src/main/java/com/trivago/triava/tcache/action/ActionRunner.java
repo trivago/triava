@@ -46,6 +46,4 @@ public abstract class ActionRunner<K,V>
 		postMutate(action, null);
 	}
 	public abstract void postMutate(Action<K,V,?> action, Object arg);
-	
-	public abstract void postMutate(Action<K,V,?> action, PostMutateAction mutateAction, Object arg);
 }

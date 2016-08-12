@@ -39,7 +39,6 @@ public abstract class Action<K,V,W>
 	public void writeThrough(ActionRunner<K,V> actionRunner, Object arg)
 	{
 		writeThroughImpl(actionRunner, arg);
-
 	}
 	
 	public void notifyListeners(ActionRunner<K,V> actionRunner, Object arg)
