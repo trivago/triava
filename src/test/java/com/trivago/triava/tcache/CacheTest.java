@@ -31,8 +31,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.eviction.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.eviction.TCacheJSR107;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
 

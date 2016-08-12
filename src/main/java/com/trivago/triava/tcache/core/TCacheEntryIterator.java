@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentMap;
 import javax.cache.Cache;
 import javax.cache.Cache.Entry;
 
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.eviction.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 
 /**

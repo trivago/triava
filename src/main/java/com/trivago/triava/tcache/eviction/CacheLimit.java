@@ -397,7 +397,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			}
 			
 			int i=0;
-			Set<Entry<K, Cache.AccessTimeObjectHolder<V>>> entrySet = objects.entrySet();
+			Set<Entry<K, AccessTimeObjectHolder<V>>> entrySet = objects.entrySet();
 			// ###A###
 			int size = entrySet.size();
 

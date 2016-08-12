@@ -45,7 +45,6 @@ import com.trivago.triava.tcache.action.DeleteAction;
 import com.trivago.triava.tcache.action.DeleteOnValueAction;
 import com.trivago.triava.tcache.action.GetAndPutAction;
 import com.trivago.triava.tcache.action.GetAndRemoveAction;
-import com.trivago.triava.tcache.action.PostMutateAction;
 import com.trivago.triava.tcache.action.PutAction;
 import com.trivago.triava.tcache.action.ReplaceAction;
 import com.trivago.triava.tcache.action.WriteBehindActionRunner;
@@ -57,7 +56,6 @@ import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.ListenerCollection;
-import com.trivago.triava.tcache.eviction.Cache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 import com.trivago.triava.tcache.util.ChangeStatus;
@@ -778,8 +776,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			}
 			else
 			{
-				// Only Write-Through
-				actionRunner.postMutate(action, PostMutateAction.WRITETHROUGH_ONLY, null);
+				// Only Write-Through should be done insthis case, to be JSR107 compliant. Normally this has already been performed done by actionRunner.preMutate().
+				// In the future, when actionRunner can be WriteBehind, this code here can come into play. The instanceof check is a bit ugly, and we will
+				// likely refine it when fully implementing Write-Behind.
+				if (actionRunner instanceof WriteBehindActionRunner)
+				{
+					action.writeThrough(actionRunner, null);
+				}
+//				actionRunner.postMutate(action, PostMutateAction.WRITETHROUGH_ONLY, null);
 			}
 		}
 
