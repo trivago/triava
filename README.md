@@ -66,6 +66,9 @@ Before uploading a new version, you should:
  - Run FindBugs and fix all bugs
  - Update this README: Changes section
  - Update this README: Update all version numbers
+ - Tag the release
+
+`version=0.9.5; git tag -a v$version -m "v$version"`
    
 
 ## Examples
