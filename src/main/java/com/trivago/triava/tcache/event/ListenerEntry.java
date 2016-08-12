@@ -280,33 +280,7 @@ final class ListenerEntry<K,V>
 	private void sendEvent(CacheEntryEvent<? extends K, ? extends V> event, CacheEntryListener<K, V> listener)
 	{
 //		System.out.println("sendEvent: 1 (single)");
-
-		TCacheEntryEventCollection<K, V> singleEvent = createSingleEvent(event);
-		switch (event.getEventType())
-        {
-            case CREATED:
-                if (listener instanceof CacheEntryCreatedListener)
-                    eventManager.created((CacheEntryCreatedListener<K, V>)listener, singleEvent);
-                break;
-
-            case EXPIRED:
-                if (listener instanceof CacheEntryExpiredListener)
-                    eventManager.expired((CacheEntryExpiredListener<K, V>)listener,  createSingleEvent(event));
-                break;
-
-            case UPDATED:
-                if (listener instanceof CacheEntryUpdatedListener)
-                    eventManager.updated((CacheEntryUpdatedListener<K,V>)listener,  createSingleEvent(event));
-                break;
-
-            case REMOVED:
-                if (listener instanceof CacheEntryRemovedListener)
-                    eventManager.removed((CacheEntryRemovedListener<K,V>)listener,  createSingleEvent(event));
-                break;
-
-            default:
-                // By default do nothing. If new event types are added to the Spec they are ignored.
-        }
+		sendEvents(createSingleEvent(event), listener);
 	}
 
 	private void sendEvents(TCacheEntryEventCollection<K, V> eventColl, CacheEntryListener<K, V> listener)
@@ -336,7 +310,7 @@ final class ListenerEntry<K,V>
                 break;
 
             default:
-                // By default do nothing. If new event types are added to the Spec they are ignored.
+                // By default do nothing. If new event types are added to the Spec, they will be ignored.
         }
 	}
 	
