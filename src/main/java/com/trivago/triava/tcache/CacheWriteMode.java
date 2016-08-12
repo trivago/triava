@@ -10,7 +10,12 @@ package com.trivago.triava.tcache;
  */
 public enum CacheWriteMode
 {
-	Identity(false), Clone(true), Intern(false);
+	Identity(false),
+	/**
+	 * Best-effort serialization, e.g. using Serializable or Externizable
+	 */
+	Serialize(true),
+	Intern(false);
 	
 	final boolean jsr107compatibleStoreByValue;
 	
@@ -27,12 +32,12 @@ public enum CacheWriteMode
 	 */
 	public static CacheWriteMode fromStoreByValue(boolean storeByValue)
 	{
-		return storeByValue ? Clone : Identity;
+		return storeByValue ? Serialize : Identity;
 	}
 	
 	/**
 	 * Returns whether this CacheWriteMode is using store-by-value as defined by JSR107.
-	 * Only for {@link #Clone} true is returned. Mode {@link #Identity} always shares Objects, and {@link #Intern} also most of the time.
+	 * Only for {@link #Serialize} true is returned. Mode {@link #Identity} always shares Objects, and {@link #Intern} also most of the time.
 	 * @return true, if the mode is to store by value
 	 */
 	public boolean isStoreByValue()

@@ -122,6 +122,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
 	{
 		this.factory = factory;
+		this.writeMode = CacheWriteMode.Serialize; // JSR107 mandates to copy by default
 		copyBuilder(configuration, this);
 	}
 
@@ -540,6 +541,11 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	{
 		
 		return writeMode.isStoreByValue();
+	}
+	
+	public CacheWriteMode getCacheWriteMode()
+	{
+		return writeMode;
 	}
 
 	public enum PropsType { CacheManager, Cache }; // should be package-private

@@ -16,6 +16,14 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -27,14 +35,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import javax.cache.CacheException;
 import javax.cache.configuration.Factory;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
 import javax.cache.integration.CacheLoaderException;
 import javax.cache.integration.CacheWriter;
 
+import com.trivago.triava.collections.HashInterner;
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
+import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.action.ActionContext;
@@ -99,6 +110,11 @@ import com.trivago.triava.time.TimeSource;
 public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionContext<K, V>
 {
 	static TriavaLogger logger = new TriavaNullLogger();
+	
+	final static int SERIALIZATION_MASK = 0b11;
+	final static int SERIALIZATION_NONE = 0b00;
+	final static int SERIALIZATION_SERIALIZABLE = 0b01;
+	final static int SERIALIZATION_EXTERNIZABLE = 0b10;
 
 	public static final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	{
@@ -106,7 +122,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		// 0 #12
 		// Object header
 		// 12 #4 
-		private V data;
+		private Object data; // Holds either a V instance, or serialized data, e.g. byte[] 
 		// 16 #4
 		private int inputDate; // in milliseconds relative to baseTimeMillis 
 		// 20 #4
@@ -118,23 +134,110 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		// 32 #4
 		private int useCount = 0; // Not fully thread safe, on purpose. See #incrementUseCount() for the reason.
 		// 36
+		byte flags; // Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable 
+		// 37
 		
 		/**
 		 * Construct a holder
 		 * 
-		 * @param data The value to store in this holder
+		 * @param value The value to store in this holder
 		 * @param maxIdleTime Maximum idle time in seconds
 		 * @param maxCacheTime Maximum cache time in seconds 
+		 * @param writeMode The CacheWriteMode that defines how to serialize the data
+		 * @throws CacheException when there is a problem serializing the value
 		 */
-		public AccessTimeObjectHolder(V data , long maxIdleTime, long maxCacheTime) {
+		public AccessTimeObjectHolder(V value, long maxIdleTime, long maxCacheTime, CacheWriteMode writeMode) throws CacheException
+		{
 			setLastAccessTime();
-			this.data = data;
+			try
+			{
+				switch (writeMode)
+				{
+					case Identity:
+						flags = SERIALIZATION_NONE;
+						this.data = value;
+						break;
+					case Serialize:
+						if (value instanceof Serializable)
+						{
+							flags = SERIALIZATION_SERIALIZABLE;
+							byte[] valueAsBytearray = toBytearray(value);
+							this.data = valueAsBytearray;
+							break;
+						}
+					case Intern:
+						flags = SERIALIZATION_NONE;
+						//this.data = interner.get(value);
+					default:
+						throw new UnsupportedOperationException("CacheWriteMode not supported: " + writeMode);
+				}
+			}
+			catch (Exception exc)
+			{
+				throw new CacheException("Cannot serialize cache value for writeMode " + writeMode, exc);
+			}
 
 			setInputDate();
 			this.maxIdleTime = limitToPositiveInt(maxIdleTime);
 			this.maxCacheTime = limitToPositiveInt(maxCacheTime);
 		}
 
+
+		private byte[] toBytearray(Object obj) throws IOException
+		{
+			ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			ObjectOutput out = null;
+			try
+			{
+			  out = new ObjectOutputStream(bos);   
+			  out.writeObject(obj);
+			  return bos.toByteArray();
+			}
+			finally
+			{
+			  try
+			  {
+			    if (out != null)
+			    {
+			      out.close();
+			    }
+			  }
+			  catch (IOException ex) {}
+
+			  try
+			  {
+			    bos.close();
+			  }
+			  catch (IOException ex) {}
+			}
+		}
+		
+		private Object fromBytearray(byte[] serialized) throws IOException, ClassNotFoundException
+		{
+			ByteArrayInputStream bis = new ByteArrayInputStream(serialized);
+			ObjectInput in = null;
+			try {
+			  in = new ObjectInputStream(bis);
+			  return in.readObject(); 
+			}
+			finally
+			{
+			  try
+			  {
+			    bis.close();
+			  }
+			  catch (IOException ex) {}
+			  
+			  try
+			  {
+			    if (in != null)
+			    {
+			      in.close();
+			    }
+			  }
+			  catch (IOException ex) {} 
+			}
+		}
 
 		/**
 		 * Releases all references to objects that this holder holds. This makes sure that the data object can be
@@ -158,7 +261,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		public V get()
 		{
 			setLastAccessTime();
-			return data;
+			return peek();
 		}
 
 		/**
@@ -166,9 +269,29 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		 * 
 		 * @return The value of this holder 
 		 */
+		@SuppressWarnings("unchecked") 
 		public V peek()
 		{
-			return data;
+			int serializationMode = flags & SERIALIZATION_MASK;
+			try
+			{
+				switch (serializationMode)
+				{
+					case SERIALIZATION_NONE:
+						return (V)data;
+					case SERIALIZATION_SERIALIZABLE:
+						return (V)fromBytearray((byte[])(data));
+					case SERIALIZATION_EXTERNIZABLE:
+						return (V)data;
+					default:
+						throw new UnsupportedOperationException("Serialization type is not supported: " + serializationMode);
+
+				}
+			}
+			catch (Exception exc)
+			{
+				throw new CacheException("Cannot serialize cache value for serialization type " + serializationMode, exc);
+			}
 		}
 
 		private void setLastAccessTime()
@@ -288,6 +411,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		}
 	
 	}
+
+	final HashInterner<V> interner = new HashInterner<>(100);
 
 	final private boolean strictJSR107;
 	final private String id;
@@ -636,7 +761,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if ( holder == null )
 			return null;
 		else
-			return holder.data;
+			return holder.peek();
 	}
 	
 	/**
@@ -657,7 +782,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			return null;
 		}
 		
-		return holder.data;
+		return holder.peek();
 	}
 	
 	
@@ -719,7 +844,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		
 		if (putIfAbsent)
 		{
-			newHolder = new AccessTimeObjectHolder<V>(data, idleTime, cacheTime);
+			newHolder = new AccessTimeObjectHolder<V>(data, idleTime, cacheTime, builder.getCacheWriteMode());
 			holder = this.objects.putIfAbsent(key, newHolder);
 			
 			/*
@@ -753,7 +878,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		}
 		else
 		{
-			newHolder = new AccessTimeObjectHolder<>(data, idleTime, cacheTime);
+			newHolder = new AccessTimeObjectHolder<>(data, idleTime, cacheTime, builder.getCacheWriteMode());
 			holder = this.objects.put(key, newHolder);
 //			holder = newHolder;  // <<< wrong
 			effectiveHolder = newHolder;
@@ -780,7 +905,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		kvUtil.verifyKeyAndValueNotNull(key, value);
 		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
-		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread());
+		newHolder = new AccessTimeObjectHolder<V>(value, this.defaultMaxIdleTime, cacheTimeSpread(), builder.getCacheWriteMode());
 		AccessTimeObjectHolder<V> oldHolder = this.objects.replace(key, newHolder);
 
 		if (oldHolder != null)
@@ -806,7 +931,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (! oldHolder.peek().equals(oldValue))
 			return ChangeStatus.CAS_FAILED_EQUALS; // oldValue does not match => do not replace
 		
-		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread());
+		newHolder = new AccessTimeObjectHolder<V>(newValue, this.defaultMaxIdleTime, cacheTimeSpread(), builder.getCacheWriteMode());
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
 
 		return replaced ? ChangeStatus.CHANGED : ChangeStatus.UNCHANGED;
