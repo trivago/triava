@@ -2,7 +2,7 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-The included Cache implementation tCache is heading for full JSR107 (Java Caching) compliance. Most operations work fully compliant, including Service Provider Interface, MBean support, Cache Listeners. For more about compliance, read the [TCK information](./tck/README.md) 
+The included Cache implementation tCache is fully JSR107 (Java Caching) compliant, except for some ExpiryPolicy quirks (in work). For more about compliance, read the [TCK information](./tck/README.md) 
 
 ## License
 Licensed under the Apache License, Version 2.0
@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.4</version>
+      <version>0.9.5</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.4'
+	compile 'com.trivago:triava:0.9.5'
 }
 ```
 
@@ -43,6 +43,8 @@ dependencies {
     - cache: Support CacheLoader, ListenerConfiguration, MutableEntry, EntryProcessor
     - util:  Added a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W". The Unit formatter
              supports SI units (1000 based, kilo, k), IEC60027-2 units (1024 based, kibi, Ki) and JEDEC units (1024 based, Kilo, K)
+- 0.9.5
+    - cache: Support Store-By-Value. New: Fully JSR107 compliance for Statistic, Write-Through, Read-Through
 
 
 ## Building:
