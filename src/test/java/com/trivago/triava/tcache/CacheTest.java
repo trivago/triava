@@ -79,6 +79,35 @@ public class CacheTest
 		assertEquals(Integer.MAX_VALUE, limitToPositiveInt(Long.MAX_VALUE));
 	}
 	
+	@Test
+	public void testNullKey()
+	{
+		Builder<String, Integer> cacheB = TCacheFactory.standardFactory().builder();
+		cacheB.setId("testNullKey");
+		cacheB.setCacheWriteMode(CacheWriteMode.Serialize);
+		Cache<String, Integer> cache1 = cacheB.build();
+		
+		try
+		{
+			cache1.containsKey(null);
+			fail("Must throw exception");
+		}
+		catch (NullPointerException npe)
+		{
+			// good
+		}
+	}
+	
+	@Test
+	public void testSerializing()
+	{
+		cache = TCacheFactory.standardFactory().<String,Integer>builder()
+				.setCacheWriteMode(CacheWriteMode.Serialize).build();
+		Integer putValue = 1;
+		cache.put("ONE", putValue);
+		Integer value = cache.get("ONE");
+		assertEquals(putValue, value);
+	}
 
 	/**
 	 * This is a copy from the Cache class. It is not public there, but we would like to do some unit tests on it.

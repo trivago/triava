@@ -548,6 +548,12 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		return writeMode;
 	}
 
+	public Builder<K, V> setCacheWriteMode(CacheWriteMode writeMode)
+	{
+		this.writeMode = writeMode;
+		return this;
+	}
+
 	public enum PropsType { CacheManager, Cache }; // should be package-private
 	/**
 	 * Returns a representation of the Configuration as Properties.
