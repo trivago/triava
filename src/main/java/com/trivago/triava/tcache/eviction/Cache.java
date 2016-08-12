@@ -16,14 +16,6 @@
 
 package com.trivago.triava.tcache.eviction;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
-import javax.cache.CacheException;
 import javax.cache.configuration.Factory;
 import javax.cache.event.EventType;
 import javax.cache.integration.CacheLoader;
@@ -45,7 +36,6 @@ import javax.cache.integration.CacheWriter;
 import com.trivago.triava.collections.HashInterner;
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
-import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.action.ActionContext;
@@ -111,75 +101,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 {
 	static TriavaLogger logger = new TriavaNullLogger();
 
-
-
-	
-	/**
-	 * Thread that removes expired entries.
-	 */
-	public class CleanupThread extends Thread
-	{
-		private volatile boolean running;  // Must be volatile, as it is modified via cancel() from a different thread
-		private int failedCounter = 0;
-		
-		CleanupThread(String name)
-		{
-			super(name);
-		}
-		
-		public void run()
-		{
-			logger.info("CleanupThread " + this.getName() + " has entered run()");
-			this.running = true;
-			while (running)
-			{
-				try
-				{
-					// About stopping: If interruption takes place between the lines above (while running)
-					// and the line below (sleep), the interruption gets lost and a full sleep will be done.
-					// TODO If that sleep is long (like 30s), and the shutdown Thread waits until this Thread is stopped,
-					//   the shutdown Thread will wait very long.
-					sleep(cleanUpIntervalMillis);
-					this.failedCounter = 0;
-					cleanUp();
-					if (Thread.interrupted())
-					{
-						throw new InterruptedException();
-					}
-				}
-				catch (InterruptedException ex)
-				{
-					if(this.running)
-					{
-						this.failedCounter++;
-						if(this.failedCounter > 10)
-						{
-							logger.error("possible endless loop detected, stopping loop");
-							stopCleaner();
-						}
-						logger.error("interrupted in run loop, restarting loop", ex);
-					}
-				}
-			}
-			logger.info("CleanupThread " + this.getName() + " is leaving run()");
-		}
-		
-		/**
-		 * Interrupts the {@link CleanupThread} and marks it for stopping
-		 */
-		public void cancel()
-		{
-			this.running = false;
-			this.interrupt();
-		}
-	
-	}
-
-	final HashInterner<V> interner = new HashInterner<>(100);
-
-	final private boolean strictJSR107;
 	final private String id;
 	final Builder<K,V> builder; // A reference to the Builder that created this Cache
+	final private boolean strictJSR107;
 	final static long baseTimeMillis = System.currentTimeMillis();
 	// idle time in seconds
 	private final long defaultMaxIdleTime;
@@ -192,6 +116,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 //	@ObjectSizeCalculatorIgnore
 	private volatile transient CleanupThread cleaner = null;
 	private volatile long cleanUpIntervalMillis;
+
+	final HashInterner<V> interner = new HashInterner<>(100);
 
 	/**
 	 * Cache hit counter.
@@ -1334,5 +1260,67 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		return statisticsCalculator;
 	}
+
+	/**
+	 * Thread that removes expired entries.
+	 */
+	public class CleanupThread extends Thread
+	{
+		private volatile boolean running;  // Must be volatile, as it is modified via cancel() from a different thread
+		private int failedCounter = 0;
+		
+		CleanupThread(String name)
+		{
+			super(name);
+		}
+		
+		public void run()
+		{
+			logger.info("CleanupThread " + this.getName() + " has entered run()");
+			this.running = true;
+			while (running)
+			{
+				try
+				{
+					// About stopping: If interruption takes place between the lines above (while running)
+					// and the line below (sleep), the interruption gets lost and a full sleep will be done.
+					// TODO If that sleep is long (like 30s), and the shutdown Thread waits until this Thread is stopped,
+					//   the shutdown Thread will wait very long.
+					sleep(cleanUpIntervalMillis);
+					this.failedCounter = 0;
+					cleanUp();
+					if (Thread.interrupted())
+					{
+						throw new InterruptedException();
+					}
+				}
+				catch (InterruptedException ex)
+				{
+					if(this.running)
+					{
+						this.failedCounter++;
+						if(this.failedCounter > 10)
+						{
+							logger.error("possible endless loop detected, stopping loop");
+							stopCleaner();
+						}
+						logger.error("interrupted in run loop, restarting loop", ex);
+					}
+				}
+			}
+			logger.info("CleanupThread " + this.getName() + " is leaving run()");
+		}
+		
+		/**
+		 * Interrupts the {@link CleanupThread} and marks it for stopping
+		 */
+		public void cancel()
+		{
+			this.running = false;
+			this.interrupt();
+		}
+	
+	}
+
 
 }
