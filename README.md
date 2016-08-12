@@ -44,7 +44,8 @@ dependencies {
     - util:  Added a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W". The Unit formatter
              supports SI units (1000 based, kilo, k), IEC60027-2 units (1024 based, kibi, Ki) and JEDEC units (1024 based, Kilo, K)
 - 0.9.5
-    - cache: Support Store-By-Value. New: Fully JSR107 compliance for Statistic, Write-Through, Read-Through
+    - cache: Support Store-By-Value.
+    - cache: Fully JSR107 compliance for Statistic, Write-Through, Read-Through
 
 
 ## Building:
@@ -58,17 +59,16 @@ This will create three artifacts in the target/ folder:
 - triava-[version]-sources.jar
 - triava-[version]-javadoc.jar
 
-Maintainers can upload new versions to Maven Central Staging:
  
-`mvn clean deploy -P release` 
+Maintainers can upload new versions to Maven Central Staging:
+
 Before uploading a new version, you should:
  - Fix all Javadocs warnings
  - Run FindBugs and fix all bugs
  - Update this README: Changes section
  - Update this README: Update all version numbers
- - Tag the release
+ - Then follow the triava Knowledge page. It contains all information about uploading, tagging and other steps.
 
-`version=0.9.5; git tag -a v$version -m "v$version"`
    
 
 ## Examples
