@@ -28,7 +28,7 @@ import javax.cache.event.CacheEntryUpdatedListener;
  * a remote service, or globally filter events.
  * <p>
  * Implementation note: At the moment you cannot inject decorators from outside, neither
- * by code nor by configuration. But this is an option that should be 
+ * by code nor by configuration. But this is an option that should be considered.
  * 
  * @author cesken
  *
