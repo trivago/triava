@@ -1032,11 +1032,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		kvUtil.verifyKeyNotNull(key);
 
 		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
-//		if (holder != null)
-//		{
-//			// removed
-//			statisticsCalculator.incrementRemoveCount();
-//		}
 		return releaseHolder(holder);
 	}
 
