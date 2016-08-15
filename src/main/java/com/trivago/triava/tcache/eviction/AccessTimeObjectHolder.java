@@ -16,13 +16,6 @@
 
 package com.trivago.triava.tcache.eviction;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -148,7 +141,6 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 				case SERIALIZATION_SERIALIZABLE:
 					return (V)Serializing.fromBytearray((byte[])(data));
 				case SERIALIZATION_EXTERNIZABLE:
-					return (V)data;
 				default:
 					throw new UnsupportedOperationException("Serialization type is not supported: " + serializationMode);
 
