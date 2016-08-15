@@ -345,8 +345,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			case REMOVE:
 				key = me.getKey();
-				boolean res = remove(key);
-//				System.out.println("EP remove key " + key + " = " +  res);
+				remove(key);
 				break;
 			case SET:
 				key = me.getKey();
@@ -776,14 +775,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			}
 			else
 			{
-				// Only Write-Through should be done insthis case, to be JSR107 compliant. Normally this has already been performed done by actionRunner.preMutate().
+				// Only Write-Through should be done in this case, to be JSR107 compliant. Normally this has already been performed done by actionRunner.preMutate().
 				// In the future, when actionRunner can be WriteBehind, this code here can come into play. The instanceof check is a bit ugly, and we will
 				// likely refine it when fully implementing Write-Behind.
 				if (actionRunner instanceof WriteBehindActionRunner)
 				{
 					action.writeThrough(actionRunner, null);
 				}
-//				actionRunner.postMutate(action, PostMutateAction.WRITETHROUGH_ONLY, null);
 			}
 		}
 
