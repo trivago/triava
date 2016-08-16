@@ -59,7 +59,6 @@ This will create three artifacts in the target/ folder:
 - triava-[version]-sources.jar
 - triava-[version]-javadoc.jar
 
- 
 Maintainers can upload new versions to Maven Central Staging:
 
 Before uploading a new version, you should:
@@ -67,9 +66,11 @@ Before uploading a new version, you should:
  - Run FindBugs and fix all bugs
  - Update this README: Changes section
  - Update this README: Update all version numbers
- - Then follow the triava Knowledge page. It contains all information about uploading, tagging and other steps.
-
-   
+ - Tag the release and upload (check with maintainers on details, e.g. in the triava Knowledge page)
+```
+version=1.0; git tag -a v$version -m "v$version"
+mvn clean deploy -P release
+```
 
 ## Examples
 Have a look at the [examples folder](./src/examples/java/com/trivago/examples).

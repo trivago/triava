@@ -4,11 +4,11 @@ This folder contains all information to check standards compliance via
 Technology Compatibility Kits (TCK). 
 
 ## JSR107 - Java Caching compliance
-- All core functionality tests pass. This includes creating and destroying caches.
+- All functionality tests pass. Only some Expiration tests fail.
 - PASS: put, get, replace, delete Operations
-- PASS: Listeners, Write-Through, Read-Through
-- Not passing fully: Statistics, Expiration, StoreByValue 
-- Passes 432/465 tests. (93%)
+- PASS: Listeners, Write-Through, Read-Through, Statistics, StoreByValue
+- Not passing fully: Expiration
+- Passes 434/465 tests. (93%)
 
 To verify compliance, clone the Technology Compatibility Kit from https://github.com/jsr107/jsr107tck .
 ```
