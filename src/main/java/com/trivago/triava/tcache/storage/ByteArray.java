@@ -39,7 +39,7 @@ public class ByteArray
 		}
 		else
 		{
-			count = 32;
+			count = 31;
 			step = bytes.length / count;
 		}
 		
