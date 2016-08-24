@@ -28,7 +28,7 @@ public class GetAndPutAction<K, V, W> extends PutAction<K, V, W>
 	{
 		StatisticsCalculator stats = actionRunner.stats;
 		ChangeStatus changeStatus = (ChangeStatus) arg;
-		System.out.println("actionRunnter " + actionRunner + ", cs=" +changeStatus);
+//		System.out.println("actionRunnter " + actionRunner + ", cs=" +changeStatus);
 		switch (changeStatus)
 		{
 			case CHANGED:
@@ -39,10 +39,8 @@ public class GetAndPutAction<K, V, W> extends PutAction<K, V, W>
 //				stats.incrementMissCount();
 //				break;
 			case CREATED:
-				System.out.println("actionRunnter " + actionRunner + ", cs=" +changeStatus + ", stats B:" + stats);
 				stats.incrementMissCount();
 //				stats.incrementPutCount(); // cache.putToMap() still does it. Thus do not increment here
-				System.out.println("actionRunnter " + actionRunner + ", cs=" +changeStatus + ", stats A:" + stats);
 				break;
 //			case CAS_FAILED:
 //				stats.incrementHitCount();
