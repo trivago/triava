@@ -950,6 +950,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		
 		// -1- Clean
 		int removedEntries = 0;
+
 	    for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = this.objects.entrySet().iterator(); iter.hasNext(); )
 	    {
 	    	Entry<K,AccessTimeObjectHolder<V>> entry = iter.next();
@@ -959,10 +960,13 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	    	{
 	    		iter.remove();
 	    		V value = holder.peek();
-	    		if (evictedElements != null)
-	    			evictedElements.put(entry.getKey(), value);
-	    		holder.release();
-	    		++removedEntries;
+	    		boolean removed = holder.release();
+				if (removed) // SAE-150 Verify removal
+				{
+					++removedEntries;
+					if (evictedElements != null)
+						evictedElements.put(entry.getKey(), value);
+				}
 	    	}
 	    }
 	    
@@ -1062,7 +1066,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	
 	/**
 	 * Frees the data in the holder, and returns the value stored by the holder.
-	 * 
+	 *
 	 * @param holder The holder to release
 	 * @return The value stored by the holder
 	 */
@@ -1074,10 +1078,23 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		}
 		
 		V oldData = holder.peek();
-		
-		holder.release();
-		
-		return oldData;
+
+		// Return the old data value, if we manage to release() the holder. We usually are able to
+		// release, except if another thread is calling release() in parallel and has won the race.
+		boolean released =  holder.release();
+		if (released)
+		{
+			// SAE-150 Return oldData, if it the current call released it. This is the regular case.
+			return oldData;
+		}
+		else
+		{
+			// SAE-150 Some other Thread has also called holder.release() concurrently and won the race.
+			// => The holder was already invalid. Return null, as there can be only one Thread actually
+			//    releasing the holder. Hint: This can happen with any 2 or more Threads, but the most likely
+			//    Thread that do a race are the Eviciton Thread and the Expiration Thread.
+			return null;
+		}
 	}
 	
 	/**

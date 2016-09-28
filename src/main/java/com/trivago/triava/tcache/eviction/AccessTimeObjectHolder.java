@@ -19,25 +19,32 @@ package com.trivago.triava.tcache.eviction;
 import java.io.Serializable;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import javax.cache.CacheException;
 
 import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.util.Serializing;
 
+/**
+ * Represents a Cache entry with associated metadata.
+ * This cache entry is valid as long as data != null
+ * @param <V>
+ */
 public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 {
-	
+	AtomicIntegerFieldUpdater useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
+
 	final static int SERIALIZATION_MASK = 0b11;
 	final static int SERIALIZATION_NONE = 0b00;
 	final static int SERIALIZATION_SERIALIZABLE = 0b01;
 	final static int SERIALIZATION_EXTERNIZABLE = 0b10;
-	
+
 	// offset #field-size
 	// 0 #12
 	// Object header
 	// 12 #4 
-	private Object data; // Holds either a V instance, or serialized data, e.g. byte[] 
+	private volatile Object data; // Holds either a V instance, or serialized data, e.g. byte[]
 	// 16 #4
 	private int inputDate; // in milliseconds relative to baseTimeMillis 
 	// 20 #4
@@ -47,9 +54,12 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 28 #4
 	private int maxCacheTime = 0; // in seconds
 	// 32 #4
-	private int useCount = 0; // Not fully thread safe, on purpose. See #incrementUseCount() for the reason.
+	private volatile int useCount = 0;
 	// 36
-	byte flags; // Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable 
+	/**
+	 * Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable
+	 */
+	byte flags;
 	// 37
 	
 	/**
@@ -101,10 +111,23 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	/**
 	 * Releases all references to objects that this holder holds. This makes sure that the data object can be
 	 * collected by the GC, even if the holder would still be referenced by someone.
+	 * <p>
+	 *     This is the end-of-life for the instance. The data field is now null, which means the entry is
+	 *     invalid. Even if another thread has a reference to this holder, he cannot access the data field.
+	 *     any longer.
+	 * </p>
+	 * @return true, if the call has released the holder. false, if the holder was already released before.
 	 */
-	protected void release()
+	protected boolean release()
 	{
-		data = null;
+		synchronized (this)
+		{
+			boolean releasedData = data != null;
+			data = null;
+			// SAE-150 Inform the caller whether he has released the holder. Hint: Other threads may
+			//         have called this concurrently, e.g. two deletes, expiration and/or eviciton.
+			return releasedData;
+		}
 	}
 	
 	public void setMaxIdleTime(int aMaxIdleTime)
@@ -177,9 +200,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	public void incrementUseCount()
 	{
-		// The increment below is obviously not thread-safe, but it is good enough for our purpose (eviction statistics).
-		// We spare synchronization code, and the holder can be more light-weight (not using AtomicInteger).
-		useCount++;
+		useCountAFU.incrementAndGet(this);
 	}
 
 	private void setInputDate()
