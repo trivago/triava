@@ -34,7 +34,6 @@ import javax.cache.configuration.Configuration;
 import javax.cache.spi.CachingProvider;
 
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.core.Builder.PropsType;
 import com.trivago.triava.tcache.core.TCacheProvider;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.eviction.TCacheJSR107;
@@ -121,14 +120,6 @@ public class TCacheFactory implements Closeable, CacheManager
 		return sf;
 	}
 
-	private Properties defaultProperties()
-	{
-		// A new builder holds the default properties
-		Builder<?, ?> builder = new Builder<>(null);
-		return builder.asProperties(PropsType.CacheManager);
-	}
-
-
 	/**
 	 * Returns a Builder 
 	 * @param <K> The Key type
@@ -139,7 +130,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	{
 		return new Builder<K,V>(this);
 	}
-
+	
 	/**
 	 * Registers a Cache to this factory. Registered caches will be used for bulk operations like
 	 * {@link #shutdownAll()}.
