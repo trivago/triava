@@ -19,14 +19,19 @@ package com.trivago.triava.tcache.core;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.CompleteConfiguration;
 import javax.cache.configuration.Configuration;
 import javax.cache.configuration.Factory;
+import javax.cache.configuration.FactoryBuilder;
+import javax.cache.configuration.FactoryBuilder.SingletonFactory;
+import javax.cache.expiry.Duration;
 import javax.cache.expiry.EternalExpiryPolicy;
 import javax.cache.expiry.ExpiryPolicy;
+import javax.cache.expiry.TouchedExpiryPolicy;
 import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.annotations.Beta;
@@ -61,7 +66,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	static long MAX_IDLE_TIME = 1800; // DEFAULT: 30 minutes
 	private String id;
 	private boolean strictJSR107 = true;
-	private long maxIdleTime = MAX_IDLE_TIME; // 30 minutes
 	private long maxCacheTime = 3600; // 60 minutes
 	private int maxCacheTimeSpread = 0; // 0 seconds
 	private int expectedMapSize = 10000;
@@ -80,7 +84,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	
 	private Collection<CacheEntryListenerConfiguration<K, V>> listenerConfigurations = new ArrayList<>(0);
 	private Factory<CacheWriter<? super K, ? super V>> writerFactory = null;
-	private Factory<ExpiryPolicy> expiryPolicyFactory = EternalExpiryPolicy.factoryOf(); // TODO Evaluate this in the Cache constructor
+	private Factory<ExpiryPolicy> expiryPolicyFactory = EternalExpiryPolicy.factoryOf();
 
 	private CacheLoader<K, V> loader = null;
 	private Factory<javax.cache.integration.CacheLoader<K, V>> loaderFactory = null;
@@ -198,7 +202,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
-	 * Sets the maximum time of an unused (idle) cache entry.
+	 * Sets the maximum time of an unused (idle) cache entry. It will overwrite any values set before via {@link #setExpiryPolicyFactory(Factory)}.
 	 * 
 	 * @param maxIdleTime The maximum time
 	 * @return c
@@ -206,9 +210,12 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	public Builder<K,V> setMaxIdleTime(long maxIdleTime)
 	{
 		if (maxIdleTime == 0)
-			this.maxIdleTime = MAX_IDLE_TIME;
-		else
-			this.maxIdleTime = maxIdleTime;
+			throw new IllegalArgumentException("Invalid maxIdleTime 0");
+		
+		TouchedExpiryPolicy ep = new TouchedExpiryPolicy(new Duration(TimeUnit.SECONDS, maxIdleTime));
+		SingletonFactory<ExpiryPolicy> singletonFactory = new FactoryBuilder.SingletonFactory<ExpiryPolicy>(ep);
+		this.expiryPolicyFactory = (Factory<ExpiryPolicy>)singletonFactory;
+		
 		return this;
 	}
 
@@ -233,7 +240,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	/**
 	 * Sets the default expiration time for entries in this cache. All entries use this time, unless it is
 	 * added using a put method that allows overriding the expiration time, like
-	 * {@link Cache#put(Object, Object, long, long)}.
+	 * {@link Cache#put(Object, Object, int, int)}.
 	 * 
 	 * @param maxCacheTime
 	 *            The time to keep the value in seconds
@@ -414,15 +421,16 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
-	 * @return the maxIdleTime
+	 * @return the maxIdleTime in seconds.
 	 */
 	public long getMaxIdleTime()
 	{
-		return maxIdleTime;
+		Duration accessExpiry = expiryPolicyFactory.create().getExpiryForAccess();
+		return accessExpiry.getAdjustedTime(0) / 1000;
 	}
 
 	/**
-	 * @return The lower bound of the "maximum cache time interval" [maxCacheTime, maxCacheTime+maxCacheTimeSpread]
+	 * @return The lower bound of the "maximum cache time interval" [maxCacheTime, maxCacheTime+maxCacheTimeSpread] in seconds.
 	 */
 	public long getMaxCacheTime()
 	{
@@ -431,7 +439,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 
 	/**
 	 * 
-	 * @return The interval size of the cache time interval
+	 * @return The interval size of the cache time interval in seconds.
 	 */
 	public int getMaxCacheTimeSpread()
 	{
@@ -570,7 +578,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		
 		if (propsForCache)
 			props.setProperty("cacheName", id);
-		props.setProperty("maxIdleTime", Long.toString(maxIdleTime));
+		props.setProperty("maxIdleTime", Long.toString(getMaxIdleTime()));
 		props.setProperty("maxCacheTime", Long.toString(maxCacheTime));
 		props.setProperty("maxCacheTimeSpread", Long.toString(maxCacheTimeSpread));
 		props.setProperty("expectedMapSize", Integer.toString(expectedMapSize));
@@ -607,7 +615,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			if (sourceB.id != null)
 				target.id = sourceB.id;
 			target.strictJSR107 = sourceB.strictJSR107;
-			target.maxIdleTime = sourceB.maxIdleTime;
 			target.maxCacheTime = sourceB.maxCacheTime;
 			target.maxCacheTimeSpread = sourceB.maxCacheTimeSpread;
 			target.expectedMapSize = sourceB.expectedMapSize;
@@ -681,7 +688,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		result = prime * result + mapConcurrencyLevel;
 		result = prime * result + (int) (maxCacheTime ^ (maxCacheTime >>> 32));
 		result = prime * result + maxCacheTimeSpread;
-		result = prime * result + (int) (maxIdleTime ^ (maxIdleTime >>> 32));
+		result = prime * result + expiryPolicyFactory.hashCode();
 		result = prime * result + (statistics ? 1231 : 1237);
 		result = prime * result + ((valueType == null) ? 0 : valueType.hashCode());
 		result = prime * result + ((writeMode == null) ? 0 : writeMode.hashCode());
@@ -752,7 +759,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			return false;
 		if (maxCacheTimeSpread != other.maxCacheTimeSpread)
 			return false;
-		if (maxIdleTime != other.maxIdleTime)
+		if (! expiryPolicyFactory.equals(other.expiryPolicyFactory))
 			return false;
 		if (statistics != other.statistics)
 			return false;
@@ -851,11 +858,24 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		return expiryPolicyFactory;
 	}
 
-	void setExpiryPolicyFactory(Factory<ExpiryPolicy> expiryPolicyFactory)
+	/**
+	 * Sets the ExpiryPolicyFactory. It will overwrite any values set before via {@link #setMaxIdleTime(long)}.
+	 * @param factory The factory
+	 * @return This Builder
+	 */
+	public Builder<K,V> setExpiryPolicyFactory(Factory<? extends ExpiryPolicy> factory)
 	{
-		this.expiryPolicyFactory = expiryPolicyFactory;
-	}
-	
+		if (expiryPolicyFactory == null)
+		{
+			this.expiryPolicyFactory = EternalExpiryPolicy.factoryOf();
+		}
+		else
+		{
+			this.expiryPolicyFactory = (Factory<ExpiryPolicy>) factory;
+		}
+		
+		return this;
+	}	
 
 	/**
 	 * Return Object.class casted suitably for {@link #getValueType()}

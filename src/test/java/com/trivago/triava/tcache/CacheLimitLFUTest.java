@@ -42,8 +42,8 @@ import com.trivago.triava.tcache.eviction.TCacheHolder;
 public class CacheLimitLFUTest
 {
 	
-	private static final long maxIdleTime = 1L;
-	private static final long maxCacheTime = 1L;
+	private static final int maxIdleTime = 1;
+	private static final int maxCacheTime = 1;
 	private static Cache<String, Integer> cache = buildLfuCache("CacheLFUTest", maxIdleTime, maxCacheTime, 10);
 
 	boolean runAcceptanceTests = false;

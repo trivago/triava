@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Random;
 
 import javax.cache.CacheException;
+import javax.cache.configuration.MutableConfiguration;
 
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -44,8 +45,8 @@ import com.trivago.triava.tcache.statistics.TCacheStatistics;
 public class CacheTest
 {
 	private static final int DEFAULT_CAPACITY = 10;
-	private static final long maxIdleTime = 100L;
-	private static final long maxCacheTime = 1000L;
+	private static final int maxIdleTime = 100;
+	private static final int maxCacheTime = 1000;
 	private Cache<String, Integer> cache;
 
 	boolean runAcceptanceTests = false;
@@ -124,23 +125,6 @@ public class CacheTest
 		}
 		return (int)value;
 	}
-	
-	
-	@Test
-	public void testCacheConstructor()
-	{
-		try
-		{
-			//Test constructor with all parameters and idle time
-			Cache<String, Integer> tmpCache = createCache("CacheTest-1", maxIdleTime, maxCacheTime, 10);
-
-			assertEquals("Cache idle time not set correctly", maxIdleTime, tmpCache.getDefaultMaxIdleTime());
-		}
-		catch (Exception e)
-		{
-			fail(e.getMessage());
-		}
-	}
 
 	private static Cache<String, Integer> createCache(String id, long idleTime, long cacheTime, int size)
 	{
@@ -153,21 +137,21 @@ public class CacheTest
 		return cacheB.build();
 	}
 
-	@Test
-	public void testCacheConstructorDefaultIdle()
-	{
-		try
-		{	
-			//Test constructor with all parameters and idle time
-			Cache<String, Integer> tmpCache = createCache("CacheTest-2", 0, maxCacheTime, 10);
-
-			assertEquals("Cache object should have idle time of 1800", 1800, tmpCache.getDefaultMaxIdleTime());
-		}
-		catch (Exception e)
-		{
-			fail(e.getMessage());
-		}
-	}
+//	@Test
+//	public void testCacheConstructorDefaultIdle()
+//	{
+//		try
+//		{	
+//			//Test constructor with all parameters and idle time
+//			Cache<String, Integer> tmpCache = createCache("CacheTest-2", 1800, maxCacheTime, 10);
+//
+//			assertEquals("Cache object should have idle time of 1800", 1800, tmpCache.expiryForAccessSecs());
+//		}
+//		catch (Exception e)
+//		{
+//			fail(e.getMessage());
+//		}
+//	}
 	
 	@Test
 	public void expireCacheEntry()
@@ -209,6 +193,43 @@ public class CacheTest
 		assertEquals("Retrived value do not match.", value, cache.get(key));
 	}
 	
+	
+	@Test
+	public void getAndPut()
+	{
+		assertTrue("Cache is not empty at start of test",  cache.size() == 0);
+		
+		String key = "key-b";
+		Integer value1 = 1;
+		Integer value2 = 2;
+		
+		TCacheJSR107<String, Integer> jsr107cache = cache.jsr107cache();
+
+		jsr107cache.put(key, value1);
+		Integer oldValue = jsr107cache.getAndPut(key, value2);
+		assertEquals("Retrived value do not match.", value1, oldValue);
+		
+		Integer newValue = jsr107cache.get(key);
+		assertEquals("Retrived value do not match.", value2, newValue);
+	}
+
+	@Test
+	public void getAndPut_Existing() throws Exception
+	{
+
+		MutableConfiguration<String, Integer> mc = new MutableConfiguration<>();
+
+		TCacheFactory factory = TCacheFactory.standardFactory();
+		javax.cache.Cache<String, Integer> jsr107cache = factory.createCache("getAndPut_Existing", mc);
+
+		String existingKey = Long.toString(System.currentTimeMillis());
+		Integer value1 = 1;
+		jsr107cache.getAndPut(existingKey, value1);
+		Integer value2 = 2;
+		assertEquals(value1, jsr107cache.getAndPut(existingKey, value2));
+		assertEquals(value2, jsr107cache.get(existingKey));
+	}
+
 	@Test
 	public void removeEntry()
 	{
@@ -218,7 +239,7 @@ public class CacheTest
 		Integer value = 1;
 		
 		// Add key-value
-		cache.put(key, value, 5L, 5L);
+		cache.put(key, value, 5, 5);
 		
 		assertTrue("Cache is not empty at start of test", cache.size() == 1);
 		assertEquals("Retrived value do not match.", value, cache.get(key));

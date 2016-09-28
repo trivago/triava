@@ -19,25 +19,38 @@ package com.trivago.triava.tcache.eviction;
 import java.io.Serializable;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import javax.cache.CacheException;
 
 import com.trivago.triava.tcache.CacheWriteMode;
+import com.trivago.triava.tcache.expiry.Constants;
+import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.util.Serializing;
 
+/**
+ * Represents a Cache entry with associated metadata.
+ * This cache entry is valid as long as data != null
+ * @param <V>
+ */
 public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 {
-	
+	AtomicIntegerFieldUpdater useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
+
 	final static int SERIALIZATION_MASK = 0b11;
 	final static int SERIALIZATION_NONE = 0b00;
 	final static int SERIALIZATION_SERIALIZABLE = 0b01;
 	final static int SERIALIZATION_EXTERNIZABLE = 0b10;
-	
+
+	final static int STATE_MASK = 0b0100000;
+	final static int STATE_INCOMPLETE = 0b0000000;
+	final static int STATE_COMPLETE = 0b0100000;
+
 	// offset #field-size
 	// 0 #12
 	// Object header
 	// 12 #4 
-	private Object data; // Holds either a V instance, or serialized data, e.g. byte[] 
+	private volatile Object data; // Holds either a V instance, or serialized data, e.g. byte[]
 	// 16 #4
 	private int inputDate; // in milliseconds relative to baseTimeMillis 
 	// 20 #4
@@ -47,21 +60,22 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 28 #4
 	private int maxCacheTime = 0; // in seconds
 	// 32 #4
-	private int useCount = 0; // Not fully thread safe, on purpose. See #incrementUseCount() for the reason.
+	private volatile int useCount = 0;
 	// 36
-	byte flags; // Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable 
+	/**
+	 * Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable
+	 */
+	byte flags;
 	// 37
 	
 	/**
-	 * Construct a holder
+	 * Construct a holder. The holder will be incomplete and not accessible by cache users, until you call {@link #complete(long, long)}
 	 * 
 	 * @param value The value to store in this holder
-	 * @param maxIdleTime Maximum idle time in seconds
-	 * @param maxCacheTime Maximum cache time in seconds 
 	 * @param writeMode The CacheWriteMode that defines how to serialize the data
 	 * @throws CacheException when there is a problem serializing the value
 	 */
-	public AccessTimeObjectHolder(V value, long maxIdleTime, long maxCacheTime, CacheWriteMode writeMode) throws CacheException
+	public AccessTimeObjectHolder(V value, CacheWriteMode writeMode) throws CacheException
 	{
 		setLastAccessTime();
 		try
@@ -93,24 +107,86 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		}
 
 		setInputDate();
-		this.maxIdleTime = Cache.limitToPositiveInt(maxIdleTime);
-		this.maxCacheTime = Cache.limitToPositiveInt(maxCacheTime);
+	}
+
+	public AccessTimeObjectHolder(V value, long maxIdleTime, long maxCacheTime, CacheWriteMode writeMode) throws CacheException
+	{
+		this(value, writeMode);
+		complete(maxIdleTime, maxCacheTime);
+	}
+	
+	void complete(long maxIdleTime, long maxCacheTime)
+	{
+		this.maxIdleTime = limitToPositiveInt(maxIdleTime);
+		this.maxCacheTime = limitToPositiveInt(maxCacheTime);
+		flags |= STATE_COMPLETE;
 	}
 
 
 	/**
 	 * Releases all references to objects that this holder holds. This makes sure that the data object can be
 	 * collected by the GC, even if the holder would still be referenced by someone.
+	 * <p>
+	 *     This is the end-of-life for the instance. The data field is now null, which means the entry is
+	 *     invalid. Even if another thread has a reference to this holder, he cannot access the data field.
+	 *     any longer.
+	 * </p>
+	 * @return true, if the call has released the holder. false, if the holder was already released before.
 	 */
-	protected void release()
+	protected boolean release()
 	{
-		data = null;
+		synchronized (this)
+		{
+			boolean releasedData = data != null;
+			data = null;
+			// SAE-150 Inform the caller whether he has released the holder. Hint: Other threads may
+			//         have called this concurrently, e.g. two deletes, expiration and/or eviciton.
+			return releasedData;
+		}
 	}
 	
 	public void setMaxIdleTime(int aMaxIdleTime)
 	{
 		maxIdleTime = aMaxIdleTime;
 	}
+	
+	void setMaxIdleTimeAsUpdateOrCreation(boolean updated, TCacheExpiryPolicy expiryPolicy, AccessTimeObjectHolder<V> oldHolder)
+	{
+		int tmpIdleTime = updated ? expiryPolicy.getExpiryForUpdate() : expiryPolicy.getExpiryForCreation();
+		if (tmpIdleTime == Constants.EXPIRY_NOCHANGE)
+		{
+			this.maxIdleTime = oldHolder.maxIdleTime;
+		}
+		else
+		{
+			this.maxIdleTime = tmpIdleTime;
+		}
+	}
+
+
+	/**
+	 * Prolongs the maxIdleTime by the given idleTime. 0 means immediate expiration, -1 means to not change anything, any positive value is the prolongation in seconds.
+	 * @param idleTimeSecs The time for prolong in seconds. See description for the special values 0 and -1.
+	 */
+	public void updateMaxIdleTime(int idleTimeSecs)
+	{
+		if (idleTimeSecs == 0)
+		{
+			this.maxIdleTime = 0; // invalidate immediately
+		}
+		if (idleTimeSecs > 0)
+		{
+			// Prolong time: 
+			// 1) Find out how long we currently live in the Cache
+			long cacheDurationMillis = currentTimeMillisEstimate() - getInputDate();
+			// 2) Prolong by idleTimeSecs.
+			int newMaxIdleTarget = (int)Math.min(  (cacheDurationMillis/1000) + idleTimeSecs, (long)Integer.MAX_VALUE);
+			this.maxIdleTime = newMaxIdleTarget;
+		}
+		// -1 => No change
+	}
+
+
 
 	public int getMaxIdleTime()
 	{
@@ -177,9 +253,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	public void incrementUseCount()
 	{
-		// The increment below is obviously not thread-safe, but it is good enough for our purpose (eviction statistics).
-		// We spare synchronization code, and the holder can be more light-weight (not using AtomicInteger).
-		useCount++;
+		useCountAFU.incrementAndGet(this);
 	}
 
 	private void setInputDate()
@@ -194,6 +268,10 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	
 	public boolean isInvalid()
 	{
+		boolean incomplete = (flags & STATE_MASK) == STATE_INCOMPLETE;
+		if (incomplete)
+			return true;
+		
 		long millisNow = currentTimeMillisEstimate();
 		if (maxCacheTime > 0L)
 		{
@@ -206,7 +284,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		}
 		
 		if (maxIdleTime == 0)
-			return false;
+			return true;
 
 		long idleSince = millisNow - getLastAccess();
 
@@ -223,8 +301,32 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		if (maxCacheTime == 0 || delaySecs < maxCacheTime)
 		{
 			// holder.maxCacheTime was not set (never expires), or new value is smaller => use it 
-			maxCacheTime = Cache.limitToPositiveInt(delaySecs);
+			maxCacheTime = limitToPositiveInt(delaySecs);
 		}
 		// else: Keep delay, as holder will already expire sooner than delaySecs.
 	}
+	
+	/**
+	 * Limits the given long value to values between [0, Integer.MAX_VALUE].
+	 * Values < 0 will be adjusted to 0, and values > Integer.MAX_VALUE are adjusted to Integer.MAX_VALUE.
+	 * <p>
+	 * Implementation note: This method is not public. To do Unit tests, copy this method to CacheTest after changing it. 
+	 *
+	 * @param value The value to limit
+	 * @return The adjusted value
+	 */
+	static int limitToPositiveInt(long value)
+	{
+		if (value > (long)Integer.MAX_VALUE)
+		{
+			return Integer.MAX_VALUE;
+		}
+		else if  (value < 0)
+		{
+			return 0;
+		}
+		return (int)value;
+	}
+
+
 }

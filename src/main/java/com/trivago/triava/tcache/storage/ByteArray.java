@@ -31,6 +31,8 @@ public class ByteArray // TODO Should not be public, as it is not (yet) a method
 	 * Creates a new ByteArray from the given bytes. It is not allowed to modify the given byte array after
 	 * running this constructor. The reason is that the given byte array is not copied and the hashCode is
 	 * being cached. When using ByteArray instances in hash based data structures like HashMap, objects can get "lost".
+	 * 
+	 * @param bytes The byte array
 	 */
 	public ByteArray(byte[] bytes)
 	{

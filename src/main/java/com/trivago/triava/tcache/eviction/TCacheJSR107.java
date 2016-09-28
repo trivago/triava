@@ -56,6 +56,7 @@ import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.ListenerCollection;
+import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 import com.trivago.triava.tcache.util.ChangeStatus;
@@ -110,6 +111,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void close()
 	{
+		// TODO A close must unregister the Cache
 		tcache.shutdown();
 	}
 
@@ -164,7 +166,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		V result = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
+			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, Constants.EXPIRY_NOCHANGE, tcache.cacheTimeSpread(), false, false);
 		
 			final ChangeStatus changeStatus;
 			if (holder != null)
@@ -172,6 +174,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				action.setEventType(EventType.UPDATED);
 				result = holder.peek();
 				changeStatus = ChangeStatus.CHANGED;
+//				newHolder.setMaxIdleTime(oldHolder.getMaxIdleTime()); // TODO What to do with expiryForUpdateSecs(). How to apply this here, including the -1 case
 			}
 			else
 			{
@@ -508,7 +511,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		if (actionRunner.preMutate(action))
 		{
-			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(),
+			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, Constants.EXPIRY_NOCHANGE,
 					tcache.cacheTimeSpread(), false, false);
 	
 			EventType eventType = holder == null ? EventType.CREATED : EventType.UPDATED;
@@ -602,7 +605,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			K key = entry.getKey();
 			V value = entry.getValue();
 
-			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.getDefaultMaxIdleTime(), tcache.cacheTimeSpread(), false, false);
+			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.expiryPolicy.getExpiryForCreation(), tcache.cacheTimeSpread(), false, false);
 
 			if (anyListenerInterested)
 			{

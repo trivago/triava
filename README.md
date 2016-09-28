@@ -46,6 +46,13 @@ dependencies {
 - 0.9.5
     - cache: Support Store-By-Value.
     - cache: Fully JSR107 compliance for Statistic, Write-Through, Read-Through
+- 0.9.6
+    - cache: JSR107 ExpiryPolicy support    
+    - cache: Incompatible changes:
+        - idleTime=0 means immediately expired instead of no expiration
+        - Signature of put() with idle/cache times changed from long to int
+        
+         
 
 
 ## Building:
