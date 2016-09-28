@@ -53,12 +53,12 @@ public class DeleteAction<K,V,W> extends Action<K,V,W>
 	@Override
 	void statisticsImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		System.out.println("statisticsImpl removed=" + removed);
+//		System.out.println("statisticsImpl removed=" + removed);
 		if (removed)
 		{
-			System.out.println("statisticsImpl BS removed=" + removed + " stats: " + actionRunner.stats);
+//			System.out.println("statisticsImpl BS removed=" + removed + " stats: " + actionRunner.stats);
 			actionRunner.stats.incrementRemoveCount();
-			System.out.println("statisticsImpl AS sremoved=" + removed + " stats: " + actionRunner.stats);
+//			System.out.println("statisticsImpl AS sremoved=" + removed + " stats: " + actionRunner.stats);
 		}
 	}
 
