@@ -71,6 +71,10 @@ Maintainers can upload new versions to Maven Central Staging:
 Before uploading a new version, you should:
  - Fix all Javadocs warnings
  - Run FindBugs and fix all bugs
+ - Check for missing licensing header
+ ```
+ find . -name '*.java' -print0 | xargs -0 grep -L "Licensed under the Apache License, Version 2.0"
+ ```
  - Update this README: Changes section
  - Update this README: Update all version numbers
  - Tag the release and upload (check with maintainers on details, e.g. in the triava Knowledge page)
