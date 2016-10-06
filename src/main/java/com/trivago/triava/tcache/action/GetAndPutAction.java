@@ -44,6 +44,9 @@ public class GetAndPutAction<K, V, W> extends PutAction<K, V, W>
 	{
 		StatisticsCalculator stats = actionRunner.stats;
 		ChangeStatus changeStatus = (ChangeStatus) arg;
+		if (changeStatus == null)
+			return;
+		
 //		System.out.println("actionRunnter " + actionRunner + ", cs=" +changeStatus);
 		switch (changeStatus)
 		{
@@ -51,16 +54,15 @@ public class GetAndPutAction<K, V, W> extends PutAction<K, V, W>
 				stats.incrementHitCount();
 //				stats.incrementPutCount(); // cache.putToMap() still does it. Thus do not increment here
 				break;
-//			case UNCHANGED:
-//				stats.incrementMissCount();
-//				break;
 			case CREATED:
 				stats.incrementMissCount();
 //				stats.incrementPutCount(); // cache.putToMap() still does it. Thus do not increment here
 				break;
-//			case CAS_FAILED:
-//				stats.incrementHitCount();
-//				break;
+			case UNCHANGED:
+			case CAS_FAILED_EQUALS:
+				break;
+		
+
 		}
 	}
 }

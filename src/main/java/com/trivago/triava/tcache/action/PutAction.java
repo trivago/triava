@@ -56,7 +56,8 @@ public class PutAction<K,V,W> extends Action<K,V,W>
 	@Override
 	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		actionRunner.listeners.dispatchEvent(eventType, key, value);
+		if (eventType != null)
+			actionRunner.listeners.dispatchEvent(eventType, key, value);
 	}
 
 	@Override

@@ -202,6 +202,8 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	/**
 	 * Return the data, without modifying statistics or any other metadata like access time.
 	 * 
+	 * TODO Check whether we should check validity here via {@link #isInvalid()}
+	 * 
 	 * @return The value of this holder 
 	 */
 	@SuppressWarnings("unchecked") 

@@ -45,9 +45,12 @@ public class DeleteAction<K,V,W> extends Action<K,V,W>
 	@Override
 	void notifyListenersImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
-		@SuppressWarnings("unchecked")
-		V oldValue = (V)arg; // This can actually be oldValue or value
-		actionRunner.listeners.dispatchEvent(eventType, key, oldValue);
+		if (removed)
+		{
+			@SuppressWarnings("unchecked")
+			V oldValue = (V)arg; // This can actually be oldValue or value
+			actionRunner.listeners.dispatchEvent(eventType, key, oldValue);
+		}
 	}
 
 	@Override

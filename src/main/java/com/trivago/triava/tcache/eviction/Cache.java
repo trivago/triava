@@ -499,10 +499,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	public V putIfAbsent(K key, V value, int maxIdleTime, int maxCacheTime)
 	{
 		AccessTimeObjectHolder<V> holder = putToMap(key, value, maxIdleTime, maxCacheTime, true, false);
-		if ( holder == null )
-			return null;
-		else
-			return holder.peek();
+		return gatedPeek(holder);
 	}
 	
 	/**
@@ -518,15 +515,35 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		// Hint idleTime is passed as Constants.EXPIRY_MAX, but it is not evaluated.
 		AccessTimeObjectHolder<V> holder = putToMap(key, value, Constants.EXPIRY_MAX, cacheTimeSpread(), true, false);
-		
+		return gatedPeek(holder);
+	}
+	
+	/**
+	 * The same like {@link #putIfAbsent(Object, Object)}, but returns Holders
+	 * 
+	 * @param key The key
+	 * @param value The value
+	 * @return Holders
+	 */
+	Holders<V> putIfAbsentH(K key, V value)
+	{
+		// Hint idleTime is passed as Constants.EXPIRY_MAX, but it is not evaluated.
+		Holders<V> holders = putToMapI(key, value, Constants.EXPIRY_MAX, cacheTimeSpread(), true);
+		return holders;
+	}
+
+	private V gatedPeek(AccessTimeObjectHolder<V> holder)
+	{
 		if (holder == null)
 		{
 			return null;
 		}
+		if (holder.isInvalid())
+			return null;
 		
 		return holder.peek();
 	}
-	
+
 
 	/**
 	 * Puts the value wrapped in a AccessTimeObjectHolder in the map and returns it. What exactly is returned depends on the value of returnEffectiveHolder. 
@@ -546,10 +563,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		Holders<V> holders = putToMapI(key, data, idleTime, cacheTime, putIfAbsent);
 		if (holders == null)
 			return null;
-		return returnEffectiveHolder ? holders.effectiveHolder : holders.oldHolder;
-		
+		AccessTimeObjectHolder<V> holderToReturn = returnEffectiveHolder ? holders.effectiveHolder : holders.oldHolder;
+		return gatedHolder(holderToReturn);
 	}
-	protected Holders<V> putToMapI(K key, V data, int idleTime, long cacheTime, boolean putIfAbsent)
+	
+	protected AccessTimeObjectHolder<V> gatedHolder(AccessTimeObjectHolder<V> holderToReturn)
+	{
+		if (holderToReturn == null)
+			return null;
+		
+		return holderToReturn.isInvalid() ? null : holderToReturn;
+	}
+
+
+	Holders<V> putToMapI(K key, V data, int idleTime, long cacheTime, boolean putIfAbsent)
 	{
 		if (isClosed())
 		{
@@ -636,19 +663,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			hasPut = true;
 		}
 		
-		if (effectiveHolder.isInvalid())
-		{
-			// Put, but already expired => do not return the value
-			effectiveHolder = null;
-		}
-		else
+		if (!effectiveHolder.isInvalid())
 		{
 			if (hasPut)
 				statisticsCalculator.incrementPutCount();
 		}
 		
 		ensureCleanerIsRunning();
-		return new Holders<V>(newHolder, holder, effectiveHolder);
+		return new Holders<V>(gatedHolder(newHolder), gatedHolder(holder), gatedHolder(effectiveHolder));
 	}
 
 	/**
@@ -1080,17 +1102,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (holder == null)
 			return false;
 
-		// WORK TCK JSR107 This implementation is not yet checked for for operating ATOMICALLY.    
+		// WORK TCK JSR107 This implementation is not yet checked for for operating ATOMICALLY.
 		V holderValue = holder.peek();
 		if (!holderValue.equals(value))
 			return false;
 
+		AccessTimeObjectHolder<V> gh = gatedHolder(holder);
+		boolean validBeforeInvalidate = gh != null;
 		boolean removed = this.objects.remove(key, holder);
-		if (removed)
-		{
-			releaseHolder(holder);
-		}
-		return removed;
+		releaseHolder(holder);
+		return validBeforeInvalidate ? removed : false;
 	}
 
 	/**
@@ -1105,7 +1126,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		kvUtil.verifyKeyNotNull(key);
 
 		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
-		return releaseHolder(holder);
+		AccessTimeObjectHolder<V> gh = gatedHolder(holder);
+		boolean validBeforeInvalidate = gh != null;
+		V releasedValue = releaseHolder(holder);
+		return validBeforeInvalidate ? releasedValue : null;
 	}
 
 	/**
@@ -1135,11 +1159,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	
 	/**
 	 * Frees the data in the holder, and returns the value stored by the holder.
+	 * This method must be called by anyone who makes a holder inaccessible, e.g. if on expiration
+	 * or during remove().
 	 *
 	 * @param holder The holder to release
 	 * @return The value stored by the holder
 	 */
-	protected V releaseHolder(AccessTimeObjectHolder<V> holder)
+	// TODO change access to package
+	public V releaseHolder(AccessTimeObjectHolder<V> holder)
 	{
 		if(holder == null)
 		{
@@ -1161,7 +1188,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			// SAE-150 Some other Thread has also called holder.release() concurrently and won the race.
 			// => The holder was already invalid. Return null, as there can be only one Thread actually
 			//    releasing the holder. Hint: This can happen with any 2 or more Threads, but the most likely
-			//    Thread that do a race are the Eviciton Thread and the Expiration Thread.
+			//    Threads that do a race are the Eviction Thread and the Expiration Thread.
 			return null;
 		}
 	}

@@ -162,24 +162,33 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		Action<K, V, Object> action = new GetAndPutAction<K, V, Object>(key, value, EventType.CREATED);
+		Action<K, V, Object> action = new GetAndPutAction<K, V, Object>(key, value, null);
 		V result = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, Constants.EXPIRY_NOCHANGE, tcache.cacheTimeSpread(), false, false);
+			Holders<V> holders = tcache.putToMapI(key, value, Constants.EXPIRY_NOCHANGE, tcache.cacheTimeSpread(), false);
 		
-			final ChangeStatus changeStatus;
-			if (holder != null)
+			
+			ChangeStatus changeStatus = null;
+			if (holders != null)
 			{
-				action.setEventType(EventType.UPDATED);
-				result = holder.peek();
-				changeStatus = ChangeStatus.CHANGED;
-//				newHolder.setMaxIdleTime(oldHolder.getMaxIdleTime()); // TODO What to do with expiryForUpdateSecs(). How to apply this here, including the -1 case
-			}
-			else
-			{
-				// else: result = null and eventType = EventType.CREATED
-				changeStatus = ChangeStatus.CREATED;
+				if (holders.oldHolder != null)
+				{
+					action.setEventType(EventType.UPDATED);
+					result = holders.oldHolder.peek();
+					changeStatus = ChangeStatus.CHANGED;
+	//				newHolder.setMaxIdleTime(oldHolder.getMaxIdleTime()); // TODO What to do with expiryForUpdateSecs(). How to apply this here, including the -1 case
+				}
+				else
+				{
+					// else: Created or invalid
+					if (holders.newHolder != null)
+					{
+						changeStatus = ChangeStatus.CREATED;
+						action.setEventType(EventType.CREATED);
+					}
+					// else: Keep changeStatus == null
+				}
 			}
 
 			actionRunnerWriteBehind.postMutate(action, changeStatus);
@@ -511,10 +520,18 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		if (actionRunner.preMutate(action))
 		{
-			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, Constants.EXPIRY_NOCHANGE,
-					tcache.cacheTimeSpread(), false, false);
-	
-			EventType eventType = holder == null ? EventType.CREATED : EventType.UPDATED;
+			Holders<V> holders = tcache.putToMapI(key, value, Constants.EXPIRY_NOCHANGE,
+					tcache.cacheTimeSpread(), false);
+			final EventType eventType;
+			if (holders == null)
+				eventType = null;
+			else
+			{
+				if (holders.newHolder == null || holders.newHolder.isInvalid())
+					eventType = null; // new is invalid
+				else
+					eventType = holders.oldHolder == null ? EventType.CREATED : EventType.UPDATED;
+			}
 			action.setEventType(eventType);
 			actionRunner.postMutate(action);	
 		}
@@ -605,14 +622,20 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			K key = entry.getKey();
 			V value = entry.getValue();
 
-			AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.expiryPolicy.getExpiryForCreation(), tcache.cacheTimeSpread(), false, false);
-
+			//AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.expiryPolicy.getExpiryForCreation(), tcache.cacheTimeSpread(), false, false);
+			Holders<V> holders = tcache.putToMapI(key, value, tcache.expiryPolicy.getExpiryForCreation(), tcache.cacheTimeSpread(), false);
+			
 			if (anyListenerInterested)
 			{
-				Map<K, V> mapToAdd = (holder == null) ? createdEntries : updatedEntries;
-				if (mapToAdd != null) // mapToAdd could be null here, if anyListenerInterested == true, but
-										// only one (iow: CREATED xor UPDATED)
-					mapToAdd.put(key, value);
+				boolean added = holders.newHolder != null;
+				if (added)
+				{
+					Map<K, V> mapToAdd = (holders.oldHolder == null) ? createdEntries : updatedEntries;
+					if (mapToAdd != null) // mapToAdd could be null here, if anyListenerInterested == true, but
+											// only one (iow: CREATED xor UPDATED)
+						mapToAdd.put(key, value);
+				}
+				// else: immediately expired
 			}
 		}
 
@@ -662,11 +685,11 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		boolean added = false;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			V oldValue = tcache.putIfAbsent(key, value);
+			Holders<V> holders = tcache.putIfAbsentH(key, value);
 			// For JSR107 putIfAbsent() should return whether a value was set.
-			// As tcache.putIfAbsent() has the semantics of ConcurrentMap#putIfAbsent(), we can check for
-			// oldValue == null.
-			added = oldValue == null;
+			// It is set when the old holder was null AND the new holder is not null.
+			// The latter case (new holder == null) can happen if it immediately expires.
+			added = holders.oldHolder == null && holders.newHolder != null;
 			if (added)
 				actionRunnerWriteBehind.postMutate(action);
 		}
@@ -783,6 +806,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				// likely refine it when fully implementing Write-Behind.
 				if (actionRunner instanceof WriteBehindActionRunner)
 				{
+					action.setRemoved(removed); // We are presuming(!) a local removal
 					action.writeThrough(actionRunner, null);
 				}
 			}

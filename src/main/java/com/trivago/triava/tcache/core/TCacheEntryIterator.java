@@ -41,17 +41,32 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 {
 	private final Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> mapIterator;
 	Entry<K, V> currentElement = null;
+	java.util.Map.Entry<K, AccessTimeObjectHolder<V>> nextElement = null;
 	private final Cache<K,V> cache;
 	StatisticsCalculator statisticsCalculator;
 
 	public TCacheEntryIterator(com.trivago.triava.tcache.eviction.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects)
 	{
-		mapIterator = objects.entrySet().iterator();
+		final Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> mapIterator1 = objects.entrySet().iterator();
 		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
-		for (java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry : objects.entrySet())
+		while (mapIterator1.hasNext())
 		{
-			entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue().peek()));
+			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = mapIterator1.next();
+			AccessTimeObjectHolder<V> holder = entry.getValue();
+			if (holder.isInvalid())
+			{
+				// Remove on the fly invalid values, as they may not be in the returned iterator
+				tcache.releaseHolder(holder);
+				mapIterator1.remove();
+			}
+			else
+			{
+				entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), holder.peek()));
+			}
 		}
+
+		mapIterator = objects.entrySet().iterator();
+
 
 		this.statisticsCalculator = tcache.statisticsCalculator();
 		this.cache = tcache.jsr107cache();
@@ -60,7 +75,10 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	@Override
 	public boolean hasNext()
 	{
-		return mapIterator.hasNext();
+		java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = nextInternal();
+		if (entry == null)
+			return false;
+		return ! entry.getValue().isInvalid();
 	}
 
 	@Override
@@ -68,7 +86,8 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	{
 		try
 		{
-			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = mapIterator.next();
+			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = nextInternal();
+			nextElement = null;
 			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue().peek());
 			if (statisticsCalculator != null)
 				statisticsCalculator.incrementHitCount();
@@ -80,6 +99,17 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 			currentElement = null;
 			throw nsee;
 		}
+	}
+
+	private java.util.Map.Entry<K, AccessTimeObjectHolder<V>> nextInternal()
+	{
+		if (nextElement != null)
+			return nextElement;
+		
+		if (!mapIterator.hasNext())
+			return null;
+		nextElement = mapIterator.next();
+		return nextElement;
 	}
 	
 	@Override
