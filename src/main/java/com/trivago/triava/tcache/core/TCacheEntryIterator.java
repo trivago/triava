@@ -75,7 +75,7 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	@Override
 	public boolean hasNext()
 	{
-		java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = nextInternal();
+		java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = peekNext();
 		if (entry == null)
 			return false;
 		return ! entry.getValue().isInvalid();
@@ -86,8 +86,10 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	{
 		try
 		{
-			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = nextInternal();
+			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = peekNext();
 			nextElement = null;
+			if (entry == null)
+				throw new NoSuchElementException();
 			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue().peek());
 			if (statisticsCalculator != null)
 				statisticsCalculator.incrementHitCount();
@@ -101,15 +103,30 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 		}
 	}
 
-	private java.util.Map.Entry<K, AccessTimeObjectHolder<V>> nextInternal()
+	/**
+	 * Peeks the next element. Calling this method multiple times will always return
+	 * the same value, until {@link #next()} is called. This method skips all invalid
+	 * Holders.   
+	 * 
+	 * @return The next element, or null if there is no nbext element
+	 */
+	private java.util.Map.Entry<K, AccessTimeObjectHolder<V>> peekNext()
 	{
 		if (nextElement != null)
 			return nextElement;
 		
-		if (!mapIterator.hasNext())
-			return null;
-		nextElement = mapIterator.next();
-		return nextElement;
+		while (true)
+		{
+			if (!mapIterator.hasNext())
+				return null;
+			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = mapIterator.next();
+			AccessTimeObjectHolder<V> holder = entry.getValue();
+			if (!holder.isInvalid())
+			{
+				nextElement = entry;
+				return nextElement;
+			}
+		}
 	}
 	
 	@Override
