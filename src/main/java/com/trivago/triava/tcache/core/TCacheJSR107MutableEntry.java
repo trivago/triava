@@ -33,7 +33,7 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 {
 	private static final long serialVersionUID = 6472791726900271842L;
 
-	public enum Operation { NOP, REMOVE, SET, REMOVE_WRITE_THROUGH }
+	public enum Operation { NOP, REMOVE, SET, REMOVE_WRITE_THROUGH, GET }
 	private Operation operation = Operation.NOP;
 	V valueNew = null;
 	
@@ -81,6 +81,8 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	public V getValue()
 	{
 		// Overriding, to return the possibly mutated value
+		if (operation == Operation.NOP)
+			operation = Operation.GET; // (Only) remember the GET if we do not have more relevant operations 
 		return this.valueNew;
 	}
 	

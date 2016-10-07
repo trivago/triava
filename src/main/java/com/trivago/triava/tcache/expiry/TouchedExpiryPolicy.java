@@ -35,11 +35,17 @@ public class TouchedExpiryPolicy implements TCacheExpiryPolicy
 	
 	int convertToSecs(Duration expiryDuration, int defaultValue)
 	{
-		final long expiryForCreation;
 		if (expiryDuration != null)
 		{
-			expiryForCreation = expiryDuration.getAdjustedTime(0) / 1000;
-			return limitToPositiveInt(expiryForCreation);
+			long adjustedTime = expiryDuration.getAdjustedTime(0);
+			if (adjustedTime > 0 && adjustedTime < 1000)
+			{
+				// We have a resolution of seconds. If an entry expires within the first second, round up so that it does not expire immediately.
+				// Expiration values of less than one second are rarely useful. But the JSR107 TCK has checks that make use of it.
+				return 1;
+			}
+			long roundedTime = Math.round(adjustedTime / 1000D);
+			return limitToPositiveInt(roundedTime);
 		}
 		else
 		{

@@ -217,7 +217,8 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 				case SERIALIZATION_NONE:
 					return (V)data;
 				case SERIALIZATION_SERIALIZABLE:
-					return (V)Serializing.fromBytearray((byte[])(data));
+					Object dataRef = data; // defensive copy
+					return dataRef != null ? (V)Serializing.fromBytearray((byte[])(dataRef)) : null;
 				case SERIALIZATION_EXTERNIZABLE:
 				default:
 					throw new UnsupportedOperationException("Serialization type is not supported: " + serializationMode);

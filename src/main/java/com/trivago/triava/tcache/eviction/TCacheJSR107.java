@@ -277,7 +277,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		}
 		
 		// -1- Load if not present via Loader
-		AccessTimeObjectHolder<V> holder = tcache.getFromMap(key);
+		AccessTimeObjectHolder<V> holder = tcache.getFromMap(key, false);
 
 		// -2- Run EntryProcessor
 		V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
@@ -367,6 +367,15 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			case REMOVE_WRITE_THROUGH:
 				key = me.getKey();
 				remove(key, false);
+				break;
+			case GET:
+				key = me.getKey();
+				AccessTimeObjectHolder<V> holder = tcache.peekHolder(key);
+				if (holder != null)
+				{
+					// JSR107 mandates that we "touch" the holder if we read it 
+					holder.updateMaxIdleTime(tcache.expiryPolicy.getExpiryForAccess());
+				}
 				break;
 			default:
 				break;
@@ -765,9 +774,15 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			 * The reason could be an omission in the CacheWriter Interface: It simply does not have a write(key,value) method. To be discussed
 			 */
 			
-			V valueInCache = tcache.get(key);
+			AccessTimeObjectHolder<V> holder = tcache.peekHolder(key);
+			V valueInCache = holder != null ? holder.peek() : null;
 			boolean mustWriteThrough = value.equals(valueInCache);
 			action = new DeleteOnValueAction<K,V,Object>(key, mustWriteThrough);
+			if (valueInCache != null && !mustWriteThrough)
+			{
+				// Value will not be removed, thus it is accessed
+				holder.updateMaxIdleTime(tcache.expiryPolicy.getExpiryForAccess());
+			}
 		}
 		else
 		{

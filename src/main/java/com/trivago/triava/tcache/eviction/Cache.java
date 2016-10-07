@@ -567,12 +567,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return gatedHolder(holderToReturn);
 	}
 	
-	protected AccessTimeObjectHolder<V> gatedHolder(AccessTimeObjectHolder<V> holderToReturn)
+	protected AccessTimeObjectHolder<V> gatedHolder(AccessTimeObjectHolder<V> holder)
 	{
-		if (holderToReturn == null)
+		if (holder == null)
 			return null;
 		
-		return holderToReturn.isInvalid() ? null : holderToReturn;
+		return holder.isInvalid() ? null : holder;
 	}
 
 
@@ -657,7 +657,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			// Add entry initially with unlimited expiration, then update the idle from the existing holder
 			newHolder = new AccessTimeObjectHolder<>(data, Constants.EXPIRY_MAX, cacheTime, builder.getCacheWriteMode());
-			holder = this.objects.put(key, newHolder);
+			holder = gatedHolder(this.objects.put(key, newHolder));
 			newHolder.setMaxIdleTimeAsUpdateOrCreation(holder != null, expiryPolicy, holder);
 			effectiveHolder = newHolder;
 			hasPut = true;
@@ -690,7 +690,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			// replaced
 			V oldValue = oldHolder.peek();
-			newHolder.updateMaxIdleTime(expiryPolicy.getExpiryForUpdate()); // OK
+			if (oldValue != null)
+			{
+				newHolder.updateMaxIdleTime(expiryPolicy.getExpiryForUpdate()); // OK
+			}
 			return oldValue;
 
 		}
@@ -707,7 +710,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		oldHolder = objects.get(key);
 		if (oldHolder == null)
 			return ChangeStatus.UNCHANGED; // Not in backing store => cannot replace
-		if (! oldHolder.peek().equals(oldValue))
+		if (! oldValue.equals(oldHolder.peek()))
 			return ChangeStatus.CAS_FAILED_EQUALS; // oldValue does not match => do not replace
 		
 		newHolder = new AccessTimeObjectHolder<V>(newValue, Constants.EXPIRY_MAX, cacheTimeSpread(), builder.getCacheWriteMode());
@@ -778,6 +781,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	
 	AccessTimeObjectHolder<V> getFromMap(K key) throws RuntimeException
 	{
+		return getFromMap(key, true);
+	}
+	
+	AccessTimeObjectHolder<V> getFromMap(K key, boolean touch) throws RuntimeException
+	{
 		throwISEwhenClosed();
 		kvUtil.verifyKeyNotNull(key);
 
@@ -788,7 +796,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (holder != null)
 		{
 			holderWasValidBeforeApplyingExpiryPolicy = !holder.isInvalid();
-			holder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
+			if (touch)
+				holder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
 		}
 		
 //		boolean holderIsInvalid = holder == null || holder.isInvalid();
@@ -1228,10 +1237,33 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		kvUtil.verifyKeyNotNull(key);
 		// We cannot rely on objects.containsKey(), as the entry may be expired.
-		 AccessTimeObjectHolder<V> value = objects.get(key);
-		 return ! ( value == null || value.isInvalid());
+		 return gatedHolder(objects.get(key)) != null;
 	}
 
+	/**
+	 * Returns the value if this Cache contains a mapping for the specified key.
+	 * Does not have any side effects like statistics or changing metadata like access time.
+	 * @param key The key
+	 * @return The value, or null if there is no mapping
+	 */
+	V peek(K key)
+	{
+		kvUtil.verifyKeyNotNull(key);
+		 AccessTimeObjectHolder<V> holder = gatedHolder(objects.get(key));
+		 return holder == null ? null : holder.peek();
+	}
+	
+	/**
+	 * Returns the value if this Cache contains a mapping for the specified key.
+	 * Does not have any side effects like statistics or changing metadata like access time.
+	 * @param key The key
+	 * @return The value, or null if there is no mapping
+	 */
+	AccessTimeObjectHolder<V> peekHolder(K key)
+	{
+		kvUtil.verifyKeyNotNull(key);
+		return gatedHolder(objects.get(key));
+	}
 
 	/**
 	 * Sets the logger that will be used for all Cache instances.

@@ -90,7 +90,11 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 			nextElement = null;
 			if (entry == null)
 				throw new NoSuchElementException();
-			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), entry.getValue().peek());
+
+			V value = entry.getValue().peek();
+			// To be considered: value could be null now, if it got invalid between the peekNext() and peek() calls
+			// This means entry.value can be null.
+			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), value);
 			if (statisticsCalculator != null)
 				statisticsCalculator.incrementHitCount();
 			return currentElement;

@@ -43,9 +43,6 @@ public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
 	@Override
 	void statisticsImpl(ActionRunner<K, V> actionRunner, Object arg)
 	{
-		// We should do hit- and miss-counts, but the 2-arg remove method is doing a tcache.get() at the beginning to determine the need for write-through.
-		// The tcache.get() also does the hit- and miss-counts, so we remove them here for now.
-/*
 		// DeletOnValue is a "delete-if".Thus we need hit counting for the "if value"
 		if (removed)
 		{
@@ -53,7 +50,7 @@ public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
 		}
 		else
 			actionRunner.stats.incrementMissCount();
-*/		
+		
 		super.statisticsImpl(actionRunner, arg);
 	}
 }
