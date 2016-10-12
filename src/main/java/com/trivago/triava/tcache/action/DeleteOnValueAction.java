@@ -43,7 +43,7 @@ public class DeleteOnValueAction<K,V,W> extends DeleteAction<K,V,W>
 	@Override
 	void statisticsImpl(ActionRunner<K, V> actionRunner, Object arg)
 	{
-		// DeletOnValue is a "delete-if".Thus we need hit counting for the "if value"
+		// DeleteOnValue is a "delete-if".Thus we need hit counting for the "if value"
 		if (removed)
 		{
 			actionRunner.stats.incrementHitCount();

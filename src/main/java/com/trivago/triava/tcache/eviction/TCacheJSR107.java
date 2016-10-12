@@ -276,12 +276,9 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			throw new NullPointerException("entryProcessor is null");
 		}
 		
-		// -1- Load if not present via Loader
-		AccessTimeObjectHolder<V> holder = tcache.getFromMap(key, false);
-
+		// -1- Get value (we are not loading it via CacheLoader, even though it is in the Specs. See https://github.com/jsr107/RI/issues/54)
+		TCacheJSR107MutableEntry<K, V> me = invokeBuildMutableEntry(key);
 		// -2- Run EntryProcessor
-		V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
-		TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K, V>(key, value);
 		try
 		{
 			T result = processEntryProcessor(entryProcessor, me, args);
@@ -297,6 +294,23 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			throw new EntryProcessorException(exc);
 		}
 
+	}
+
+	private TCacheJSR107MutableEntry<K, V> invokeBuildMutableEntry(K key)
+	{
+		AccessTimeObjectHolder<V> holder = tcache.peekHolder(key);
+		V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing (JSR107)
+		
+		// Statistics effects are not properly described in the Spec. See https://github.com/jsr107/RI/issues/54
+		// Thus I am following here what the RI does. 
+		if (value != null)
+			tcache.statisticsCalculator.incrementHitCount();
+		else
+			tcache.statisticsCalculator.incrementMissCount();
+		
+		CacheLoader<K, V> loader = tcache.builder.isReadThrough() ? tcache.loader : null;
+		TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K, V>(key, value, loader);
+		return me;
 	}
 
 	@Override
@@ -315,9 +329,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		{
 			try
 			{
-				AccessTimeObjectHolder<V> holder = tcache.objects.get(key);
-				V value = holder != null ? holder.peek() : null; // Create surrogate "null" if not existing
-				TCacheJSR107MutableEntry<K, V> me = new TCacheJSR107MutableEntry<K, V>(key, value);
+				TCacheJSR107MutableEntry<K, V> me = invokeBuildMutableEntry(key);
 				// TODO CacheWriter behavior is
 				// here not JSR107 compliant.
 				// writeAll() must be called
@@ -364,6 +376,13 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				value = me.getValue();
 				put(key, value);
 				break;
+			case LOAD:
+				key = me.getKey();
+				value = me.getValue();
+				// Load must not write through, according to the TCK and RI
+				// From the spec it is not clear why. See 		// -1- Get value (we are not loading it via CacheLoader, even though it is in the Specs. See https://github.com/jsr107/RI/issues/54
+				putNoWriteThrough(key, value);
+				break;				
 			case REMOVE_WRITE_THROUGH:
 				key = me.getKey();
 				remove(key, false);
@@ -373,7 +392,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				AccessTimeObjectHolder<V> holder = tcache.peekHolder(key);
 				if (holder != null)
 				{
-					// JSR107 mandates that we "touch" the holder if we read it 
+					// JSR107 1.0 (p.63) mandates that we call getExpiryForAccess() if we read it (except if was loaded) 
 					holder.updateMaxIdleTime(tcache.expiryPolicy.getExpiryForAccess());
 				}
 				break;
@@ -519,13 +538,23 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 	}
 
+	void putNoWriteThrough(K key, V value)
+	{
+		put0(key, value, false);		
+	}
+	
 	@Override
 	public void put(K key, V value)
+	{
+		put0(key, value, true);
+	}
+
+	void put0(K key, V value, boolean writeThrough)
 	{
 		throwISEwhenClosed();
 		kvUtil.verifyKeyAndValueNotNull(key, value);
 
-		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, false);
+		Action<K,V,Object> action = new PutAction<>(key, value, EventType.CREATED, false, writeThrough);
 
 		if (actionRunner.preMutate(action))
 		{

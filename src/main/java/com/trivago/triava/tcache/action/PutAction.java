@@ -33,15 +33,27 @@ public class PutAction<K,V,W> extends Action<K,V,W>
 {
 
 	final boolean countStatistics;
+	final boolean writeThrough;
 	public PutAction(K key, V value, EventType eventType, boolean countStatistics)
 	{
 		super(key, value, eventType);
 		this.countStatistics = countStatistics;
+		this.writeThrough = true;
+	}
+
+	public PutAction(K key, V value, EventType eventType, boolean countStatistics, boolean writeThrough)
+	{
+		super(key, value, eventType);
+		this.countStatistics = countStatistics;
+		this.writeThrough = writeThrough;
 	}
 
 	@Override
 	W writeThroughImpl(ActionRunner<K,V> actionRunner, Object arg)
 	{
+		if (!writeThrough)
+			return null;
+		
 		try
 		{
 			actionRunner.cacheWriter.write(new TCacheJSR107Entry<K,V>(key, value));

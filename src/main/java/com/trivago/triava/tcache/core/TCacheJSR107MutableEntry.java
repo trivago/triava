@@ -18,6 +18,7 @@ package com.trivago.triava.tcache.core;
 
 import java.io.Serializable;
 
+import javax.cache.integration.CacheLoader;
 import javax.cache.processor.MutableEntry;
 
 /**
@@ -33,20 +34,23 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 {
 	private static final long serialVersionUID = 6472791726900271842L;
 
-	public enum Operation { NOP, REMOVE, SET, REMOVE_WRITE_THROUGH, GET }
+	public enum Operation { NOP, REMOVE, SET, LOAD, REMOVE_WRITE_THROUGH, GET }
 	private Operation operation = Operation.NOP;
 	V valueNew = null;
+	final CacheLoader<K, V> loader;
 	
 	/**
 	 * Creates an instance based on the native tCache entry plus the key.
 	 * 
 	 * @param key The key
 	 * @param value The value
+	 * @param loader The CacheLoader, or null if there is no CacheLoader
 	 */
-	public TCacheJSR107MutableEntry(K key, V value)
+	public TCacheJSR107MutableEntry(K key, V value, CacheLoader<K, V> loader)
 	{
 		super(key, value);
 		this.valueNew = value;
+		this.loader = loader;
 	}
 
 	@Override
@@ -58,20 +62,30 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	@Override
 	public void remove()
 	{
-		if (oldValue() != null)
-			operation = Operation.REMOVE;
+		if (operation == Operation.SET || operation == Operation.LOAD)
+		{
+			operation = Operation.NOP;
+		}
 		else
 		{
-			// TCK Challenge
-			// CacheWriterTest.shouldWriteThroughUsingInvoke_setValue_CreateEntryThenRemove()
-			// It demands that no action (INCLUDING write-through) is done, if the State-transistion is:
-			// SURROGATE -> SET -> REMOVED     : Result NOP
-			// SURROGATE -> REMOVED            : Result REMOVE_WRITE_THROUGH
-			// I do not see why we should skip write-through in this case
-			if (valueNew != null)
-				operation = Operation.NOP;
+			if (oldValue() != null)
+				operation = Operation.REMOVE;
 			else
-			operation = Operation.REMOVE_WRITE_THROUGH;  // Was not set before, thus means DELETE is actually a NOP
+			{
+				// TCK Challenge
+				// CacheWriterTest.shouldWriteThroughUsingInvoke_setValue_CreateEntryThenRemove()
+				// It demands that no action (INCLUDING write-through) is done, if the State-transistion is:
+				// SURROGATE -> SET -> REMOVED     : Result NOP
+				// SURROGATE -> REMOVED            : Result REMOVE_WRITE_THROUGH
+				// I do not see why we should skip write-through in this case
+				if (valueNew != null)
+					operation = Operation.NOP;
+				else
+				{
+					// Was not set before, thus means DELETE is actually a NOP. Write-through to propagate this
+					operation = Operation.REMOVE_WRITE_THROUGH;
+				}
+			}
 		}
 
 		valueNew = null;
@@ -80,7 +94,12 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	@Override
 	public V getValue()
 	{
-		// Overriding, to return the possibly mutated value
+		if (valueNew == null && loader != null)
+		{
+			valueNew = loader.load(key);
+			operation = Operation.LOAD; // treat load and set the same
+		}
+		
 		if (operation == Operation.NOP)
 			operation = Operation.GET; // (Only) remember the GET if we do not have more relevant operations 
 		return this.valueNew;
@@ -89,6 +108,9 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	@Override
 	public void setValue(V value)
 	{
+		if (value == null)
+			throw new NullPointerException("value is null in setValue()");
+		
 		operation = Operation.SET;
 		this.valueNew = value;
 	}

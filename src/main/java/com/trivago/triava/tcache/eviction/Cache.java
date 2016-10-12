@@ -674,9 +674,13 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * TCK-WORK JSR107 check statistics effect
+	 * Replace the entry stored by key with the given value.
+	 *   
+	 * @see javax.cache.Cache#getAndReplace(Object, Object)
 	 * 
-	 * {@inheritDoc}
+	 * @param key The key
+	 * @param value The value to write
+	 * @return The old value. null if there was no mapping for the key.
 	 */
 	public V getAndReplace(K key, V value)
 	{
@@ -710,8 +714,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		oldHolder = objects.get(key);
 		if (oldHolder == null)
 			return ChangeStatus.UNCHANGED; // Not in backing store => cannot replace
+
 		if (! oldValue.equals(oldHolder.peek()))
+		{
+			oldHolder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
 			return ChangeStatus.CAS_FAILED_EQUALS; // oldValue does not match => do not replace
+		}
 		
 		newHolder = new AccessTimeObjectHolder<V>(newValue, Constants.EXPIRY_MAX, cacheTimeSpread(), builder.getCacheWriteMode());
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
@@ -792,15 +800,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		AccessTimeObjectHolder<V> holder = this.objects.get(key);
 
 		boolean loaded = false;
-		boolean holderWasValidBeforeApplyingExpiryPolicy = false;
-		if (holder != null)
+		boolean holderWasValidBeforeApplyingExpiryPolicy = AccessTimeObjectHolder.isValid(holder);
+		if (holderWasValidBeforeApplyingExpiryPolicy && touch)
 		{
-			holderWasValidBeforeApplyingExpiryPolicy = !holder.isInvalid();
-			if (touch)
-				holder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
+			holder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
 		}
-		
-//		boolean holderIsInvalid = holder == null || holder.isInvalid();
 		
 		if (!holderWasValidBeforeApplyingExpiryPolicy && builder.isReadThrough())
 		{
@@ -1138,7 +1142,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		AccessTimeObjectHolder<V> gh = gatedHolder(holder);
 		boolean validBeforeInvalidate = gh != null;
 		V releasedValue = releaseHolder(holder);
-		return validBeforeInvalidate ? releasedValue : null;
+		return validBeforeInvalidate ? releasedValue : null; // TODO Returning ALWAYS releasedValue should be good
 	}
 
 	/**

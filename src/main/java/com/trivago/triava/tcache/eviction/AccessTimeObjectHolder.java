@@ -31,11 +31,12 @@ import com.trivago.triava.tcache.util.Serializing;
 /**
  * Represents a Cache entry with associated metadata.
  * This cache entry is valid as long as data != null
- * @param <V>
+ * 
+ * @param <V> The value type
  */
 public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 {
-	AtomicIntegerFieldUpdater useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
+	AtomicIntegerFieldUpdater<AccessTimeObjectHolder> useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
 
 	final static int SERIALIZATION_MASK = 0b11;
 	final static int SERIALIZATION_NONE = 0b00;
@@ -123,6 +124,15 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	}
 
 
+	/**
+	 * Returns whether the holder is valid. It must be non-null and not expired.
+	 * @return true if the holder is valid
+	 */
+	static public boolean isValid(AccessTimeObjectHolder<?> holder)
+	{
+		return holder != null && !holder.isInvalid();
+	}
+	
 	/**
 	 * Releases all references to objects that this holder holds. This makes sure that the data object can be
 	 * collected by the GC, even if the holder would still be referenced by someone.
