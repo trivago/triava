@@ -36,6 +36,7 @@ import com.trivago.triava.tcache.util.Serializing;
  */
 public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 {
+	@SuppressWarnings("rawtypes") // AccessTimeObjectHolder<V> would be incompatible with AccessTimeObjectHolder.class
 	AtomicIntegerFieldUpdater<AccessTimeObjectHolder> useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
 
 	final static int SERIALIZATION_MASK = 0b11;
