@@ -126,6 +126,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	/**
 	 * Returns whether the holder is valid. It must be non-null and not expired.
+	 * @param holder The holder to check
 	 * @return true if the holder is valid
 	 */
 	static public boolean isValid(AccessTimeObjectHolder<?> holder)
