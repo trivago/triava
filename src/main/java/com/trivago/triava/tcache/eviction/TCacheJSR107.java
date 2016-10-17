@@ -450,7 +450,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	{
 		throwISEwhenClosed();
 
-		TCacheEntryIterator<K, V> it = new TCacheEntryIterator<K,V>(this.tcache, tcache.objects);
+		TCacheEntryIterator<K, V> it = new TCacheEntryIterator<K,V>(this.tcache, tcache.objects, tcache.expiryPolicy);
 		return it;
 	}
 

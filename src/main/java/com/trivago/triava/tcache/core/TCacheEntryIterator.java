@@ -26,6 +26,7 @@ import javax.cache.Cache;
 import javax.cache.Cache.Entry;
 
 import com.trivago.triava.tcache.eviction.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 
 /**
@@ -42,11 +43,13 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	private final Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> mapIterator;
 	Entry<K, V> currentElement = null;
 	java.util.Map.Entry<K, AccessTimeObjectHolder<V>> nextElement = null;
-	private final Cache<K,V> cache;
-	StatisticsCalculator statisticsCalculator;
-
-	public TCacheEntryIterator(com.trivago.triava.tcache.eviction.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects)
+	final Cache<K,V> cache;
+	final StatisticsCalculator statisticsCalculator;
+	final TCacheExpiryPolicy expiryPolicy;
+	
+	public TCacheEntryIterator(com.trivago.triava.tcache.eviction.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects, TCacheExpiryPolicy expiryPolicy)
 	{
+		this.expiryPolicy = expiryPolicy;
 		final Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> mapIterator1 = objects.entrySet().iterator();
 		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
 		while (mapIterator1.hasNext())
@@ -91,9 +94,11 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 			if (entry == null)
 				throw new NoSuchElementException();
 
-			V value = entry.getValue().peek();
+			AccessTimeObjectHolder<V> holder = entry.getValue();
+			holder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
+			V value = holder.get();
 			// To be considered: value could be null now, if it got invalid between the peekNext() and peek() calls
-			// This means entry.value can be null.
+			// This means entry.value can be null. This is likely not a good design decision. Future directions: Rethink this
 			currentElement = new TCacheJSR107Entry<K, V>(entry.getKey(), value);
 			if (statisticsCalculator != null)
 				statisticsCalculator.incrementHitCount();
