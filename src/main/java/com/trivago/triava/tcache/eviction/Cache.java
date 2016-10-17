@@ -623,6 +623,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			// Always use expiryForCreation. Either it is correct, or we do not care(wrong but not added to cache) 
 			newHolder = new AccessTimeObjectHolder<V>(data, builder.getCacheWriteMode());
 			holder = this.objects.putIfAbsent(key, newHolder);
+			if (holder != null && holder.isInvalid())
+			{
+				// Entry was in backing map, but is actually invalid (e.g. expired) => just overwrite
+				this.objects.put(key, newHolder);
+				holder = null;
+			}
 			
 			/*
 			 *	A putIfAbsent() is also treated as a GET operation, so update cache statistics. 
@@ -690,7 +696,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		newHolder = new AccessTimeObjectHolder<V>(value, Constants.EXPIRY_MAX, cacheTimeSpread(), builder.getCacheWriteMode());
-		AccessTimeObjectHolder<V> oldHolder = this.objects.replace(key, newHolder);
+		AccessTimeObjectHolder<V> oldHolder = gatedHolder(this.objects.replace(key, newHolder));
 
 		if (oldHolder != null)
 		{
