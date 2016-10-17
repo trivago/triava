@@ -528,7 +528,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	Holders<V> putIfAbsentH(K key, V value)
 	{
 		// Hint idleTime is passed as Constants.EXPIRY_MAX, but it is not evaluated.
-		Holders<V> holders = putToMapI(key, value, Constants.EXPIRY_MAX, cacheTimeSpread(), true);
+		Holders<V> holders = putToMapI(key, value, cacheTimeSpread(), true);
 		return holders;
 	}
 
@@ -560,9 +560,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 */
 	protected AccessTimeObjectHolder<V> putToMap(K key, V data, int idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
 	{
-		Holders<V> holders = putToMapI(key, data, idleTime, cacheTime, putIfAbsent);
+		Holders<V> holders = putToMapI(key, data, cacheTime, putIfAbsent);
 		if (holders == null)
 			return null;
+		if (holders.effectiveHolder != null)
+			holders.effectiveHolder.updateMaxIdleTime(idleTime);
 		AccessTimeObjectHolder<V> holderToReturn = returnEffectiveHolder ? holders.effectiveHolder : holders.oldHolder;
 		return gatedHolder(holderToReturn);
 	}
@@ -576,7 +578,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 
-	Holders<V> putToMapI(K key, V data, int idleTime, long cacheTime, boolean putIfAbsent)
+	Holders<V> putToMapI(K key, V data, long cacheTime, boolean putIfAbsent)
 	{
 		if (isClosed())
 		{

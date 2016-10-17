@@ -56,7 +56,6 @@ import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.ListenerCollection;
-import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 import com.trivago.triava.tcache.util.ChangeStatus;
@@ -166,7 +165,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		V result = null;
 		if (actionRunnerWriteBehind.preMutate(action))
 		{
-			Holders<V> holders = tcache.putToMapI(key, value, Constants.EXPIRY_NOCHANGE, tcache.cacheTimeSpread(), false);
+			Holders<V> holders = tcache.putToMapI(key, value, tcache.cacheTimeSpread(), false);
 		
 			
 			ChangeStatus changeStatus = null;
@@ -558,8 +557,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 
 		if (actionRunner.preMutate(action))
 		{
-			Holders<V> holders = tcache.putToMapI(key, value, Constants.EXPIRY_NOCHANGE,
-					tcache.cacheTimeSpread(), false);
+			Holders<V> holders = tcache.putToMapI(key, value, tcache.cacheTimeSpread(), false);
 			final EventType eventType;
 			if (holders == null)
 				eventType = null;
@@ -660,8 +658,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			K key = entry.getKey();
 			V value = entry.getValue();
 
-			//AccessTimeObjectHolder<V> holder = tcache.putToMap(key, value, tcache.expiryPolicy.getExpiryForCreation(), tcache.cacheTimeSpread(), false, false);
-			Holders<V> holders = tcache.putToMapI(key, value, tcache.expiryPolicy.getExpiryForCreation(), tcache.cacheTimeSpread(), false);
+			Holders<V> holders = tcache.putToMapI(key, value, tcache.cacheTimeSpread(), false);
 			
 			if (anyListenerInterested)
 			{
