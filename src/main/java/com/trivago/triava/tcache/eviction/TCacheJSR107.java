@@ -831,13 +831,9 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 				else
 				{
 					// 2-arg remove()
-					boolean log = false; // value.equals("Sooty");
-					if (log) System.out.println("About ot remove Sooty: " + key + "stats: " + tcache.statisticsCalculator);
 					removed = tcache.remove(key, value);
 					action.setRemoved(removed);
-					if (log) System.out.println("After remove Sooty: " + key + "removed=" + removed + ", action=" + action + "stats: " + tcache.statisticsCalculator);
 					actionRunner.postMutate(action, value);
-					if (log) System.out.println("After postMutate Sooty: " + key + "removed=" + removed + ", action=" + action + "stats: " + tcache.statisticsCalculator);
 				}
 			}
 			else

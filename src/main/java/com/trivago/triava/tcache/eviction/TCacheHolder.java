@@ -16,13 +16,19 @@
 
 package com.trivago.triava.tcache.eviction;
 
+/**
+ * TODO Document this class
+ * @author cesken
+ *
+ * @param <V> The value class
+ */
 public interface TCacheHolder<V>
 {
 	V get();
 	V peek();
 	long getLastAccess();
 	int getUseCount();
-	long getInputDate();
-	int getMaxIdleTime();
-	boolean isInvalid();
+	long getInputDate(); // TODO rename This is not a Date! it is a timestamp
+	long getExpirationTime(); // TODO rename / remove
+	boolean isInvalid(); // TODO Revert to isValid()
 }
