@@ -17,12 +17,12 @@
 package com.trivago.triava.tcache.expiry;
 
 /**
- * A lighter version of the JSR107 ExpiryPolicy class. It returns native int values instead of a Duration.
- * A value of {@link Constants#EXPIRY_NOCHANGE} represents the return value null from any of the ExpiryPolicy mehtods.
+ * A lighter version of the JSR107 ExpiryPolicy class. It returns native long values in milliseconds instead of a Duration.
+ * A value of {@link Constants#EXPIRY_NOCHANGE} represents the return value null from any of the ExpiryPolicy methods.
  */
 public interface TCacheExpiryPolicy
 {
-	public int getExpiryForCreation();
-	public int getExpiryForAccess();
-	public int getExpiryForUpdate();
+	public long getExpiryForCreation();
+	public long getExpiryForAccess();
+	public long getExpiryForUpdate();
 }

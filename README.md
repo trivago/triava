@@ -2,7 +2,7 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-The included Cache implementation tCache is fully JSR107 (Java Caching) compliant, except for some ExpiryPolicy quirks (in work). For more about compliance, read the [TCK information](./tck/README.md) 
+TrivaCache is fully JCache / JSR107 (Java Caching) compliant. For more about compliance, read the [TCK information](./tck/README.md)
 
 ## License
 Licensed under the Apache License, Version 2.0
@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.5</version>
+      <version>0.9.8</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.5'
+	compile 'com.trivago:triava:0.9.8'
 }
 ```
 
@@ -51,7 +51,8 @@ dependencies {
     - cache: Incompatible changes:
         - idleTime=0 means immediately expired instead of no expiration
         - Signature of put() with idle/cache times changed from long to int
-        
+- 0.9.8
+    - cache: Fully JCache / JSR107 compliance 
          
 
 

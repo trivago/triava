@@ -58,9 +58,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 20 #4
 	private int lastAccess = 0; // in milliseconds relative to baseTimeMillis
 	// 24 #4
-	private int maxIdleTime = 0;  // in seconds
+	private int maxIdleTime = 0;  // in milliseconds or seconds
 	// 28 #4
-	private int maxCacheTime = 0; // in seconds
+	private int maxCacheTime = 0; // in milliseconds or seconds
 	// 32 #4
 	private volatile int useCount = 0;
 	// 36
@@ -79,9 +79,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	 */
 	public AccessTimeObjectHolder(V value, CacheWriteMode writeMode) throws CacheException
 	{
-		setLastAccessTime();
 		try
 		{
+//			long start = System.nanoTime();
 			switch (writeMode)
 			{
 				case Identity:
@@ -102,28 +102,42 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 				default:
 					throw new UnsupportedOperationException("CacheWriteMode not supported: " + writeMode);
 			}
+//			
+//			long duration = System.nanoTime() - start;
+//			if (duration > 1_000_000)
+//			{
+//				System.out.println("Slow serializing. value=" + value + ", ms=" + duration / 1_000_000d);
+//			}
 		}
 		catch (Exception exc)
 		{
 			throw new CacheException("Cannot serialize cache value for writeMode " + writeMode, exc);
 		}
 
-		setInputDate();
 	}
 
-	public AccessTimeObjectHolder(V value, long maxIdleTime, long maxCacheTime, CacheWriteMode writeMode) throws CacheException
+	public AccessTimeObjectHolder(V value, long maxIdleTimeMillis, long maxCacheTimeSecs, CacheWriteMode writeMode) throws CacheException
 	{
 		this(value, writeMode);
-		complete(maxIdleTime, maxCacheTime);
+		complete(maxIdleTimeMillis, maxCacheTimeSecs);
 	}
 	
-	void complete(long maxIdleTime, long maxCacheTime)
+	void complete(long maxIdleTimeMillis, long maxCacheTimeSecs)
 	{
-		this.maxIdleTime = limitToPositiveInt(maxIdleTime);
-		this.maxCacheTime = limitToPositiveInt(maxCacheTime);
+		this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(maxIdleTimeMillis);
+		this.maxCacheTime = SecondsOrMillis.fromMillisToInternal(maxCacheTimeSecs);
 		flags |= STATE_COMPLETE;
+		setInputDate();
+		setLastAccessTime();
 	}
-
+	
+	void complete(long maxCacheTimeSecs)
+	{
+		this.maxCacheTime = SecondsOrMillis.fromMillisToInternal(maxCacheTimeSecs);
+		flags |= STATE_COMPLETE;
+		setInputDate();
+		setLastAccessTime();
+	}
 
 	/**
 	 * Returns whether the holder is valid. It must be non-null and not expired.
@@ -157,52 +171,61 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		}
 	}
 	
-	public void setMaxIdleTime(int aMaxIdleTime)
+	public void setMaxIdleTime(int idleTime, TimeUnit timeUnit)
 	{
-		maxIdleTime = aMaxIdleTime;
+		maxIdleTime = SecondsOrMillis.fromMillisToInternal(timeUnit.toMillis(idleTime));
 	}
 	
-	void setMaxIdleTimeAsUpdateOrCreation(boolean updated, TCacheExpiryPolicy expiryPolicy, AccessTimeObjectHolder<V> oldHolder)
+	// TODO Change to void again. Even better: return the calculated maxIdleTime and let the caller call the regular #complete() method 
+	boolean setMaxIdleTimeAsUpdateOrCreation(boolean updated, TCacheExpiryPolicy expiryPolicy, AccessTimeObjectHolder<V> oldHolder)
 	{
-		int tmpIdleTime = updated ? expiryPolicy.getExpiryForUpdate() : expiryPolicy.getExpiryForCreation();
-		if (tmpIdleTime == Constants.EXPIRY_NOCHANGE)
+		long tmpIdleTimeMillis = updated ? expiryPolicy.getExpiryForUpdate() : expiryPolicy.getExpiryForCreation();
+		if (tmpIdleTimeMillis == Constants.EXPIRY_NOCHANGE)
 		{
 			this.maxIdleTime = oldHolder.maxIdleTime;
 		}
 		else
 		{
-			this.maxIdleTime = tmpIdleTime;
+			this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(tmpIdleTimeMillis);
+			if (maxIdleTime == 20)
+			{
+				return false; // true;
+			}
 		}
+		return false;
 	}
 
 
 	/**
 	 * Prolongs the maxIdleTime by the given idleTime. 0 means immediate expiration, -1 means to not change anything, any positive value is the prolongation in seconds.
-	 * @param idleTimeSecs The time for prolong in seconds. See description for the special values 0 and -1.
+	 * @param idleTimeMillis The time for prolong in milliseconds. See description for the special values 0 and -1.
 	 */
-	public void updateMaxIdleTime(int idleTimeSecs)
+	public void updateMaxIdleTime(long idleTimeMillis)
 	{
-		if (idleTimeSecs == 0)
+		if (idleTimeMillis == 0)
 		{
 			this.maxIdleTime = 0; // invalidate immediately
 		}
-		if (idleTimeSecs > 0)
+		if (idleTimeMillis > 0)
 		{
 			// Prolong time: 
 			// 1) Find out how long we currently live in the Cache
 			long cacheDurationMillis = currentTimeMillisEstimate() - getInputDate();
 			// 2) Prolong by idleTimeSecs.
-			int newMaxIdleTarget = (int)Math.min(  (cacheDurationMillis/1000) + idleTimeSecs, (long)Integer.MAX_VALUE);
-			this.maxIdleTime = newMaxIdleTarget;
+			this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(cacheDurationMillis + idleTimeMillis);
+//			int newMaxIdleTarget = (int)Math.min(  (cacheDurationMillis/1000) + idleTimeSecs, (long)Integer.MAX_VALUE);
+//			this.maxIdleTime = newMaxIdleTarget;
 		}
 		// -1 => No change
 	}
 
 
-
-	public int getMaxIdleTime()
+	/**
+	 * 
+	 */
+	public long getExpirationTime()
 	{
-		return maxIdleTime;
+		return SecondsOrMillis.fromInternalToMillis(maxIdleTime);
 	}
 
 	public V get()
@@ -283,65 +306,93 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	
 	public boolean isInvalid()
 	{
+		return isInvalid(false);
+	}
+	
+	public boolean isInvalid(boolean debug)
+	{	
+		if (data == null)
+		{
+			return true; // Dropped, e.g. via expiration
+		}
+
+		// -1- Check completeness
 		boolean incomplete = (flags & STATE_MASK) == STATE_INCOMPLETE;
 		if (incomplete)
+		{
+			if (debug) System.out.println("Dropped because incomplete: flags=" + flags + ": " + data);
 			return true;
+		}
 		
+		// -2- Check cache time
 		long millisNow = currentTimeMillisEstimate();
-		if (maxCacheTime > 0L)
+		long expDurationMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
+		if (expDurationMillis > 0L)
 		{
 			long cacheDurationMillis = millisNow - getInputDate();
 			// SRT-23661 maxCacheTime explicitly converted to long, to avoid overrun due to "1000*"
-			if (cacheDurationMillis > 1000L*(long)maxCacheTime) 
+			if (cacheDurationMillis > expDurationMillis) 
 			{
+				if (debug) System.out.println("Dropped because expired: millisNow=" + millisNow + ", maxCacheTime" + maxCacheTime + ", expDurationMillis" + expDurationMillis + "< cacheDurationMillis" + cacheDurationMillis);
 				return true;
 			}
 		}
 		
-		if (maxIdleTime == 0)
+		// -3- Check idle time
+		long idleDurationMillis = SecondsOrMillis.fromInternalToMillis(maxIdleTime);
+		if (idleDurationMillis == 0)
+		{
+			if (debug) System.out.println("Dropped because idle0: millisNow=" + millisNow + ", maxCacheTime" + maxCacheTime + ", expDurationMillis" + expDurationMillis + "< cacheDurationMillis" + idleDurationMillis);
 			return true;
+		}
 
-		long idleSince = millisNow - getLastAccess();
+		long lastAccess = getLastAccess();
+		long idleSince = millisNow - lastAccess;
 
 		// SRT-23661 maxIdleTime explicitly converted to long, to avoid overrun due to "1000*"
-		return (idleSince > 1000L*(long)maxIdleTime);
+		if (idleSince > idleDurationMillis)
+		{
+			if (debug) System.out.println("Dropped because idle: millisNow=" + millisNow + ", maxCacheTime" + maxCacheTime + ", idleDurationMillis" + idleDurationMillis + "< idleSince" + idleSince + ", lastAccess=" + lastAccess);
+			return true;
+		}
+		return false;
 	}
 
 
 	public void setExpireUntil(int maxDelay, TimeUnit timeUnit, Random random)
 	{
 		int maxDelaySecs = (int)timeUnit.toSeconds(maxDelay);
-		int delaySecs = random.nextInt(maxDelaySecs);
+		long delayMillis = 1000l * random.nextInt(maxDelaySecs);
 		
-		if (maxCacheTime == 0 || delaySecs < maxCacheTime)
+		long expDurationMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
+		if (expDurationMillis == 0 || delayMillis < expDurationMillis)
 		{
 			// holder.maxCacheTime was not set (never expires), or new value is smaller => use it 
-			maxCacheTime = limitToPositiveInt(delaySecs);
+			maxCacheTime = SecondsOrMillis.fromMillisToInternal(delayMillis);
 		}
 		// else: Keep delay, as holder will already expire sooner than delaySecs.
 	}
-	
+
+
 	/**
-	 * Limits the given long value to values between [0, Integer.MAX_VALUE].
-	 * Values < 0 will be adjusted to 0, and values > Integer.MAX_VALUE are adjusted to Integer.MAX_VALUE.
+	 * Limits the given long value to values between [0, Long.MAX_VALUE].
+	 * Values < 0 will be adjusted to 0,.
 	 * <p>
 	 * Implementation note: This method is not public. To do Unit tests, copy this method to CacheTest after changing it. 
 	 *
 	 * @param value The value to limit
 	 * @return The adjusted value
 	 */
-	static int limitToPositiveInt(long value)
+	static long limitToPositiveLong(long value)
 	{
-		if (value > (long)Integer.MAX_VALUE)
-		{
-			return Integer.MAX_VALUE;
-		}
-		else if  (value < 0)
-		{
-			return 0;
-		}
-		return (int)value;
+		return value < 0 ? 0 : value;
 	}
 
-
+	@Override
+	public String toString()
+	{
+		return "AccessTimeObjectHolder [dataPresent=" + (data != null) + ", inputDate=" + inputDate + ", lastAccess=" + lastAccess
+				+ ", maxIdleTime=" + maxIdleTime + ", maxCacheTime=" + maxCacheTime + ", useCount=" + useCount
+				+ ", flags=" + flags + "]";
+	}
 }

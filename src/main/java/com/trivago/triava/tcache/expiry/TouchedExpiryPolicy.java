@@ -33,51 +33,24 @@ public class TouchedExpiryPolicy implements TCacheExpiryPolicy
 		this.expiryPolicy = expiryPolicy;
 	}
 	
-	int convertToSecs(Duration expiryDuration, int defaultValue)
+	long convertToMillis(Duration expiryDuration, long defaultValue)
 	{
-		if (expiryDuration != null)
-		{
-			long adjustedTime = expiryDuration.getAdjustedTime(0);
-			if (adjustedTime > 0 && adjustedTime < 1000)
-			{
-				// We have a resolution of seconds. If an entry expires within the first second, round up so that it does not expire immediately.
-				// Expiration values of less than one second are rarely useful. But the JSR107 TCK has checks that make use of it.
-				return 1;
-			}
-			long roundedTime = Math.round(adjustedTime / 1000D);
-			return limitToPositiveInt(roundedTime);
-		}
-		else
-		{
-			return defaultValue;
-		}
-	}
-	
-	private static int limitToPositiveInt(long value)
-	{
-		if (value > (long)Integer.MAX_VALUE)
-		{
-			return Integer.MAX_VALUE;
-		}
-		else if  (value < 0)
-		{
-			return 0;
-		}
-		return (int)value;
+		return expiryDuration != null ? expiryDuration.getAdjustedTime(0) : defaultValue;
 	}
 
-	public int getExpiryForCreation()
+
+	public long getExpiryForCreation()
 	{
-		return convertToSecs(expiryPolicy.getExpiryForCreation(), Constants.EXPIRY_ZERO);
+		return convertToMillis(expiryPolicy.getExpiryForCreation(), Constants.EXPIRY_ZERO);
 	}
 
-	public int getExpiryForAccess()
+	public long getExpiryForAccess()
 	{
-		return convertToSecs(expiryPolicy.getExpiryForAccess(), Constants.EXPIRY_NOCHANGE);
+		return convertToMillis(expiryPolicy.getExpiryForAccess(), Constants.EXPIRY_NOCHANGE);
 	}
 
-	public int getExpiryForUpdate()
+	public long getExpiryForUpdate()
 	{
-		return convertToSecs(expiryPolicy.getExpiryForUpdate(), Constants.EXPIRY_NOCHANGE);
+		return convertToMillis(expiryPolicy.getExpiryForUpdate(), Constants.EXPIRY_NOCHANGE);
 	}
 }

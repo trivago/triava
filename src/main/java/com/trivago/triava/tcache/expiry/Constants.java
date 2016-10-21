@@ -18,8 +18,7 @@ package com.trivago.triava.tcache.expiry;
 
 public class Constants
 {
-	public final static int EXPIRY_ZERO = 0;
-	public final static int EXPIRY_NOCHANGE = -1; // TODO make these constants only available to tcache (package private) 
-//	public final static int EXPIRY_CREATE_OR_UPDATE = -2;
-	public final static int EXPIRY_MAX = Integer.MAX_VALUE;
+	public final static long EXPIRY_ZERO = 0;
+	public final static long EXPIRY_NOCHANGE = -1; // TODO make these constants only available to tcache (package private) 
+	public final static long EXPIRY_MAX = Long.MAX_VALUE;
 }

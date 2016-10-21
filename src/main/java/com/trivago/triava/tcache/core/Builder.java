@@ -63,10 +63,9 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 
 	static final AtomicInteger anonymousCacheId = new AtomicInteger();
 
-	static long MAX_IDLE_TIME = 1800; // DEFAULT: 30 minutes
 	private String id;
 	private boolean strictJSR107 = true;
-	private long maxCacheTime = 3600; // 60 minutes
+	private long maxCacheTime = 3600_000; // 60 minutes, in millis
 	private int maxCacheTimeSpread = 0; // 0 seconds
 	private int expectedMapSize = 10000;
 	private int concurrencyLevel = 14;
@@ -127,6 +126,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	{
 		this.factory = factory;
 		this.writeMode = CacheWriteMode.Serialize; // JSR107 mandates to copy by default
+		this.maxCacheTime = Long.MAX_VALUE; // JSR107 operates on ExpiryPolicy only
 		copyBuilder(configuration, this);
 	}
 

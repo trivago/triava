@@ -152,7 +152,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	final CacheWriter<K, V> cacheWriter;
 	
 	final KeyValueUtil<K,V> kvUtil;
-
 	/**
 	 * constructor with default cache time and expected map size.
 	 * @param maxIdleTime Maximum idle time in seconds
@@ -166,7 +165,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		.setExpectedMapSize(expectedMapSize) );
 	}
 
-
 	/**
 	 * Construct a Cache, using the given configuration from the Builder.
 	 * @param builder The builder containing the configuration
@@ -178,12 +176,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		this.kvUtil = new KeyValueUtil<K,V>(id);
 		this.builder = builder;
 		tCacheJSR107 = new TCacheJSR107<K, V>(this);
-		
-		
+
 		// Expiration
 		this.maxCacheTime = builder.getMaxCacheTime();
 		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
-		
+
 		long expiryIdleMillis = 0;
 		ExpiryPolicy epFromFactory = builder.getExpiryPolicyFactory().create();
 		if (strictJSR107)
@@ -191,68 +188,66 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.expiryPolicy = new TouchedExpiryPolicy(epFromFactory);
 			// TODO Find a suitable way to calculate expiryIdleMillis for strict JSR107 mode.
 			//  Issue:The JSR107 TCK disallows free use of expiryPolicy methods. When using it here, the TCK will record failures,
-			//       because it requires that methods are ONLY called at very specific times. 
+			// because it requires that methods are ONLY called at very specific times.
 		}
 		else
 		{
 			this.expiryPolicy = new UntouchedExpiryPolicy(epFromFactory);
-			
+
 			Duration expiryDuration = epFromFactory.getExpiryForAccess();
 			if (expiryDuration == null)
 				expiryDuration = epFromFactory.getExpiryForCreation();
 			expiryIdleMillis = expiryDuration.getAdjustedTime(0);
 		}
-		
+
 		// Cleaner should run often enough, but not too often. The chosen time is expiryIdleMillis / 10, but limited to 5min.
 		if (expiryIdleMillis <= 0)
 		{
 			expiryIdleMillis = 60_000;
-		}		
-		this.cleanUpIntervalMillis = Math.min(5*60_000, expiryIdleMillis / 10);
-		
-		
+		}
+		this.cleanUpIntervalMillis = Math.min(5 * 60_000, expiryIdleMillis / 10);
+
 		this.jamPolicy = builder.getJamPolicy();
-		// CacheLoader directly or via CacheLoaderFactory 
+		// CacheLoader directly or via CacheLoaderFactory
 		Factory<javax.cache.integration.CacheLoader<K, V>> lf = builder.getCacheLoaderFactory();
 		if (lf != null)
 		{
-			this.loader  = lf.create();
+			this.loader = lf.create();
 		}
 		else
 		{
-			this.loader  = builder.getLoader();
+			this.loader = builder.getLoader();
 		}
 		if (this.loader == null && builder.isReadThrough())
 		{
 			throw new IllegalArgumentException("Builder has isReadThrough, but has no loader for cache: " + id);
 		}
-		
+
 		Factory<CacheWriter<? super K, ? super V>> cwFactory = builder.getCacheWriterFactory();
 		if (cwFactory == null)
 		{
-			this.cacheWriter = new NopCacheWriter<K,V>();
+			this.cacheWriter = new NopCacheWriter<K, V>();
 		}
 		else
 		{
 			CacheWriter<? super K, ? super V> cw = cwFactory.create();
-			CacheWriterWrapper<K, V> cwWrapper = new CacheWriterWrapper<K,V>(cw, false);
+			CacheWriterWrapper<K, V> cwWrapper = new CacheWriterWrapper<K, V>(cw, false);
 			this.cacheWriter = cwWrapper;
 		}
 
 		objects = createBackingMap(builder);
-		
+
 		enableStatistics(builder.getStatistics());
 		enableManagement(builder.isManagementEnabled());
-		
-	    activateTimeSource();
-	    
-	    listeners = new ListenerCollection<>(this, builder);
 
-	    tCacheJSR107.refreshActionRunners();
-	    // TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
+		activateTimeSource();
+
+		listeners = new ListenerCollection<>(this, builder);
+
+		tCacheJSR107.refreshActionRunners();
+		// TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
 	}
-
 
 	@SuppressWarnings("unchecked") // Avoid warning for the "generics cast" in the last line
 	private ConcurrentMap<K, AccessTimeObjectHolder<V>> createBackingMap(Builder<K, V> builder)
@@ -264,14 +259,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		CacheWriteMode cacheWriteMode = builder.getCacheWriteMode();
 		if (cacheWriteMode.isStoreByValue())
 		{
-			ConcurrentMap<ByteArray, AccessTimeObjectHolder<V>> castedMap = (ConcurrentMap<ByteArray, AccessTimeObjectHolder<V>>)map;
+			ConcurrentMap<ByteArray, AccessTimeObjectHolder<V>> castedMap = (ConcurrentMap<ByteArray, AccessTimeObjectHolder<V>>) map;
 			return new ConcurrentKeyDeserMap<K, AccessTimeObjectHolder<V>>(castedMap, cacheWriteMode);
 
 		}
 		else
 		{
-			ConcurrentMap<K, AccessTimeObjectHolder<V>> castedMap = (ConcurrentMap<K,AccessTimeObjectHolder<V>>)map;
-			return castedMap;			
+			ConcurrentMap<K, AccessTimeObjectHolder<V>> castedMap = (ConcurrentMap<K, AccessTimeObjectHolder<V>>) map;
+			return castedMap;
 		}
 
 	}
@@ -287,9 +282,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		return 0;
 	}
-	
-	
-	
 
 	public String id()
 	{
@@ -301,7 +293,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		return builder;
 	}
-
 
 	/**
 	 * Can be overridden by implementations, if they require a custom clean up.
@@ -323,12 +314,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 	}
 
-
 	public boolean isClosed()
 	{
 		return shuttingDown;
 	}
-	
+
 	final static long MAX_SHUTDOWN_WAIT_MILLIS = 100; // 100 ms
 
 	/**
@@ -373,7 +363,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			long remainingMillis = waitUntil - System.currentTimeMillis();
 			
-			boolean timeout = remainingMillis < 0 || (remainingMillis==0 && nanos == 0);
+			boolean timeout = remainingMillis < 0 || (remainingMillis == 0 && nanos == 0);
 //			logger.info("joinSimple() checks rtm=" + remainingMillis + ", timeout=" + timeout + " : thread=" + thread);
 			if (timeout)
 			{
@@ -382,7 +372,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			try
 			{
 				thread.join(remainingMillis, nanos);
-//				logger.info("thread.join() returned: thread=" + thread);
 				break; // if we reach this line, the join was successful
 			}
 			catch (InterruptedException e)
@@ -397,7 +386,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		}
 
 		boolean stopped = ! thread.isAlive();
-//		logger.info("joinSimple() finds stopped=" + stopped + ": thread=" + thread);
 		return stopped;
 	}
 
@@ -434,7 +422,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * 
 	 * @return Maximum Cache time in seconds
 	 */
-	public long getMaxCacheTime() {
+	public long getMaxCacheTime()
+	{
 		return this.maxCacheTime;
 	}
 
@@ -449,23 +438,23 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	Random randomCacheTime = new Random(System.currentTimeMillis());
-	
+
 	/**
-	 * Returns a pseudorandom, uniformly distributed cache time in seconds between {@link #maxCacheTime} and {@link #maxCacheTime} + {@link #maxCacheTimeSpread} -1.
+	 * Returns a pseudorandom, uniformly distributed cache time in milliseconds between {@link #maxCacheTime} and
+	 * {@link #maxCacheTime} + {@link #maxCacheTimeSpread} -1.
 	 * 
 	 * @return The cache time
 	 */
-	int cacheTimeSpread()
+	long cacheTimeSpread()
 	{
 		final long spread;
 		if (maxCacheTimeSpread == 0)
 			spread = maxCacheTime;
 		else
-			spread = maxCacheTime + randomCacheTime.nextInt(maxCacheTimeSpread);
-		
-		return AccessTimeObjectHolder.limitToPositiveInt(spread);
-	}
+			spread = maxCacheTime + 1000*randomCacheTime.nextInt(maxCacheTimeSpread);
 
+		return spread;
+	}
 
 	/**
 	 * Add an object to the cache under the given key with the given idle and cache times.
@@ -478,9 +467,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		if (maxIdleTime > Integer.MAX_VALUE || maxCacheTime > Integer.MAX_VALUE)
 		{
-			throw new IllegalArgumentException("maxIdleTime and maxCacheTime must be in Integer range: " + maxIdleTime + "," + maxCacheTime);
+			throw new IllegalArgumentException(
+					"maxIdleTime and maxCacheTime must be in Integer range: " + maxIdleTime + "," + maxCacheTime);
 		}
-		putToMap(key, value, maxIdleTime, maxCacheTime, false, false);
+		putToMap(key, value, 1000*maxIdleTime, 1000*maxCacheTime, false, false);
 	}
 
 	/**
@@ -498,10 +488,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 */
 	public V putIfAbsent(K key, V value, int maxIdleTime, int maxCacheTime)
 	{
-		AccessTimeObjectHolder<V> holder = putToMap(key, value, maxIdleTime, maxCacheTime, true, false);
+		AccessTimeObjectHolder<V> holder = putToMap(key, value, 1000*maxIdleTime, 1000*maxCacheTime, true, false);
 		return gatedPeek(holder);
 	}
-	
+
 	/**
 	 * The same like {@link #putIfAbsent(Object, Object, int, int)}, but uses
 	 * the default idle and cache times. The cache time will use the cache time spread if this cache
@@ -552,15 +542,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * 
 	 * @param key The key
 	 * @param data The value
-	 * @param idleTime in seconds
-	 * @param cacheTime  Max Cache time in seconds
+	 * @param idleTime in milliseconds
+	 * @param cacheTime  Max Cache time in milliseconds
 	 * @param putIfAbsent Defines the behavior when the key is already present. See method documentation. 
 	 * @param returnEffectiveHolder If true, the holder object of the object in the Map is returned. If returnEffectiveHolder is false, the returned value is like described in {@link java.util.Map#put(Object, Object)}.
 	 * @return The holder reference, as described in the returnEffectiveHolder parameter
 	 */
-	protected AccessTimeObjectHolder<V> putToMap(K key, V data, int idleTime, long cacheTime, boolean putIfAbsent, boolean returnEffectiveHolder)
+	protected AccessTimeObjectHolder<V> putToMap(K key, V data, long idleTime, long cacheTime, boolean putIfAbsent,
+			boolean returnEffectiveHolder)
 	{
-		Holders<V> holders = putToMapI(key, data, cacheTime, putIfAbsent);
+		Holders<V> holders = putToMapI(key, data, 1000*cacheTime, putIfAbsent);
 		if (holders == null)
 			return null;
 		if (holders.effectiveHolder != null)
@@ -568,15 +559,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		AccessTimeObjectHolder<V> holderToReturn = returnEffectiveHolder ? holders.effectiveHolder : holders.oldHolder;
 		return gatedHolder(holderToReturn);
 	}
-	
+
 	protected AccessTimeObjectHolder<V> gatedHolder(AccessTimeObjectHolder<V> holder)
 	{
 		if (holder == null)
 			return null;
-		
+
 		return holder.isInvalid() ? null : holder;
 	}
-
 
 	Holders<V> putToMapI(K key, V data, long cacheTime, boolean putIfAbsent)
 	{
@@ -606,17 +596,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 
 		if (cacheTime <= 0) // Future directions: Probably change this, to say: 0 or lower is already expired
 			cacheTime = this.maxCacheTime;
-		
-//		if (idleTime <= 0 && cacheTime <= 0) 
-//		{
+
+		// if (idleTime <= 0 && cacheTime <= 0)
+		// {
 //			logger.error("Adding object to Cache with infinite lifetime: " + key.toString() + " : " + data.toString());
-//		}
-		
+		// }
+
 		AccessTimeObjectHolder<V> holder; // holder returned by objects.put*().
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		AccessTimeObjectHolder<V> effectiveHolder; // holder that is effectively in the Cache
-		
+
 		boolean hasPut = false;
+
+		boolean debugTCKtest = false;
+		long startNanos = System.nanoTime();
 		
 		if (putIfAbsent)
 		{
@@ -629,7 +622,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				this.objects.put(key, newHolder);
 				holder = null;
 			}
-			
+
 			/*
 			 *	A putIfAbsent() is also treated as a GET operation, so update cache statistics. 
 			 *	See putIfAbsent() docs above for a more  detailed explanation.
@@ -664,26 +657,56 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		else
 		{
 			// Add entry initially with unlimited expiration, then update the idle from the existing holder
-			newHolder = new AccessTimeObjectHolder<>(data, Constants.EXPIRY_MAX, cacheTime, builder.getCacheWriteMode());
+			newHolder = new AccessTimeObjectHolder<>(data, builder.getCacheWriteMode());
+			if (debugTCKtest) debugTimeIssue("AccessTimeObjectHolder() done", newHolder, startNanos);
 			holder = gatedHolder(this.objects.put(key, newHolder));
-			newHolder.setMaxIdleTimeAsUpdateOrCreation(holder != null, expiryPolicy, holder);
+			debugTCKtest = newHolder.setMaxIdleTimeAsUpdateOrCreation(holder != null, expiryPolicy, holder);
+			if (debugTCKtest) debugTimeIssue("setMaxIdleTimeAsUpdateOrCreation()1 done", newHolder, startNanos);
 			effectiveHolder = newHolder;
 			hasPut = true;
+			// We have to complete the entry as late as possible, to make sure it cannot be found in the Cache before it is complete.
+			// Additionally, inputDate and lastAccessTime must be as accurate as possible. There was an issue before, as the TCK
+			// tests used an ExpiryPolicy-Server that took 20-60 ms to process the ExpiryPolicy. AT that point of time Elements with 20ms epxiration
+			// were already expired. The TCK is correct. Test in the TCK is org.jsr107.tck.expiry.CacheExpiryTest.testCacheStatisticsRemoveAll()
+			newHolder.complete(cacheTime); // TODO change it to use the two-arg complete() and remove the 1-arg complete() 
+			if (debugTCKtest) debugTimeIssue("setMaxIdleTimeAsUpdateOrCreation()2 done", newHolder, startNanos);
 		}
-		
-		if (!effectiveHolder.isInvalid())
+
+		if (debugTCKtest)
 		{
+			boolean invalid = effectiveHolder.isInvalid(true);
+			if (invalid)
+				System.out.println("triava TCK-Debug: key=" + key + ", hasPut=" + hasPut + ", invalid-debug=" + invalid + ", expTime=" + newHolder.getExpirationTime() + "effectiveHolder=" + effectiveHolder);
+		}
+		if (debugTCKtest) debugTimeIssue("STEP 4", newHolder, startNanos);
+		AccessTimeObjectHolder<V> gatedEffectiveHolder = gatedHolder(effectiveHolder);
+		if (debugTCKtest) debugTimeIssue("STEP 5", newHolder, startNanos);
+		if (gatedEffectiveHolder != null)
+		{
+			if (debugTCKtest) debugTimeIssue("STEP 5b", newHolder, startNanos);
 			if (hasPut)
 				statisticsCalculator.incrementPutCount();
 		}
-		
+
 		ensureCleanerIsRunning();
-		return new Holders<V>(gatedHolder(newHolder), gatedHolder(holder), gatedHolder(effectiveHolder));
+//		if (debugTCKtest)
+//		{
+//			String invString = newHolder.isInvalid() ? "  !!!INVALID!!!" : "";
+//			System.out.println("triava TCK-Debug: key=" + key + ", hasPut=" + hasPut + ", effectiveHolder=" + gatedEffectiveHolder + ", expTime=" + newHolder.getExpirationTime() + invString);
+//		}
+		return new Holders<V>(gatedHolder(newHolder), gatedHolder(holder), gatedEffectiveHolder);
+	}
+
+	private void debugTimeIssue(String ctx, AccessTimeObjectHolder<V> newHolder, long startNanos)
+	{
+		float ms = (System.nanoTime()- startNanos)/1_000_000f;
+		if (ms > 15)
+			System.out.println("ctx: " + ctx + ": " +  ms  +"ms inputDate=" + newHolder.getInputDate() + "lastAccess=" + newHolder.getLastAccess() + ", expTime=" + newHolder.getExpirationTime());
 	}
 
 	/**
 	 * Replace the entry stored by key with the given value.
-	 *   
+	 * 
 	 * @see javax.cache.Cache#getAndReplace(Object, Object)
 	 * 
 	 * @param key The key
@@ -693,7 +716,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	public V getAndReplace(K key, V value)
 	{
 		kvUtil.verifyKeyAndValueNotNull(key, value);
-		
+
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		newHolder = new AccessTimeObjectHolder<V>(value, Constants.EXPIRY_MAX, cacheTimeSpread(), builder.getCacheWriteMode());
 		AccessTimeObjectHolder<V> oldHolder = gatedHolder(this.objects.replace(key, newHolder));
@@ -714,7 +737,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			return null;
 		}
 	}
-	
+
 	public ChangeStatus replace(K key, V oldValue, V newValue)
 	{
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
@@ -768,14 +791,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	/**
 	 * Checks whether the cleaner is running. If not, the cleaner gets started.
 	 */
-	private void ensureCleanerIsRunning() 
+	private void ensureCleanerIsRunning()
 	{
-		if(cleaner == null)
+		if (cleaner == null)
 		{
 			startCleaner();
 		}
 	}
-	
+
 	/**
 	 * Gets cached object for the given key, or null if this Cache contains no mapping for the key.
 	 * A return value of null does not necessarily indicate that the map contains no mapping
@@ -794,12 +817,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		AccessTimeObjectHolder<V> holder = getFromMap(key);
 		return holder == null ? null : holder.get();
 	}
-	
+
 	AccessTimeObjectHolder<V> getFromMap(K key) throws RuntimeException
 	{
 		return getFromMap(key, true);
 	}
-	
+
 	AccessTimeObjectHolder<V> getFromMap(K key, boolean touch) throws RuntimeException
 	{
 		throwISEwhenClosed();
@@ -813,7 +836,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			holder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
 		}
-		
+
 		if (!holderWasValidBeforeApplyingExpiryPolicy && builder.isReadThrough())
 		{
 			// Data not present, but can be loaded
@@ -835,22 +858,22 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			catch (Exception exc)
 			{
 				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.  
-				
+
 				// TODO Check back after clarifying whether this requirement is a TCK bug:
 				// https://github.com/jsr107/jsr107tck/issues/99
-				
+
 				String message = "CacheLoader " + id + " failed to load key=" + key;
 				throw new CacheLoaderException(message + " This is a wrapped exception. See https://github.com/jsr107/jsr107tck/issues/99", exc);
 			}
 
 		}
-		
+
 		if (holder == null)
 		{
 			// debugLogger.debug("1lCache GET key:"+pKey.hashCode()+"; CACHE:null");
 			if (loaded)
 			{
-				// already counted  at ##LOADED_MISS_COUNT## => do nothing
+				// already counted at ##LOADED_MISS_COUNT## => do nothing
 			}
 			else
 			{
@@ -873,8 +896,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		statisticsCalculator.incrementHitCount();
 		return holder;
 	}
-
-
 
 	/**
 	 * Fills the given cache statistics object.
@@ -901,15 +922,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return stats;
 	}
 
-	
 	final Object hitRateLock = new Object();
-	final static long CACHE_HITRATE_MAX_VALIDITY_MILLIS = 1*60*1000; // 1 Minute
+	final static long CACHE_HITRATE_MAX_VALIDITY_MILLIS = 1 * 60 * 1000; // 1 Minute
 
 	private long cacheHitRatePreviousTimeMillis = System.currentTimeMillis();
 	private boolean managementEnabled = false;
-//	@ObjectSizeCalculatorIgnore
-	static TimeSource millisEstimator = null; 
-	final static Object millisEstimatorLock = new Object(); 
+	// @ObjectSizeCalculatorIgnore
+	static TimeSource millisEstimator = null;
+	final static Object millisEstimatorLock = new Object();
 
 	/**
 	 * Returns the Cache hit rate. The returned value is the average of the last n measurements (2012-10-16: n=5).
@@ -925,21 +945,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		// -1- Calculate difference between previous values and current values
 		long now = System.currentTimeMillis(); // -<- Keep currentTimeMillis() out of synchronized block
-		synchronized(hitRateLock)
+		synchronized (hitRateLock)
 		{
 			// Synchronizing here, to consistently copy both "Current" values to "Previous"
 			// It is not synchronized with the incrementAndGet() in the rest of the code,
-			// as it is not necessary (remember that those are atomical increments!). 
+			// as it is not necessary (remember that those are atomical increments!).
 
-			if (now > cacheHitRatePreviousTimeMillis + CACHE_HITRATE_MAX_VALIDITY_MILLIS )
+			if (now > cacheHitRatePreviousTimeMillis + CACHE_HITRATE_MAX_VALIDITY_MILLIS)
 			{
 				cacheHitRatePreviousTimeMillis = now;
 				// Long enough time has passed => calculate new sample
 				HitAndMissDifference stats = statisticsCalculator.tick();
-				
+
 				// -3- Add the new value to the floating array hitrateLastMeasurements
 				long cacheGets = stats.getHits() + stats.getMisses();
-				float hitRate = cacheGets == 0 ? 0f :  (float)stats.getHits() / (float)cacheGets * 100f;
+				float hitRate = cacheGets == 0 ? 0f : (float) stats.getHits() / (float) cacheGets * 100f;
 				hitrateLastMeasurements[hitrateLastMeasurementsCurrentIndex] = hitRate;
 				hitrateLastMeasurementsCurrentIndex =
 						(hitrateLastMeasurementsCurrentIndex + 1) % hitrateLastMeasurements.length;
@@ -953,14 +973,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		// Hint: There is no need to synchronize on hitrateLastMeasurements, as we always read consistent state.
 		float averageHitrate = 0;
-		for (int i=0; i<hitrateLastMeasurements.length; ++i)
+		for (int i = 0; i < hitrateLastMeasurements.length; ++i)
 		{
 			averageHitrate += hitrateLastMeasurements[i];
 		}
 		averageHitrate /= hitrateLastMeasurements.length;
 		return averageHitrate;
 	}
-	
+
 	/**
 	 * Removes all entries from the Cache without notifying Listeners
 	 */
@@ -968,32 +988,31 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		stopAndClear(0);
 	}
-	
+
 	protected String stopAndClear(long millis)
 	{
 		String errorMsg = stopCleaner(millis);
 		this.objects.clear();
 		return errorMsg;
 	}
-	
-	private synchronized void  startCleaner()
+
+	private synchronized void startCleaner()
 	{
-		if(this.cleaner != null)
+		if (this.cleaner != null)
 		{
 			return;
 		}
-		
-		this.cleaner = new CleanupThread("CacheCleanupThread-" + id);
-	    this.cleaner.setPriority(Thread.MAX_PRIORITY);
-	    this.cleaner.setDaemon(true);
-	    this.cleaner.setUncaughtExceptionHandler(this);
-	    this.cleaner.start();
-	    
-	    // Don't call expiryPolicy methods in JSR107 mode. The JSR107 TCK gets confused about it, and considers it as a test failure.
-	    String durationMsg = strictJSR107 ? "" :  ", timeout: " + expiryPolicy.getExpiryForAccess(); 
-	    logger.info(this.id + " Cache started" + durationMsg);
-	}
 
+		this.cleaner = new CleanupThread("CacheCleanupThread-" + id);
+		this.cleaner.setPriority(Thread.MAX_PRIORITY);
+		this.cleaner.setDaemon(true);
+		this.cleaner.setUncaughtExceptionHandler(this);
+		this.cleaner.start();
+
+	    // Don't call expiryPolicy methods in JSR107 mode. The JSR107 TCK gets confused about it, and considers it as a test failure.
+		String durationMsg = strictJSR107 ? "" : ", timeout: " + expiryPolicy.getExpiryForAccess();
+		logger.info(this.id + " Cache started" + durationMsg);
+	}
 
 	/**
 	 * Returns the TimeSource for this Cache. The TimeSource is used for any situation where the current time is required, for
@@ -1006,51 +1025,50 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	protected TimeSource activateTimeSource()
 	{
 		synchronized (millisEstimatorLock)
-		{			
-		    if (millisEstimator == null)
-		    {
-		    	millisEstimator  = new EstimatorTimeSource(new SystemTimeSource(), 10, logger);
-		    }
+		{
+			if (millisEstimator == null)
+			{
+				millisEstimator = new EstimatorTimeSource(new SystemTimeSource(), 10, logger);
+			}
 		}
-		
+
 		return millisEstimator;
 	}
-	
+
 	private void stopCleaner()
 	{
 		stopCleaner(0);
 	}
-	
+
 	private synchronized String stopCleaner(long millis)
 	{
 		String errorMsg = null;
 		Cache<K, V>.CleanupThread cleanerRef = cleaner;
-		if ( cleanerRef != null )
+		if (cleanerRef != null)
 		{
 			cleanerRef.cancel();
 			if (millis > 0)
 			{
-				if (! joinSimple(cleanerRef, millis, 0) )
+				if (!joinSimple(cleanerRef, millis, 0))
 				{
 					errorMsg = "Shutting down Cleaner Thread FAILED";
 				}
 			}
 		}
-		
+
 		cleaner = null;
 
 		return errorMsg;
 	}
-	
-	
+
 	/**
 	 * This is called, should the CleanupThread should go down on an unexpected (uncaught) Exception.
 	 */
 	@Override
-	public void uncaughtException(Thread thread, Throwable throwable) 
+	public void uncaughtException(Thread thread, Throwable throwable)
 	{
-		logger.error("CleanupThread Thread " + thread + " died because uncatched Exception",  throwable );
-	   
+		logger.error("CleanupThread Thread " + thread + " died because uncatched Exception", throwable);
+
 		// We must make sure that the cleaner will be recreated on the next put(), thus "cleaner" is set to null.
 		cleaner = null;
 	}
@@ -1058,47 +1076,45 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private void cleanUp()
 	{
 		boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
-		Map<K,V> evictedElements = expiryNotification ? new HashMap<K,V>() : null;
-		
+		Map<K, V> evictedElements = expiryNotification ? new HashMap<K, V>() : null;
+
 		// -1- Clean
 		int removedEntries = 0;
 
-	    for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = this.objects.entrySet().iterator(); iter.hasNext(); )
-	    {
-	    	Entry<K,AccessTimeObjectHolder<V>> entry = iter.next();
-	    	AccessTimeObjectHolder<V> holder = entry.getValue();
-	    	
-	    	if (holder.isInvalid())
-	    	{
-	    		iter.remove();
-	    		V value = holder.peek();
-	    		boolean removed = holder.release();
+		for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = this.objects.entrySet().iterator(); iter.hasNext();)
+		{
+			Entry<K, AccessTimeObjectHolder<V>> entry = iter.next();
+			AccessTimeObjectHolder<V> holder = entry.getValue();
+
+			if (holder.isInvalid())
+			{
+				iter.remove();
+				V value = holder.peek();
+				boolean removed = holder.release();
 				if (removed) // SAE-150 Verify removal
 				{
 					++removedEntries;
 					if (evictedElements != null)
 						evictedElements.put(entry.getKey(), value);
 				}
-	    	}
-	    }
-	    
-	    // -2- Notify listeners
+			}
+		}
+
+		// -2- Notify listeners
 		if (evictedElements != null)
 			listeners.dispatchEvents(evictedElements, EventType.EXPIRED, true);
 
-
 		// -3- Stop Thread if cache is empty
-	    if(objects.isEmpty())
-	    {
-	    	stopCleaner();
-	    }
-	    
-	    if (removedEntries != 0)
-	    {
-	    	logger.info(this.id + " Cache has expired objects from Cache, count=" + removedEntries);
-	    }
-	}
+		if (objects.isEmpty())
+		{
+			stopCleaner();
+		}
 
+		if (removedEntries != 0)
+		{
+			logger.info(this.id + " Cache has expired objects from Cache, count=" + removedEntries);
+		}
+	}
 
 	/**
 	 * @return count of cached objects
@@ -1107,18 +1123,18 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		return this.objects.size();
 	}
-	
+
 	/**
 	 * Removes the object with given key, if stored in the Cache. Returns whether it was actually removed.
 	 * 
 	 * @param key The key
 	 * @param value The value
-	 * @return The value that was stored for the given key or null 
+	 * @return The value that was stored for the given key or null
 	 */
 	public boolean remove(K key, V value)
 	{
 		kvUtil.verifyKeyAndValueNotNull(key, value);
-		
+
 		AccessTimeObjectHolder<V> holder = objects.get(key);
 		if (holder == null)
 			return false;
@@ -1136,21 +1152,23 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * Removes the object with given key, and return the value that was stored for it.
+	 * Removes the object with given key, and returns the value that was stored for it.
 	 * Returns null if there was no value for the key stored.
 	 * 
 	 * @param key The key
-	 * @return The value that was stored for the given key or null 
+	 * @return The value that was stored for the given key or null
 	 */
 	public V remove(K key)
 	{
 		kvUtil.verifyKeyNotNull(key);
 
-		AccessTimeObjectHolder<V> holder = this.objects.remove(key);
-		AccessTimeObjectHolder<V> gh = gatedHolder(holder);
+		AccessTimeObjectHolder<V> oldHolder = this.objects.remove(key);
+		AccessTimeObjectHolder<V> gh = gatedHolder(oldHolder);
 		boolean validBeforeInvalidate = gh != null;
-		V releasedValue = releaseHolder(holder);
-		return validBeforeInvalidate ? releasedValue : null; // TODO Returning ALWAYS releasedValue should be good
+		V releasedValue = releaseHolder(oldHolder);
+//		if (validBeforeInvalidate)
+//			System.out.println("oldHolder=" + oldHolder + ", validBeforeInvalidate=" + validBeforeInvalidate + ", releasedValue=" + releasedValue);
+		return validBeforeInvalidate ? releasedValue : null;
 	}
 
 	/**
@@ -1161,7 +1179,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * This method is especially useful if many objects are to be expired, and fetching data is an expensive operation.
 	 * As each call to this method will chose a different expiration time, expiration and thus possible re-fetching
 	 * will spread over a longer time, and helps to avoid resource overload (like DB, REST Service, ...).
-	 *     
+	 * 
 	 * @param key The key for the object to expire
 	 * @param maxDelay The maximum delay time until the object will be expired
 	 * @param timeUnit The time unit for maxDelay
@@ -1173,11 +1191,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			return;
 		}
-		
+
 		holder.setExpireUntil(maxDelay, timeUnit, random);
 	}
 
-	
 	/**
 	 * Frees the data in the holder, and returns the value stored by the holder.
 	 * This method must be called by anyone who makes a holder inaccessible, e.g. if on expiration
@@ -1189,16 +1206,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	// TODO change access to package
 	public V releaseHolder(AccessTimeObjectHolder<V> holder)
 	{
-		if(holder == null)
+		if (holder == null)
 		{
 			return null;
 		}
-		
+
 		V oldData = holder.peek();
 
 		// Return the old data value, if we manage to release() the holder. We usually are able to
 		// release, except if another thread is calling release() in parallel and has won the race.
-		boolean released =  holder.release();
+		boolean released = holder.release();
 		if (released)
 		{
 			// SAE-150 Return oldData, if it the current call released it. This is the regular case.
@@ -1208,23 +1225,24 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			// SAE-150 Some other Thread has also called holder.release() concurrently and won the race.
 			// => The holder was already invalid. Return null, as there can be only one Thread actually
-			//    releasing the holder. Hint: This can happen with any 2 or more Threads, but the most likely
-			//    Threads that do a race are the Eviction Thread and the Expiration Thread.
+			// releasing the holder. Hint: This can happen with any 2 or more Threads, but the most likely
+			// Threads that do a race are the Eviction Thread and the Expiration Thread.
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Retrieve reference to AccessTimeHolder&lt;V&gt; objects as an unmodifiable Collection.
 	 * You can use this when you want to serialize the complete Cache. 
 	 *
+	 * @deprecated Migrate to JSR107 Cache iterator 
 	 * @return Collection of all AccessTimeHolder&lt;V&gt; Objects. The collection is unmodifiable.
 	 */
-	public Collection<AccessTimeObjectHolder<V>> getAccessTimeHolderObjects()
+	private Collection<AccessTimeObjectHolder<V>> getAccessTimeHolderObjects()
 	{
 		return Collections.unmodifiableCollection(objects.values());
 	}
-	
+
 	/**
 	 * Returns a thread-safe unmodifiable collection of the keys.
 	 * 
@@ -1235,7 +1253,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		// The backing map is a ConcurrentMap, so there should not be any ConcurrentModificationException.
 		return Collections.unmodifiableCollection(objects.keySet());
 	}
-
 
 	/**
 	 * Returns true if this Cache contains a mapping for the specified key.
@@ -1249,7 +1266,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		kvUtil.verifyKeyNotNull(key);
 		// We cannot rely on objects.containsKey(), as the entry may be expired.
-		 return gatedHolder(objects.get(key)) != null;
+		return gatedHolder(objects.get(key)) != null;
 	}
 
 	/**
@@ -1261,10 +1278,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	V peek(K key)
 	{
 		kvUtil.verifyKeyNotNull(key);
-		 AccessTimeObjectHolder<V> holder = gatedHolder(objects.get(key));
-		 return holder == null ? null : holder.peek();
+		AccessTimeObjectHolder<V> holder = gatedHolder(objects.get(key));
+		return holder == null ? null : holder.peek();
 	}
-	
+
 	/**
 	 * Returns the value if this Cache contains a mapping for the specified key.
 	 * Does not have any side effects like statistics or changing metadata like access time.
@@ -1287,12 +1304,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		Cache.logger = logger;
 	}
-	
+
 	/**
 	 * Measures the number of elements and the size of this Cache in bytes and logs it.
 	 * The number of elements is logged twice. Once before and once after the size measurement. This will help to
 	 * see how much the content has changed during the measurement.
-	 *  
+	 * 
 	 * @param objectSizeCalculator The implementation to use
 	 * @return The size information of this Cache
 	 */
@@ -1302,29 +1319,27 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		long sizeInByte = objectSizeCalculator.calculateObjectSizeDeep(objects);
 		int elemsAfter = objects.size();
 		CacheSizeInfo cacheSizeInfo = new CacheSizeInfo(id, elemsBefore, sizeInByte, elemsAfter);
-		
+
 		logger.info(cacheSizeInfo.toString());
-		
+
 		return cacheSizeInfo;
 	}
-
 
 	/**
 	 * Returns a JSR107 compliant view on this Cache. The returned instance is a view of the native tCache,
 	 * so any operation on it or this will be visible by the other instance. 
 	 * 
-	 * @return A JSR107 compliant view on this Cache 
+	 * @return A JSR107 compliant view on this Cache
 	 */
 	public TCacheJSR107<K, V> jsr107cache()
 	{
 		return tCacheJSR107;
 	}
 
-
 	/**
 	 * Enables or disables statistics. If enabled, the statistics are available both via {@link #statistics()} and also
 	 * by JSR107 compliant MXBeans. Disabling statistics will discard all statistics.
-	 *  
+	 * 
 	 * @param enable true for enabling statistics.
 	 */
 	public void enableStatistics(boolean enable)
@@ -1340,18 +1355,17 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			{
 				statisticsCalculator = new StandardStatisticsCalculator();
 				TCacheStatisticsMBean.instance().register(this);
-				jsr107cache().refreshActionRunners(); // Action runner must use the new statistics 
+				jsr107cache().refreshActionRunners(); // Action runner must use the new statistics
 			}
 		}
 		else
 		{
 			statisticsCalculator = new NullStatisticsCalculator();
 			TCacheStatisticsMBean.instance().unregister(this);
-			jsr107cache().refreshActionRunners(); // Action runner should stop updating statistics 
+			jsr107cache().refreshActionRunners(); // Action runner should stop updating statistics
 		}
-		
-	}
 
+	}
 
 	public void enableManagement(boolean enable)
 	{
@@ -1372,12 +1386,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return currentlyEnabled;
 	}
 
-
 	public boolean isManagementEnabled()
 	{
 		return managementEnabled;
 	}
-
 
 	/**
 	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is closed.
@@ -1388,20 +1400,17 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			throw new IllegalStateException("Cache already closed: " + id());
 	}
 
-
 	// TODO Make this package-private / refactor
 	public CacheWriter<K, V> cacheWriter()
 	{
 		return cacheWriter;
 	}
 
-
 	// TODO Make this package-private / refactor
 	public ListenerCollection<K, V> listeners()
 	{
 		return listeners;
 	}
-
 
 	// TODO Make this package-private / refactor
 	public StatisticsCalculator statisticsCalculator()
@@ -1416,12 +1425,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	{
 		private volatile boolean running;  // Must be volatile, as it is modified via cancel() from a different thread
 		private int failedCounter = 0;
-		
+
 		CleanupThread(String name)
 		{
 			super(name);
 		}
-		
+
 		public void run()
 		{
 			logger.info("CleanupThread " + this.getName() + " has entered run()");
@@ -1433,7 +1442,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 					// About stopping: If interruption takes place between the lines above (while running)
 					// and the line below (sleep), the interruption gets lost and a full sleep will be done.
 					// TODO If that sleep is long (like 30s), and the shutdown Thread waits until this Thread is stopped,
-					//   the shutdown Thread will wait very long.
+					// the shutdown Thread will wait very long.
 					sleep(cleanUpIntervalMillis);
 					this.failedCounter = 0;
 					cleanUp();
@@ -1444,10 +1453,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				}
 				catch (InterruptedException ex)
 				{
-					if(this.running)
+					if (this.running)
 					{
 						this.failedCounter++;
-						if(this.failedCounter > 10)
+						if (this.failedCounter > 10)
 						{
 							logger.error("possible endless loop detected, stopping loop");
 							stopCleaner();

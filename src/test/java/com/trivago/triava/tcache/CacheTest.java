@@ -21,9 +21,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.Collection;
+import java.util.Iterator;
 import java.util.Random;
 
+import javax.cache.Cache.Entry;
 import javax.cache.CacheException;
 import javax.cache.configuration.MutableConfiguration;
 
@@ -32,7 +33,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.eviction.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.eviction.Cache;
 import com.trivago.triava.tcache.eviction.TCacheJSR107;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
@@ -257,6 +257,7 @@ public class CacheTest
 		assertNull("Found value when removing a non existent key.", nullValue);
 	}
 	
+	/*
 	@Test
 	public void testDefaultAccessTimeOjectHolder()
 	{
@@ -269,16 +270,23 @@ public class CacheTest
 		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
 		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
 		
-		Collection<AccessTimeObjectHolder<Integer>> list = cache.getAccessTimeHolderObjects();
+		TCacheJSR107<String, Integer> jsr107cache = cache.jsr107cache();
+		Iterator<Entry<String, Integer>> it = jsr107cache.iterator();
 		
-		assertTrue("List should contain exactly one holder", !list.isEmpty() && list.size() == 1);
+		// cache.getAccessTimeHolderObjects() is not available any longer. We might want a replacement like an iterator on the actual Cache entries 
+//		Collection<AccessTimeObjectHolder<Integer>> list = cache.getAccessTimeHolderObjects();
 		
-		AccessTimeObjectHolder<Integer> holder = list.iterator().next(); // Get  first (and only) element
+//		assertTrue("List should contain exactly one holder", !list.isEmpty() && list.size() == 1);
 		
-		holder.setMaxIdleTime(2);
+//		AccessTimeObjectHolder<Integer> holder = list.iterator().next(); // Get  first (and only) element
+		Entry<String, Integer> holder = it.next();
+		assertTrue("iterator has more than one element", !it.hasNext());
 		
-		assertEquals("Value does not match", 2, holder.getMaxIdleTime());
-		assertEquals("Value does not match", value, holder.peek());
+//		AccessTimeObjectHolder<Integer> holder = holder107.unwrap(AccessTimeObjectHolder.class);
+//		holder.setMaxIdleTime(2, TimeUnit.SECONDS);
+		
+//		assertEquals("Value does not match", 2000, holder.getExpirationTime());
+		assertEquals("Value does not match", value, holder.getValue());
 		assertEquals("Value does not match", 1, holder.getUseCount());
 		
 		holder.get();
@@ -288,6 +296,7 @@ public class CacheTest
 		assertEquals(inputDate, holder.getInputDate(), 0);
 		
 	}
+*/
 	
 	@Test
 	public void testGetAccessTimeHolderObjects()
@@ -300,9 +309,10 @@ public class CacheTest
 		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
 		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
 		
-		Collection<AccessTimeObjectHolder<Integer>> list = (Collection<AccessTimeObjectHolder<Integer>>) cache.getAccessTimeHolderObjects();
-		
-		assertTrue("List is empty", !list.isEmpty());
+		TCacheJSR107<String, Integer> jsr107cache = cache.jsr107cache();
+		Iterator<Entry<String, Integer>> it = jsr107cache.iterator();
+
+		assertTrue("List is empty", it.hasNext());
 	}
 	
 	@Test

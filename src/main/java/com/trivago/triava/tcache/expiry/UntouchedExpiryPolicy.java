@@ -28,55 +28,33 @@ import javax.cache.expiry.ExpiryPolicy;
  */
 public class UntouchedExpiryPolicy implements TCacheExpiryPolicy
 {
-	final int expiryForCreation;
-	final int expiryForAccess;
-	final int expiryForUpdate;
+	final long expiryForCreation;
+	final long expiryForAccess;
+	final long expiryForUpdate;
 
 	public UntouchedExpiryPolicy(ExpiryPolicy expiryPolicy)
 	{
-		expiryForCreation = convertToSecs(expiryPolicy.getExpiryForCreation(), 0);
-		expiryForAccess = convertToSecs(expiryPolicy.getExpiryForAccess(), -1);
-		expiryForUpdate = convertToSecs(expiryPolicy.getExpiryForUpdate(), -1);
+		expiryForCreation = convertToMillis(expiryPolicy.getExpiryForCreation(), Constants.EXPIRY_ZERO);
+		expiryForAccess = convertToMillis(expiryPolicy.getExpiryForAccess(), Constants.EXPIRY_NOCHANGE);
+		expiryForUpdate = convertToMillis(expiryPolicy.getExpiryForUpdate(), Constants.EXPIRY_NOCHANGE);
 	}
 	
-	int convertToSecs(Duration expiryDuration, int defaultValue)
+	long convertToMillis(Duration expiryDuration, long defaultValue)
 	{
-		final long expiryForCreation;
-		if (expiryDuration != null)
-		{
-			expiryForCreation = expiryDuration.getAdjustedTime(0) / 1000;
-			return limitToPositiveInt(expiryForCreation);
-		}
-		else
-		{
-			return defaultValue;
-		}
-	}
-	
-	private static int limitToPositiveInt(long value)
-	{
-		if (value > (long)Integer.MAX_VALUE)
-		{
-			return Integer.MAX_VALUE;
-		}
-		else if  (value < 0)
-		{
-			return 0;
-		}
-		return (int)value;
+		return expiryDuration != null ? expiryDuration.getAdjustedTime(0) : defaultValue;
 	}
 
-	public int getExpiryForCreation()
+	public long getExpiryForCreation()
 	{
 		return expiryForCreation;
 	}
 
-	public int getExpiryForAccess()
+	public long getExpiryForAccess()
 	{
 		return expiryForAccess;
 	}
 
-	public int getExpiryForUpdate()
+	public long getExpiryForUpdate()
 	{
 		return expiryForUpdate;
 	}
