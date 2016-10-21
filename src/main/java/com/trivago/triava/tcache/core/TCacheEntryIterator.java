@@ -51,6 +51,8 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	{
 		this.expiryPolicy = expiryPolicy;
 		final Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> mapIterator1 = objects.entrySet().iterator();
+		// TODO Test, if we can simply do "mapIterator = mapIterator1". It should work properly, as invalid entries are now filtered out on the fly during iteration.
+
 		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
 		while (mapIterator1.hasNext())
 		{

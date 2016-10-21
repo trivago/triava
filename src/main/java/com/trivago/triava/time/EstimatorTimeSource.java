@@ -43,7 +43,7 @@ import com.trivago.triava.logging.TriavaNullLogger;
  */
 public class EstimatorTimeSource extends Thread implements TimeSource
 {
-	final int UPDATE_INTERVAL_MS;
+	private final int UPDATE_INTERVAL_MS;
 	private volatile long millisEstimate;
 	private volatile long secondsEstimate;
 
@@ -79,7 +79,7 @@ public class EstimatorTimeSource extends Thread implements TimeSource
 		setTimeFields();
 		
 		this.UPDATE_INTERVAL_MS = updateIntervalMillis;
-		setName("MillisEstimatorThread-" + UPDATE_INTERVAL_MS + "ms");
+		setName("EstimatorTimeSource-" + UPDATE_INTERVAL_MS + "ms");
 		setPriority(Thread.MAX_PRIORITY);
 		setDaemon(true);
 		start();

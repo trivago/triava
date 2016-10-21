@@ -45,7 +45,7 @@ public class CacheListenerTestBase implements Serializable
 {
 	private static final long serialVersionUID = -7258104888811145129L;
 
-	transient CacheManager cacheManager;
+	transient static CacheManager cacheManager;
 	
 	volatile NamedAtomicInteger createdListenerFiredCount = new NamedAtomicInteger("created");
 	volatile NamedAtomicInteger updatedListenerFiredCount = new NamedAtomicInteger("updated");
