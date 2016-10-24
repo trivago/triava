@@ -95,18 +95,6 @@ public class CacheLimitLFUTest
 		exceedingMaxElements();
 	}
 
-	@Test
-	public void testCacheLimitLFUv2()
-	{
-		try
-		{		
-			assertEquals("Value does not match", 1L, buildLfuCache("CacheLFUTest-2", maxIdleTime, maxCacheTime, 10).getMaxCacheTime());
-		}
-		catch (Exception e)
-		{
-			fail(e.getMessage());
-		}
-	}
 
 	@Test
 	public void testKeySet()

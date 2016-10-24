@@ -178,7 +178,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		tCacheJSR107 = new TCacheJSR107<K, V>(this);
 
 		// Expiration
-		this.maxCacheTime = builder.getMaxCacheTime();
+		final long cacheTime = builder.getMaxCacheTime();
+		if (cacheTime >= Long.MAX_VALUE/1000)
+			this.maxCacheTime = Long.MAX_VALUE;
+		else
+			this.maxCacheTime = 1000 * cacheTime;
 		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
 
 		long expiryIdleMillis = 0;
@@ -416,15 +420,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		catch (InterruptedException e)
 		{ // Thread.currentThread().interrupt(); // cesken Add this after release
 		} // ignore, as documented
-	}
-
-	/**
-	 * 
-	 * @return Maximum Cache time in seconds
-	 */
-	public long getMaxCacheTime()
-	{
-		return this.maxCacheTime;
 	}
 
 	/**

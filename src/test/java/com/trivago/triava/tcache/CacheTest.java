@@ -328,12 +328,7 @@ public class CacheTest
 		
 		assertTrue("Object not in cache", cache.containsKey(key));
 	}
-	
-	@Test
-	public void testGetMaxCacheTime()
-	{
-		assertEquals("Value does not match", maxCacheTime, cache.getMaxCacheTime());
-	}
+
 
 	/**
 	 * The JSR107 Spec mandates to throw CacheException

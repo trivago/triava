@@ -122,10 +122,10 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		complete(maxIdleTimeMillis, maxCacheTimeSecs);
 	}
 	
-	void complete(long maxIdleTimeMillis, long maxCacheTimeSecs)
+	void complete(long maxIdleTimeMillis, long maxCacheTimeMillis)
 	{
 		this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(maxIdleTimeMillis);
-		this.maxCacheTime = SecondsOrMillis.fromMillisToInternal(maxCacheTimeSecs);
+		this.maxCacheTime = SecondsOrMillis.fromMillisToInternal(maxCacheTimeMillis);
 		flags |= STATE_COMPLETE;
 		setInputDate();
 		setLastAccessTime();

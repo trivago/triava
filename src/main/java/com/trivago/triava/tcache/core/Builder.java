@@ -65,8 +65,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 
 	private String id;
 	private boolean strictJSR107 = true;
-	private long maxCacheTime = 3600_000; // 60 minutes, in millis
-	private int maxCacheTimeSpread = 0; // 0 seconds
+	private long maxCacheTime = 3600; // In SECONDS. 60 minutes
+	private int maxCacheTimeSpread = 0; // In SECONDS. 0 seconds
 	private int expectedMapSize = 10000;
 	private int concurrencyLevel = 14;
 	private int mapConcurrencyLevel = 16;
