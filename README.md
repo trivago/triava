@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.8</version>
+      <version>0.9.9</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.8'
+	compile 'com.trivago:triava:0.9.9'
 }
 ```
 
@@ -53,7 +53,8 @@ dependencies {
         - Signature of put() with idle/cache times changed from long to int
 - 0.9.8
     - cache: Fully JCache / JSR107 compliance 
-         
+- 0.9.9
+    - cache: API cleanup, adding TimeUnit param to API
 
 
 ## Building:
