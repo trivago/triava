@@ -37,7 +37,7 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 	public enum Operation { NOP, REMOVE, SET, LOAD, REMOVE_WRITE_THROUGH, GET }
 	private Operation operation = Operation.NOP;
 	V valueNew = null;
-	final CacheLoader<K, V> loader; // TODO Must be Serializable, as TCacheJSR107MutableEntry is Serializable. How does the RI do it?
+	final CacheLoader<K, V> loader;
 	
 	/**
 	 * Creates an instance based on the native tCache entry plus the key.
