@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 
 import java.util.Iterator;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import javax.cache.Cache.Entry;
 import javax.cache.CacheException;
@@ -62,7 +63,7 @@ public class CacheTest
 	@Before
 	public void setUpEach()
 	{
-		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTime).setMaxIdleTime(maxIdleTime) .build();
+		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTime, TimeUnit.SECONDS).setMaxIdleTime(maxIdleTime, TimeUnit.SECONDS) .build();
 		assertTrue("Cache is not empty at start of test",  cache.size() == 0);
 	}
 	
@@ -126,12 +127,12 @@ public class CacheTest
 		return (int)value;
 	}
 
-	private static Cache<String, Integer> createCache(String id, long idleTime, long cacheTime, int size)
+	private static Cache<String, Integer> createCache(String id, int idleTime, int cacheTime, int size)
 	{
 		Builder<String, Integer> cacheB = TCacheFactory.standardFactory().builder();
 		cacheB.setId(id);
-		cacheB	.setMaxIdleTime(idleTime)
-                .setMaxCacheTime(cacheTime)
+		cacheB	.setMaxIdleTime(idleTime, TimeUnit.SECONDS)
+                .setMaxCacheTime(cacheTime, TimeUnit.SECONDS)
                 .setExpectedMapSize(size);
 
 		return cacheB.build();
@@ -186,10 +187,10 @@ public class CacheTest
 		String key = "key-b";
 		Integer value = 1;
 		
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		assertEquals("Retrived value do not match.", value, cache.get(key));
 		
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		assertEquals("Retrived value do not match.", value, cache.get(key));
 	}
 	
@@ -239,7 +240,7 @@ public class CacheTest
 		Integer value = 1;
 		
 		// Add key-value
-		cache.put(key, value, 5, 5);
+		cache.put(key, value, 5, 5, TimeUnit.SECONDS);
 		
 		assertTrue("Cache is not empty at start of test", cache.size() == 1);
 		assertEquals("Retrived value do not match.", value, cache.get(key));
@@ -306,8 +307,8 @@ public class CacheTest
 		String key = "key-a";
 		Integer value = 1;
 		
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		
 		TCacheJSR107<String, Integer> jsr107cache = cache.jsr107cache();
 		Iterator<Entry<String, Integer>> it = jsr107cache.iterator();
@@ -323,8 +324,8 @@ public class CacheTest
 		String key = "key-a";
 		Integer value = 1;
 		
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		
 		assertTrue("Object not in cache", cache.containsKey(key));
 	}
@@ -414,7 +415,7 @@ public class CacheTest
 			String key = "key-a";
 			Integer value = 1;
 			
-			cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
+			cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		}
 		catch (Exception e)
 		{
@@ -436,7 +437,7 @@ public class CacheTest
 		String key = "key-a";
 		Integer value = 1;
 		
-		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime);
+		cache.putIfAbsent(key, value, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		
 		try
 		{

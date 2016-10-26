@@ -46,6 +46,7 @@ import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
 import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.StorageBackend;
+import com.trivago.triava.tcache.core.TCacheHolderIterator;
 import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
@@ -73,7 +74,7 @@ import com.trivago.triava.time.TimeSource;
 /**
  * A Cache that supports expiration based on expiration time and idle time.
  * The Cache can be of unbounded or bounded size. In the latter case, eviction is done using the selected strategy, for example
- * LFU, LRU, Clock or an own implemented custom eviction strategy (value-type aware). You can retrieve either instance by using
+ * LFU, LRU, Clock or an own implemented custom eviction strategy (key and value type aware). You can retrieve either instance by using
  * a Builder:
  * <pre>
  * // Build native TCache instance
@@ -154,14 +155,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	final KeyValueUtil<K,V> kvUtil;
 	/**
 	 * constructor with default cache time and expected map size.
+	 * @deprecated Migrate to {@link #Cache(Builder)} 
 	 * @param maxIdleTime Maximum idle time in seconds
 	 * @param maxCacheTime Maximum Cache time in seconds
 	 * @param expectedMapSize
 	 */
-	Cache(String id, long maxIdleTime, long maxCacheTime, int expectedMapSize)
+	Cache(String id, int maxIdleTime, int maxCacheTime, int expectedMapSize)
 	{
 		this( new Builder<K, V>(TCacheFactory.standardFactory())
-		.setId(id).setMaxIdleTime(maxIdleTime).setMaxCacheTime(maxCacheTime)
+		.setId(id).setMaxIdleTime(maxIdleTime, TimeUnit.SECONDS).setMaxCacheTime(maxCacheTime, TimeUnit.SECONDS)
 		.setExpectedMapSize(expectedMapSize) );
 	}
 
@@ -178,12 +180,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		tCacheJSR107 = new TCacheJSR107<K, V>(this);
 
 		// Expiration
-		final long cacheTime = builder.getMaxCacheTime();
-		if (cacheTime >= Long.MAX_VALUE/1000)
-			this.maxCacheTime = Long.MAX_VALUE;
-		else
-			this.maxCacheTime = 1000 * cacheTime;
-		this.maxCacheTimeSpread = builder.getMaxCacheTimeSpread();
+		this.maxCacheTime = builder.getMaxCacheTime();
+		
+		int spreadSeconds = (int)Math.min(Integer.MAX_VALUE, builder.getMaxCacheTimeSpread()/1000); // Spread is in seconds for technical reasons
+		this.maxCacheTimeSpread = spreadSeconds;
 
 		long expiryIdleMillis = 0;
 		ExpiryPolicy epFromFactory = builder.getExpiryPolicyFactory().create();
@@ -292,7 +292,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return id;
 	}
 
-	// TODO Make package private
+	// TODO Eventually make package private. OTOH this is just the cache configuration.
 	public Builder<K, V> builder()
 	{
 		return builder;
@@ -446,7 +446,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (maxCacheTimeSpread == 0)
 			spread = maxCacheTime;
 		else
+		{
+			// There is no randomCacheTime.nextLong(int bound) method => Treat Spread as seconds
 			spread = maxCacheTime + 1000*randomCacheTime.nextInt(maxCacheTimeSpread);
+		}
 
 		return spread;
 	}
@@ -455,21 +458,22 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * Add an object to the cache under the given key with the given idle and cache times.
 	 * @param key The key
 	 * @param value The value
-	 * @param maxIdleTime The idle time in seconds
-	 * @param maxCacheTime The cache time in seconds
+	 * @param idleTime The idle time in seconds
+	 * @param cacheTime The cache time in seconds
+	 * @param timeUnit The TimeUnit for both idleTime and cacheTime
 	 */
-	public void put(K key, V value, int maxIdleTime, int maxCacheTime)
+	public void put(K key, V value, int idleTime, int cacheTime, TimeUnit timeUnit)
 	{
-		if (maxIdleTime > Integer.MAX_VALUE || maxCacheTime > Integer.MAX_VALUE)
+		if (idleTime > Integer.MAX_VALUE || cacheTime > Integer.MAX_VALUE)
 		{
 			throw new IllegalArgumentException(
-					"maxIdleTime and maxCacheTime must be in Integer range: " + maxIdleTime + "," + maxCacheTime);
+					"maxIdleTime and maxCacheTime must be in Integer range: " + idleTime + "," + cacheTime);
 		}
-		putToMap(key, value, 1000*maxIdleTime, 1000*maxCacheTime, false, false);
+		putToMap(key, value, timeUnit.toMillis(idleTime), timeUnit.toMillis(cacheTime), false, false);
 	}
 
 	/**
-	 * The same like {@link #put(Object, Object, int, int)}, but uses
+	 * The same like {@link #put(Object, Object, int, int, TimeUnit)}, but uses
 	 * {@link java.util.concurrent.ConcurrentMap#putIfAbsent(Object, Object)} to actually write
 	 * the data in the backing ConcurrentMap. For the sake of the Cache hit or miss statistics this method
 	 * is a treated as a read operation and thus updates the hit or miss counters. Rationale is that the
@@ -477,18 +481,19 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * 
 	 * @param key The key
 	 * @param value The value
-	 * @param maxIdleTime Maximum idle time in seconds
-	 * @param maxCacheTime Maximum cache time in seconds
+	 * @param idleTime Maximum idle time in seconds
+	 * @param cacheTime Maximum cache time in seconds
+	 * @param timeUnit The TimeUnit for both idleTime and cacheTime
 	 * @return See {@link ConcurrentHashMap#putIfAbsent(Object, Object)}
 	 */
-	public V putIfAbsent(K key, V value, int maxIdleTime, int maxCacheTime)
+	public V putIfAbsent(K key, V value, int idleTime, int cacheTime, TimeUnit timeUnit)
 	{
-		AccessTimeObjectHolder<V> holder = putToMap(key, value, 1000*maxIdleTime, 1000*maxCacheTime, true, false);
+		AccessTimeObjectHolder<V> holder = putToMap(key, value, timeUnit.toMillis(idleTime), timeUnit.toMillis(cacheTime), true, false);
 		return gatedPeek(holder);
 	}
 
 	/**
-	 * The same like {@link #putIfAbsent(Object, Object, int, int)}, but uses
+	 * The same like {@link #putIfAbsent(Object, Object, int, int, TimeUnit)}, but uses
 	 * the default idle and cache times. The cache time will use the cache time spread if this cache
 	 * is configured to use it.
 	 * 
@@ -1225,17 +1230,44 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			return null;
 		}
 	}
+	
+	/**
+	 * Returns an Iterator which can be used to traverse all entries of the Cache.
+	 * The values of the entry are of type TCacheHolder&lt;V&gt;.
+	 * <p>
+	 * <b> WARNING!!! Up to v0.9.9, the value reflects the actual state and may change
+	 * after retrieving. For example accessTime can change if the entry is accessed, and  value.get() may return null if it is expired.
+	 * 
+	 * This behavior will change with v1.0, and the returned value will we immutable.
+	 * </b>
+	 *     
+	 * @return The Iterator
+	 */
+	public TCacheHolderIterator<K,V> iterator()
+	{
+		throwISEwhenClosed();
+
+		return new TCacheHolderIterator<K,V>(this, this.objects, this.expiryPolicy, false);
+	}
 
 	/**
-	 * Retrieve reference to AccessTimeHolder&lt;V&gt; objects as an unmodifiable Collection.
-	 * You can use this when you want to serialize the complete Cache. 
-	 *
-	 * @deprecated Migrate to JSR107 Cache iterator 
-	 * @return Collection of all AccessTimeHolder&lt;V&gt; Objects. The collection is unmodifiable.
+	 * Returns an Iterator which can be used to traverse all entries of the Cache.
+	 * The behavior is identical with {@link #iterator()}, but the traversed elements are
+	 * treated as touched. This means, access time is updated and hit count statistics are maintained. 
+	 * <p>
+	 * <b> WARNING!!! Up to v0.9.9, the value reflects the actual state and may change
+	 * after retrieving. For example accessTime can change if the entry is accessed, and  value.get() may return null if it is expired.
+	 * 
+	 * This behavior will change with v1.0, and the returned value will we immutable.
+	 * </b>
+	 * 
+	 * @return The Iterator
 	 */
-	private Collection<AccessTimeObjectHolder<V>> getAccessTimeHolderObjects()
+	public TCacheHolderIterator<K, V> iteratorWithTouch()
 	{
-		return Collections.unmodifiableCollection(objects.values());
+		throwISEwhenClosed();
+
+		return new TCacheHolderIterator<K,V>(this, this.objects, this.expiryPolicy, true);
 	}
 
 	/**

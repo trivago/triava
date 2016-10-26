@@ -20,6 +20,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -65,18 +67,18 @@ public class CacheLimitLFUTest
 		}
 	}
 
-	private static Cache<String, Integer> buildLfuCache(String string, long maxidletime2, long maxcachetime2, int expectedMapSize)
+	private static Cache<String, Integer> buildLfuCache(String string, int maxidletime2, int maxcachetime2, int expectedMapSize)
 	{
 		Builder<String, Integer> builder = cacheBuilder(string, maxidletime2, maxcachetime2, expectedMapSize);
 		builder.setEvictionPolicy(EvictionPolicy.LFU);
 		return builder.build();
 	}
 
-	private static Builder<String, Integer> cacheBuilder(String string, long maxidletime2, long maxcachetime2, int expectedMapSize)
+	private static Builder<String, Integer> cacheBuilder(String string, int maxidletime2, int maxcachetime2, int expectedMapSize)
 	{
 		Builder<String, Integer> builder = TCacheFactory.standardFactory().builder();
 		builder.setId(string).setExpectedMapSize(expectedMapSize);
-		builder.setMaxIdleTime(maxidletime2).setMaxCacheTime(maxcachetime2);
+		builder.setMaxIdleTime(maxidletime2, TimeUnit.SECONDS).setMaxCacheTime(maxcachetime2, TimeUnit.SECONDS);
 		return builder;
 	}
 
@@ -170,7 +172,7 @@ public class CacheLimitLFUTest
 		
 		for (int i = 0; i < count; i++)
 		{
-			cache.putIfAbsent(String.valueOf(i), i, maxIdleTime, maxCacheTime);
+			cache.putIfAbsent(String.valueOf(i), i, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
 		}
 	}
 

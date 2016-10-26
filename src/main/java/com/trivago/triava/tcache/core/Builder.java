@@ -65,8 +65,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 
 	private String id;
 	private boolean strictJSR107 = true;
-	private long maxCacheTime = 3600; // In SECONDS. 60 minutes
-	private int maxCacheTimeSpread = 0; // In SECONDS. 0 seconds
+	private long maxCacheTime = 3600_000; // In MILLISECONDS. 60 minutes
+	private long maxCacheTimeSpread = 0; // In MILLISECONDS. 0 seconds
 	private int expectedMapSize = 10000;
 	private int concurrencyLevel = 14;
 	private int mapConcurrencyLevel = 16;
@@ -205,14 +205,15 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 * Sets the maximum time of an unused (idle) cache entry. It will overwrite any values set before via {@link #setExpiryPolicyFactory(Factory)}.
 	 * 
 	 * @param maxIdleTime The maximum time
-	 * @return c
+	 * @param timeUnit The TimeUnit of maxIdleTime
+	 * @return This Builder
 	 */
-	public Builder<K,V> setMaxIdleTime(long maxIdleTime)
+	public Builder<K,V> setMaxIdleTime(int maxIdleTime, TimeUnit timeUnit)
 	{
 		if (maxIdleTime == 0)
 			throw new IllegalArgumentException("Invalid maxIdleTime 0");
 		
-		TouchedExpiryPolicy ep = new TouchedExpiryPolicy(new Duration(TimeUnit.SECONDS, maxIdleTime));
+		TouchedExpiryPolicy ep = new TouchedExpiryPolicy(new Duration(timeUnit, maxIdleTime));
 		SingletonFactory<ExpiryPolicy> singletonFactory = new FactoryBuilder.SingletonFactory<ExpiryPolicy>(ep);
 		this.expiryPolicyFactory = (Factory<ExpiryPolicy>)singletonFactory;
 		
@@ -228,25 +229,27 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 * 
 	 * @param maxCacheTime The minimum time to keep in seconds
 	 * @param interval The size of the interval in seconds
+	 * @param timeUnit The TimeUnit of maxCacheTime and interval
 	 * @return This Builder
 	 */
-	public Builder<K,V> setMaxCacheTime(long maxCacheTime, int interval)
+	public Builder<K,V> setMaxCacheTime(int maxCacheTime, int interval, TimeUnit timeUnit)
 	{
-		this.maxCacheTime = maxCacheTime;
-		this.maxCacheTimeSpread = interval;
+		this.maxCacheTime = timeUnit.toMillis(maxCacheTime);
+		this.maxCacheTimeSpread = timeUnit.toMillis(interval);
 		return this;
 	}
 
 	/**
 	 * Sets the default expiration time for entries in this cache. All entries use this time, unless it is
 	 * added using a put method that allows overriding the expiration time, like
-	 * {@link Cache#put(Object, Object, int, int)}.
+	 * {@link Cache#put(Object, Object, int, int, TimeUnit)}.
 	 * 
 	 * @param maxCacheTime
 	 *            The time to keep the value in seconds
+	 * @param timeUnit The TimeUnit of maxCacheTime
 	 * @return This Builder
 	 */
-	public Builder<K, V> setMaxCacheTime(long maxCacheTime)
+	public Builder<K, V> setMaxCacheTime(int maxCacheTime, TimeUnit timeUnit)
 	{
 		this.maxCacheTime = maxCacheTime;
 		return this;
@@ -439,9 +442,9 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 
 	/**
 	 * 
-	 * @return The interval size of the cache time interval in seconds.
+	 * @return The interval size of the cache time interval in milliseconds.
 	 */
-	public int getMaxCacheTimeSpread()
+	public long getMaxCacheTimeSpread()
 	{
 		return maxCacheTimeSpread;
 	}
@@ -687,7 +690,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		result = prime * result + ((loader == null) ? 0 : loader.hashCode());
 		result = prime * result + mapConcurrencyLevel;
 		result = prime * result + (int) (maxCacheTime ^ (maxCacheTime >>> 32));
-		result = prime * result + maxCacheTimeSpread;
+		result = prime * result + (int) (maxCacheTimeSpread ^ (maxCacheTimeSpread >>> 32));
 		result = prime * result + expiryPolicyFactory.hashCode();
 		result = prime * result + (statistics ? 1231 : 1237);
 		result = prime * result + ((valueType == null) ? 0 : valueType.hashCode());
@@ -859,7 +862,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
-	 * Sets the ExpiryPolicyFactory. It will overwrite any values set before via {@link #setMaxIdleTime(long)}.
+	 * Sets the ExpiryPolicyFactory. It will overwrite any values set before via {@link #setMaxIdleTime(int, TimeUnit)}.
 	 * @param factory The factory
 	 * @return This Builder
 	 */
