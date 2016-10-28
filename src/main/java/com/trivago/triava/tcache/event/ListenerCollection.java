@@ -44,7 +44,7 @@ public class ListenerCollection<K,V>
 	 * Creates a ListenerCollection that consists of all listeners from builder.getCacheEntryListenerConfigurations().
 	 * 
 	 * @param tcache The Cache
-	 * @param builder The Builder of the givben tcache
+	 * @param builder The Builder of the given tcache
 	 */
 	public ListenerCollection(Cache<K,V> tcache, Builder<K,V> builder)
 	{
@@ -216,6 +216,14 @@ public class ListenerCollection<K,V>
 		return (listenerPresent[eventType.ordinal()]);
 	}
 	
+	/**
+	 * Returns the number of listeners in this ListenerCollection.
+	 * @return The number of listeners
+	 */
+	public int size()
+	{
+		return listeners.size();
+	}
 	
 	/**
 	 * Returns normally with no side effects if this cache is open. Throws IllegalStateException if it is closed.
