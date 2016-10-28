@@ -16,9 +16,7 @@
 
 package com.trivago.triava.tcache.core;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentMap;
 
@@ -50,28 +48,7 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	public TCacheEntryIterator(com.trivago.triava.tcache.eviction.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects, TCacheExpiryPolicy expiryPolicy)
 	{
 		this.expiryPolicy = expiryPolicy;
-		final Iterator<java.util.Map.Entry<K, AccessTimeObjectHolder<V>>> mapIterator1 = objects.entrySet().iterator();
-		// TODO Test, if we can simply do "mapIterator = mapIterator1". It should work properly, as invalid entries are now filtered out on the fly during iteration.
-
-		List<javax.cache.Cache.Entry<K,V>> entries = new ArrayList<>();
-		while (mapIterator1.hasNext())
-		{
-			java.util.Map.Entry<K, AccessTimeObjectHolder<V>> entry = mapIterator1.next();
-			AccessTimeObjectHolder<V> holder = entry.getValue();
-			if (holder.isInvalid())
-			{
-				// Remove on the fly invalid values, as they may not be in the returned iterator
-				tcache.releaseHolder(holder);
-				mapIterator1.remove();
-			}
-			else
-			{
-				entries.add(new TCacheJSR107Entry<K, V>(entry.getKey(), holder.peek()));
-			}
-		}
-
 		mapIterator = objects.entrySet().iterator();
-
 
 		this.statisticsCalculator = tcache.statisticsCalculator();
 		this.cache = tcache.jsr107cache();
