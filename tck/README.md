@@ -4,10 +4,9 @@ This folder contains all information to check standards compliance via
 Technology Compatibility Kits (TCK). 
 
 ## JSR107 - Java Caching compliance
-- All functionality tests pass. Only some Expiration tests fail.
-- PASS: put, get, replace, delete Operations
-- PASS: Listeners, Write-Through, Read-Through, Statistics, StoreByValue
-- Not passing fully: Expiration
+- Triava Cache is a fully compliant JSR107 (Java Caching) implementation
+- All required functionality is available: cache operations (get, put, remove), listeners, Write-Through, Read-Through, Statistics 
+- Optional functionality: Supports both store-modes: Store-by-Reference and StoreByValue
 - Passes 454/465 tests. (100%)
 
 To verify compliance, clone the Technology Compatibility Kit from https://github.com/jsr107/jsr107tck .
@@ -15,26 +14,29 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
  git clone https://github.com/jsr107/jsr107tck.git
  cd jsr107tck.git
  
- # Configure triava as implementation to test
+ # 1. Configure triava as implementation to test:
+ # a. Edit the triava version to test at the <implementation-version> tag: 
+ vi <TRIAVA_DISTRIBUTION>/tck/jsr107-pom.xml
+ # b. Check that the changes look well (7 values should differ)
  diff <TRIAVA_DISTRIBUTION>/tck/jsr107-pom.xml pom.xml
- # If changes look well, continue
+ # c. If changes look well, continue
  cp <TRIAVA_DISTRIBUTION>/tck/jsr107-pom.xml pom.xml
  
- # Run test
+ # 2. Run test:
  mvn clean install
 ```
 
 
 ## Unclear JSR107 Specs, but compliant according to TCK
-The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issus here and mark them in the Code with
+The following tests or Specs are unclear and should be adressed to the JSR107 working group. Please add newly found issues here and mark them in the Code with
 	// TCK CHALLENGE
 	
 ### CacheMBStatisticsBeanTest.testPutIfAbsent()
 - Observation: First assertEquals(missCount, ...) requires missCount == 0, but there was a miss (value not present before the call, but after the call)
 - Observation: Second assertEquals(hitCount, ...) requires hitCount == 0, but there was a hit (value present both before and after the call)
-- Issue: It is not clear why this check are in the TCK. The spec does not specify when the mapping must be in the table (before or after the call). But
+- Issue: It is not clear why this checks are in the TCK. The spec does not specify when the mapping must be in the table (before or after the call). But
          no matter if it is before or after: At least one of theTCK checks seem to be wrong.
-- Proposed change: Clarify. Create ticket on TCK
+- Proposed change: Reproduce and address this again for Triava Cache V2.0.0.
 
 
 ----------------------------------------------------------------------------------------------------------------
@@ -43,6 +45,7 @@ The following tests or Specs are unclear and should be adressed to the JSR107 wo
 --- BELOW: OLD QUESTIONS
 ----------------------------------------------------------------------------------------------------------------
 
+All the old questions have been submitted to the JSR107 TCK Github. 
 	
 
 ### PutTest.putAll_NullKey()
