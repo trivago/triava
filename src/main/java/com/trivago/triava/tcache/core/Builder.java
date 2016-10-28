@@ -125,7 +125,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
 	{
 		this.factory = factory;
-		this.writeMode = CacheWriteMode.Serialize; // JSR107 mandates to copy by default
+		this.writeMode = null; // null means to derive it from configuration.isStoreByValue()
 		this.maxCacheTime = Long.MAX_VALUE; // JSR107 operates on ExpiryPolicy only
 		copyBuilder(configuration, this);
 	}
@@ -210,8 +210,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 */
 	public Builder<K,V> setMaxIdleTime(int maxIdleTime, TimeUnit timeUnit)
 	{
-		if (maxIdleTime == 0)
-			throw new IllegalArgumentException("Invalid maxIdleTime 0");
+		if (maxIdleTime <= 0)
+			throw new IllegalArgumentException("Invalid maxIdleTime: " + maxIdleTime);
 		
 		TouchedExpiryPolicy ep = new TouchedExpiryPolicy(new Duration(timeUnit, maxIdleTime));
 		SingletonFactory<ExpiryPolicy> singletonFactory = new FactoryBuilder.SingletonFactory<ExpiryPolicy>(ep);
@@ -234,7 +234,9 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 */
 	public Builder<K,V> setMaxCacheTime(int maxCacheTime, int interval, TimeUnit timeUnit)
 	{
-		this.maxCacheTime = timeUnit.toMillis(maxCacheTime);
+		if (interval <= 0)
+			throw new IllegalArgumentException("Invalid interval: " + interval);
+		setMaxCacheTime(maxCacheTime, timeUnit);
 		this.maxCacheTimeSpread = timeUnit.toMillis(interval);
 		return this;
 	}
@@ -251,7 +253,9 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 */
 	public Builder<K, V> setMaxCacheTime(int maxCacheTime, TimeUnit timeUnit)
 	{
-		this.maxCacheTime = maxCacheTime;
+		if (maxCacheTime <= 0)
+			throw new IllegalArgumentException("Invalid maxCacheTime: " + maxCacheTime);
+		this.maxCacheTime = timeUnit.toMillis(maxCacheTime);
 		return this;
 	}
 
@@ -266,6 +270,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 */
 	public Builder<K,V> setExpectedMapSize(int expectedMapSize)
 	{
+		if (expectedMapSize < 0)
+			throw new IllegalArgumentException("Invalid expectedMapSize: " + expectedMapSize);
 		this.expectedMapSize = expectedMapSize;
 		return this;
 	}
@@ -424,16 +430,16 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
-	 * @return the maxIdleTime in seconds.
+	 * @return the maxIdleTime in milliseconds.
 	 */
 	public long getMaxIdleTime()
 	{
 		Duration accessExpiry = expiryPolicyFactory.create().getExpiryForAccess();
-		return accessExpiry.getAdjustedTime(0) / 1000;
+		return accessExpiry.getAdjustedTime(0);
 	}
 
 	/**
-	 * @return The lower bound of the "maximum cache time interval" [maxCacheTime, maxCacheTime+maxCacheTimeSpread] in seconds.
+	 * @return The lower bound of the "maximum cache time interval" [maxCacheTime, maxCacheTime+maxCacheTimeSpread] in milliseconds.
 	 */
 	public long getMaxCacheTime()
 	{
