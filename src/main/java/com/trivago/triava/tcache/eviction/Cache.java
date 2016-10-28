@@ -1506,7 +1506,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				+ ", jamPolicy=" + jamPolicy
 				
 				+ ", hasLoader=" + (loader != null)
-				+ ", hasWriter=" + (cacheWriter != null)
+				+ ", hasWriter=" + (! (cacheWriter instanceof NopCacheWriter) )
 				+ ", listeners=" + listeners.size()
 				
 				+ ", managementEnabled=" + isManagementEnabled()
