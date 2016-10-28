@@ -35,12 +35,10 @@ import javax.cache.integration.CacheLoader;
 import javax.cache.integration.CacheLoaderException;
 import javax.cache.integration.CacheWriter;
 
-import com.trivago.triava.collections.HashInterner;
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.JamPolicy;
-import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.action.ActionContext;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
@@ -117,19 +115,19 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	final static long baseTimeMillis = System.currentTimeMillis();
 	
 	final TCacheExpiryPolicy expiryPolicy;
-	// max cache time in seconds
-	private final long maxCacheTime;
-	protected int maxCacheTimeSpread;
+	
+	private final long maxCacheTime; // max cache time in milliseconds
+	private final int maxCacheTimeSpread; // max cache time spread in SECONDS
 	
 	
 	final protected ConcurrentMap<K,AccessTimeObjectHolder<V>> objects;
-	Random random = new Random(System.currentTimeMillis());
+	final Random random = new Random(System.currentTimeMillis());
 	
 //	@ObjectSizeCalculatorIgnore
 	private volatile transient CleanupThread cleaner = null;
 	private volatile long cleanUpIntervalMillis;
 
-	final HashInterner<V> interner = new HashInterner<>(100);
+	//final HashInterner<V> interner = new HashInterner<>(100);
 
 	/**
 	 * Cache hit counter.
@@ -140,11 +138,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 */
 	StatisticsCalculator statisticsCalculator = null;
 
-	private float[] hitrateLastMeasurements = new float[5];
+	private final float[] hitrateLastMeasurements = new float[5];
 	int hitrateLastMeasurementsCurrentIndex = 0;
 	private volatile boolean shuttingDown = false;
 
-	protected JamPolicy jamPolicy = JamPolicy.WAIT;
+	protected final JamPolicy jamPolicy;
 	protected final CacheLoader<K, V> loader;
 
 	final ListenerCollection<K,V> listeners;
@@ -153,19 +151,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	final CacheWriter<K, V> cacheWriter;
 	
 	final KeyValueUtil<K,V> kvUtil;
-	/**
-	 * constructor with default cache time and expected map size.
-	 * @deprecated Migrate to {@link #Cache(Builder)} 
-	 * @param maxIdleTime Maximum idle time in seconds
-	 * @param maxCacheTime Maximum Cache time in seconds
-	 * @param expectedMapSize
-	 */
-	Cache(String id, int maxIdleTime, int maxCacheTime, int expectedMapSize)
-	{
-		this( new Builder<K, V>(TCacheFactory.standardFactory())
-		.setId(id).setMaxIdleTime(maxIdleTime, TimeUnit.SECONDS).setMaxCacheTime(maxCacheTime, TimeUnit.SECONDS)
-		.setExpectedMapSize(expectedMapSize) );
-	}
 
 	/**
 	 * Construct a Cache, using the given configuration from the Builder.
@@ -251,6 +236,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		tCacheJSR107.refreshActionRunners();
 		// TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
 		builder.getFactory().registerCache(this);
+
+		logger.info(this.toString());
 	}
 
 	@SuppressWarnings("unchecked") // Avoid warning for the "generics cast" in the last line
@@ -464,11 +451,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 */
 	public void put(K key, V value, int idleTime, int cacheTime, TimeUnit timeUnit)
 	{
-		if (idleTime > Integer.MAX_VALUE || cacheTime > Integer.MAX_VALUE)
-		{
-			throw new IllegalArgumentException(
-					"maxIdleTime and maxCacheTime must be in Integer range: " + idleTime + "," + cacheTime);
-		}
 		putToMap(key, value, timeUnit.toMillis(idleTime), timeUnit.toMillis(cacheTime), false, false);
 	}
 
@@ -551,7 +533,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	protected AccessTimeObjectHolder<V> putToMap(K key, V data, long idleTime, long cacheTime, boolean putIfAbsent,
 			boolean returnEffectiveHolder)
 	{
-		Holders<V> holders = putToMapI(key, data, 1000*cacheTime, putIfAbsent);
+		Holders<V> holders = putToMapI(key, data, cacheTime, putIfAbsent);
 		if (holders == null)
 			return null;
 		if (holders.effectiveHolder != null)
@@ -1506,4 +1488,31 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	
 	}
 
+	@Override
+	public String toString()
+	{
+		return "TriavaCache [id=" + id
+				//", builder=" + builder
+				//+ ", strictJSR107=" + strictJSR107
+				
+				+ ", storeClass=" + objects.getClass().getName()
+				+ ", storeMode=" + builder.getCacheWriteMode()
+				
+				+ ", maxCacheTime=" + maxCacheTime + "ms"
+				+ ", maxCacheTimeSpread=" + maxCacheTimeSpread*1000 + "ms"
+				
+				+ ", expiryPolicyType=" + expiryPolicy.getClass().getName()
+				+ ", expirationInterval=" + cleanUpIntervalMillis + "ms"
+				+ ", jamPolicy=" + jamPolicy
+				
+				+ ", hasLoader=" + (loader != null)
+				+ ", hasWriter=" + (cacheWriter != null)
+				+ ", listeners=" + listeners.size()
+				
+				+ ", managementEnabled=" + isManagementEnabled()
+				+ ", statisticsEnabled=" + isStatisticsEnabled()
+				+ "]";
+	}
+
+	
 }
