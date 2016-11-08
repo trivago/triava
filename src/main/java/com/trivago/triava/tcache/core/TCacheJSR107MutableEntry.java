@@ -97,7 +97,7 @@ public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V
 		if (valueNew == null && loader != null)
 		{
 			valueNew = loader.load(key);
-			operation = Operation.LOAD; // treat load and set the same
+			operation = Operation.LOAD;
 		}
 		
 		if (operation == Operation.NOP)
