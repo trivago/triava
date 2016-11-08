@@ -504,6 +504,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return holders;
 	}
 
+	/**
+	 * Returns the value that the given holder stores.
+	 * 
+	 * @param holder The holder
+	 * @return The value stored by the holder, or null of the holder is not valid.
+	 */
 	private V gatedPeek(AccessTimeObjectHolder<V> holder)
 	{
 		if (holder == null)
