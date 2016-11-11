@@ -349,6 +349,8 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					 * In case of an Exception, there is no "evictionNotifierDone.notifyAll();".
 					 * Threads waiting on evictionNotifierDone may be stuck forever, or at least until the next
 					 * put() operation starts another eviction cycle via evictionNotifierQ. 
+					 * 
+					 * This behavior is wanted, as in presence of an Exception we cannot be sure whether elements were evicted at all.
 					 */
 					evictedElements.clear();
 				}
@@ -435,11 +437,11 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			for (HolderFreezer<K, V> entryToRemove : toCheck)
 			{
 				K key = entryToRemove.getKey();
-				V oldValue = remove(key); // ###C###
+				V oldValue = removeAndRelaese(key); // ###C###
 				if (oldValue != null)
 				{
 					/**
-					 * By evaluating the remove() return value we know that the cache entry was removed by us
+					 * By evaluating the removeAndRelaese() return value we know that the cache entry was removed by us
 					 * (the EvictionThread). This means we count only what has not "magically" disappeared
 					 * between ###A### and ###C###. Actually the reasons for disappearing are not magical at
 					 * all: Most notably objects can disappear because they expire, see the CleanupThread in

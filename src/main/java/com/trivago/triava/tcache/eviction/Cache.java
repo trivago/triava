@@ -1140,8 +1140,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * Removes the object with given key, and returns the value that was stored for it.
+	 * Removes the mapping for the given key, and returns the value that was stored for it.
 	 * Returns null if there was no value for the key stored.
+	 * <p>
+	 * Implementation note: The return value reflects the "remove-from-map" outcome, not the "release".
+	 * This is to fulfill the JSR Spec and TCK. In the future it should be checked again whether
+	 * we can make it reflect the "release" again, as it would be cleaner (i.e.: atomic, more consistent) 
 	 * 
 	 * @param key The key
 	 * @return The value that was stored for the given key or null
@@ -1159,6 +1163,24 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return validBeforeInvalidate ? releasedValue : null;
 	}
 
+	
+	/**
+	 * Removes the mapping for the given key, and releases the associated holder.
+	 * This method is thread-safe and has atomic-like behavior: If two threads call this method,
+	 * only one will be returned true.   
+	 * <p>
+	 * Implementation note: The return value reflects the "release" outcome, not the removal from the Map.
+	 * This is done, as the "release" operation is a GATE, and it can only be passed once per Holder. 
+	 * 
+	 * @param key The key
+	 * @return true, if this call released the holder for the given key.
+	 */
+	protected V removeAndRelaese(K key)
+	{
+		AccessTimeObjectHolder<V> oldHolder = this.objects.remove(key);
+		return releaseHolder(oldHolder);
+	}
+	
 	/**
 	 * Schedule the object for the given key for expiration. The time will be chosen randomly
 	 * between immediately and the given maximum delay. The chosen time will never increase
