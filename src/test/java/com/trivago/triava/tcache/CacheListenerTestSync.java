@@ -20,6 +20,7 @@ import org.junit.Test;
 
 public class CacheListenerTestSync extends CacheListenerTest
 {
+	private static final long serialVersionUID = -4160438253617454647L;
 
 	public CacheListenerTestSync()
 	{

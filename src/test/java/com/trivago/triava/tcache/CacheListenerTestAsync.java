@@ -22,7 +22,8 @@ import org.junit.Test;
 
 public class CacheListenerTestAsync extends CacheListenerTest
 {
-	
+	private static final long serialVersionUID = -5969452247309959918L;
+
 	public CacheListenerTestAsync()
 	{
 		super(1000, TimeUnit.MILLISECONDS);

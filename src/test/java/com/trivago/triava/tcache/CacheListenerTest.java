@@ -24,6 +24,8 @@ import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
 
 public class CacheListenerTest extends CacheListenerTestBase
 {
+	private static final long serialVersionUID = -7831605500466126577L;
+
 	CacheListenerTest()
 	{
 	}
