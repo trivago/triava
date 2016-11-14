@@ -437,7 +437,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			for (HolderFreezer<K, V> entryToRemove : toCheck)
 			{
 				K key = entryToRemove.getKey();
-				V oldValue = removeAndRelaese(key); // ###C###
+				V oldValue = removeAndRelease(key); // ###C###
 				if (oldValue != null)
 				{
 					/**

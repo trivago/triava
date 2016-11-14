@@ -1175,7 +1175,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * @param key The key
 	 * @return true, if this call released the holder for the given key.
 	 */
-	protected V removeAndRelaese(K key)
+	protected V removeAndRelease(K key)
 	{
 		AccessTimeObjectHolder<V> oldHolder = this.objects.remove(key);
 		return releaseHolder(oldHolder);
