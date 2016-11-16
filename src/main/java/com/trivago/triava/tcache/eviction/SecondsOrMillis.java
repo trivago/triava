@@ -33,7 +33,7 @@ public class SecondsOrMillis
 	public static int fromMillisToInternal(long millis)
 	{
 		if (millis < 0)
-			throw new IllegalArgumentException("millis must be not positive: " + millis);
+			throw new IllegalArgumentException("millis must be not negative: " + millis);
 		
 		if (millis < MILLIS_MAX)
 			return (int)millis;

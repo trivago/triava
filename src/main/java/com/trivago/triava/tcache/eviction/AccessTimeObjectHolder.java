@@ -212,7 +212,19 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 			// 1) Find out how long we currently live in the Cache
 			long cacheDurationMillis = currentTimeMillisEstimate() - getInputDate();
 			// 2) Prolong by idleTimeSecs.
-			this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(cacheDurationMillis + idleTimeMillis);
+			try
+			{
+				long newIdleTimeMillis = cacheDurationMillis + idleTimeMillis;
+				if (newIdleTimeMillis < cacheDurationMillis)
+				{
+					newIdleTimeMillis = Constants.EXPIRY_MAX; // overrun
+				}
+				this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(newIdleTimeMillis);				
+			}
+			catch (Exception exc)
+			{
+				System.out.println("updateMaxIdleTime() failed idleTimeMillis=" +idleTimeMillis + ", getInputDate()=" +getInputDate() + ", cacheDurationMillis=" + cacheDurationMillis); 
+			}
 //			int newMaxIdleTarget = (int)Math.min(  (cacheDurationMillis/1000) + idleTimeSecs, (long)Integer.MAX_VALUE);
 //			this.maxIdleTime = newMaxIdleTarget;
 		}
