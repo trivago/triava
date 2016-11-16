@@ -57,7 +57,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	final Object factoryLock = new Object();
 	boolean closed = false;
 	final private URI uri;
-	AtomicInteger uriSeqno = new AtomicInteger();
+	static AtomicInteger uriSeqno = new AtomicInteger();
 	final ClassLoader classloader;
 	final Properties properties;
 	final TCacheProvider cachingProvider;
@@ -109,8 +109,12 @@ public class TCacheFactory implements Closeable, CacheManager
 	 * 
 	 * @return The standard cache factory.
 	 */
-	public static TCacheFactory standardFactory()
+	public synchronized static TCacheFactory standardFactory()
 	{
+		/*
+		 * This method is synchronized, as otherwise multiple Threads could create two
+		 *  TCacheFactory instances. Even worse
+		 */
 		TCacheFactory sf = standardFactory;
 		if (sf == null || sf.isClosed())
 		{
@@ -183,7 +187,7 @@ public class TCacheFactory implements Closeable, CacheManager
 					// JSR-107 mentions the order clear(), close(), but this means, that new entries
 					// could get added between clear and close. Thus my shutdown() does a close(), clear() sequence.
 					// For practical purposes it should be the same, and also conform to the Cache-TCK.
-					registeredCache.shutdown(); 
+					registeredCache.close0(false); 
 					CacheInstances.remove(index);
 					break;
 				}
@@ -235,7 +239,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	{
 		for (Cache<?, ?> cache : CacheInstances)
 		{
-			cache.shutdown();
+			cache.close();
 		}
 		CacheInstances.clear();
 		if (cachingProvider == null)
