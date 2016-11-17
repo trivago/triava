@@ -864,11 +864,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			}
 			catch (Exception exc)
 			{
-				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.  
-
-				// TODO Check back after clarifying whether this requirement is a TCK bug:
-				// https://github.com/jsr107/jsr107tck/issues/99
-
+				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.
+				// For details, see https://github.com/jsr107/jsr107tck/issues/99
 				String message = "CacheLoader " + id + " failed to load key=" + key;
 				throw new CacheLoaderException(message + " This is a wrapped exception. See https://github.com/jsr107/jsr107tck/issues/99", exc);
 			}

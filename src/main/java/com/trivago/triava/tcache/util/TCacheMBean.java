@@ -128,12 +128,10 @@ public abstract class TCacheMBean
 		try
 		{
 			/**
-			 * TODO JSR107 There seems to be a naming mismatch.
-			 * - The RI uses "type=CacheConfiguration" and "type=CacheStatistics" 
-			 * - The API docs of CacheManager.enableManagement() specify "type=Cache" and "type=CacheStatistics" 
+			 * JSR107 There seems to be a naming mismatch.
+			 * - (correct) The RI uses "type=CacheConfiguration" and "type=CacheStatistics" 
+			 * - (wrong) The API docs of CacheManager.enableManagement() specify "type=Cache" and "type=CacheStatistics" 
 			 */
-			// 
-			// 
 			return new ObjectName("javax.cache:type=Cache" + objectNameType + ",CacheManager=" + cacheManagerName
 					+ ",Cache=" + cacheName);
 		}

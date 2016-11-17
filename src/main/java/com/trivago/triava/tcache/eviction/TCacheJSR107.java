@@ -325,14 +325,14 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 		Map<K, EntryProcessorResult<T>> resultMap = new HashMap<>();
 		for (K key : keys)
 		{
+			/**
+			 * JSR107 compliance hint:
+			 * The JSR107 Spec says, that invokeAll() must call writeAll(). If taken literally, our CacheWriter behavior would
+			 * not JSR107 compliant. OTOH the reference implementation is also implementing it using individual write calls.
+			 */
 			try
 			{
 				TCacheJSR107MutableEntry<K, V> me = invokeBuildMutableEntry(key);
-				// TODO CacheWriter behavior is
-				// here not JSR107 compliant.
-				// writeAll() must be called
-				// instead of individual write()
-				// calls
 				T result = processEntryProcessor(entryProcessor, me, args);
 				if (result != null)
 				{
