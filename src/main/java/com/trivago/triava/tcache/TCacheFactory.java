@@ -64,10 +64,16 @@ public class TCacheFactory implements Closeable, CacheManager
 
 	static TCacheFactory standardFactory = null;
 
+	/**
+	 * Creates a TCacheFactory with default parameters.
+	 * <p>
+	 * JCache (JSR107) compatibility note. The TCacheFactory is a JSR107 CacheManager, but it is standalone
+	 * and will not be registered in any CacheProvider. If you require this, retrieve an instance via
+	 * the other constructors or the JSR107 CacheProvider instead.
+	 */
 	public TCacheFactory()
 	{
 		classloader = Thread.currentThread().getContextClassLoader();
-//		properties = defaultProperties();
 		properties = new Properties();
 
 		int seqno = uriSeqno.incrementAndGet();
@@ -112,8 +118,8 @@ public class TCacheFactory implements Closeable, CacheManager
 	public synchronized static TCacheFactory standardFactory()
 	{
 		/*
-		 * This method is synchronized, as otherwise multiple Threads could create two
-		 *  TCacheFactory instances. Even worse
+		 * This method is synchronized, as otherwise concurrent Threads could create two
+		 * different standardFactory instances, where the last .
 		 */
 		TCacheFactory sf = standardFactory;
 		if (sf == null || sf.isClosed())
@@ -486,7 +492,7 @@ public class TCacheFactory implements Closeable, CacheManager
 		// The following assertNotClosed() complies to the JSR107 specification, but it makes a TCK check fail.
 		// This is due to a bug in the TCK, which we addressed in https://github.com/jsr107/jsr107spec/issues/342
 
-//		assertNotClosed(); // TODO Add this again, when the JSR107 TCK has been fixed
+//		assertNotClosed(); // Future directions: Add this again, when the JSR107 TCK has been fixed
 
 		List<String> cacheNames = new ArrayList<>(CacheInstances.size());
 		for (Cache<?, ?> cache : CacheInstances)
