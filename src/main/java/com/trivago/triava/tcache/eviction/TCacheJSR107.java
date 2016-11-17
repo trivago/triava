@@ -110,8 +110,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public void close()
 	{
-		// TODO A close must unregister the Cache
-		tcache.shutdown();
+		tcache.close();
 	}
 
 	@Override

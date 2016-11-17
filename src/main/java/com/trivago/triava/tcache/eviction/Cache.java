@@ -286,19 +286,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * @deprecated Please use {@link #close()} instead
-	 */
-	public final void shutdown()
-	{
-		close();
-	}
-	
-	/**
 	 * Closes the cache and removes it from the associated CacheManager. After calling this method, the cache cannot be
 	 * used any longer.
-	 * <p>
-	 * Implementation hint: This method can be overridden by implementations, if they require a custom clean up.
-	 * If overridden, super.close() must be called.
 	 */
 	public final void close()
 	{
@@ -307,11 +296,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	
 	/**
 	 * Identical with {@link #close()}, but allows to specify whether to call CacheManager.destroyCache().
-	 * This is required to avoid infinite recursion.
-	 * It looks unclean, but we cannot move the close() code easily, as one can override it (and the CacheLimit class does so).
+	 * <p>
+	 * Using destroyCache==false is required to avoid infinite recursion, when close is called from the CacheManager.
+	 * It looks unclean, but we cannot move the close0() code easily, as shutdownCustomImpl() must be called and
+	 * calling that from CacheManager.destroyCache() also looks unclean.
 	 * In the future this would be a good point to refactor.
 	 * 
 	 * TODO This method must NOT be public
+	 * 
+	 * @param destroyCache true means to call destroyCache()
 	 */
 	public final void close0(boolean destroyCache)
 	{
@@ -323,7 +316,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * Shuts down the implementation specific parts. This method is called as part of {@link #shutdown()}.
+	 * Shuts down the implementation specific parts. This method is called as part of {@link #close()}.
 	 * The Cache is at this point already treated as closed, and {@link #isClosed()} will return true.
 	 * The default implementation does nothing.
 	 */
