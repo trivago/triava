@@ -42,8 +42,7 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	@Override
 	public void clear()
 	{
-		// TODO Auto-generated method stub
-
+		statistics.clear();
 	}
 
 	@Override
