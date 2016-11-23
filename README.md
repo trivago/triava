@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.9</version>
+      <version>0.9.13</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.9'
+	compile 'com.trivago:triava:0.9.13'
 }
 ```
 
@@ -55,6 +55,8 @@ dependencies {
     - cache: Fully JCache / JSR107 compliance 
 - 0.9.9
     - cache: API cleanup, adding TimeUnit param to API
+- 0.9.13
+    - cache: API cleanup, fix duplicate notification of Listeners
 
 
 ## Building:
