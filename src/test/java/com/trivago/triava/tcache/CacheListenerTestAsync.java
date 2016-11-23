@@ -30,15 +30,22 @@ public class CacheListenerTestAsync extends CacheListenerTest
 	}
 	
 	@Test
-	public void testListenerSynchronous()
+	public void testListenerAsynchronous()
 	{
 		testListener();
 	}
 
 	@Test
-	public void testWriteMoreThanCapacitySynchronous()
+	public void testWriteMoreThanCapacityAsynchronous()
 	{
 		// Eviction is always asynchronous, and thus we do an ASYNC check here
 		testWriteMoreThanCapacity();
+	}
+	
+	@Test
+	public void testExpiryListenerWithAllExpiringAsynchronous()
+	{
+		// Eviction is always asynchronous, and thus we do an ASYNC check here
+		testExpiryListenerWithAllExpiring();
 	}
 }

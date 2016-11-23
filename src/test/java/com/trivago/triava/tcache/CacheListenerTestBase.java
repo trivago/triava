@@ -86,12 +86,17 @@ public class CacheListenerTestBase implements Serializable
 	/**
 	 * Creates a Cache via plain JSR107 API. The Cache is configured with a default MutableConfiguration.
 	 * @param cacheName Cache name
+	 * @param expirationMillis 
 	 * @return The Cache
 	 */
-	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName, Integer size)
+	javax.cache.Cache<Integer, String> createJsr107Cache(String cacheName, Integer size, Integer expirationMillis)
 	{
 		CacheManager cm = cacheManager();
 		Builder<Integer, String> mc = createCacheBuilder(size);
+		if (expirationMillis != null)
+		{
+			mc.setMaxCacheTime(expirationMillis, TimeUnit.MILLISECONDS);
+		}
 		javax.cache.Cache<Integer, String> cache = cm.createCache(cacheName, mc); // Build
 		
 		return cache;

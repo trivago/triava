@@ -13,6 +13,7 @@
 
 package com.trivago.triava.tcache;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,8 @@ import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.configuration.Factory;
 import javax.cache.configuration.FactoryBuilder;
 import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
+
+import com.trivago.triava.tcache.eviction.Cache;
 
 public class CacheListenerTest extends CacheListenerTestBase
 {
@@ -69,7 +72,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 
 	private javax.cache.Cache<Integer, String> createCache(String name, Integer size)
 	{
-		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + runMode, size);
+		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + runMode, size, null);
 		Factory<UpdateListener> ulFactory = FactoryBuilder.factoryOf(new UpdateListener());
 		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, runMode == RunMode.SYNC);
 		cache.registerCacheEntryListener(listenerConf);
@@ -78,7 +81,12 @@ public class CacheListenerTest extends CacheListenerTestBase
 	
 	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, Integer size)
 	{
-		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-" + runMode, size);
+		return createCacheWithExpiredListener(name, size, null);
+	}
+	
+	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, Integer size, Integer expirationMillis)
+	{
+		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-" + runMode, size, expirationMillis);
 		Factory<MyExpiredListener> ulFactory = FactoryBuilder.factoryOf(new MyExpiredListener());
 		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, runMode == RunMode.SYNC);
 		cache.registerCacheEntryListener(listenerConf);
@@ -93,13 +101,42 @@ public class CacheListenerTest extends CacheListenerTestBase
 
 		resetListenerCounts();
 
+		int puts = 0;
 		for (int i = 0; i < 100 * capacity; i++)
 		{
 			cache.put(i, "Value " + i);
+			puts ++;
 		}
 		
 		int expireAtLeast = 10 * capacity; // Actually 99*capacity or at least 90*capacity could be checked
-		checkEventCountAtLeast(expireAtLeast, expiredListenerFiredCount); 
+		checkEventCountAtLeast(expireAtLeast, expiredListenerFiredCount);
+//		System.out.println("puts=" + puts + ", evictedListenerFiredCount=" + expiredListenerFiredCount + ", diff=" + (puts - expiredListenerFiredCount.get()) );
+		
+		// Verify we have not notified more than we have written.
+		int expiredNotifications = expiredListenerFiredCount.get();
+		assertTrue("More evicted than put, put=" + puts + ", expired = " + expiredNotifications, expiredNotifications <= puts);
 	}
 
+	public void testExpiryListenerWithAllExpiring()
+	{
+//		Cache.setLogger(new TriavaConsoleLogger());
+		int capacity = 1_000_000;
+		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpiryListener", capacity+1, 1);
+		Cache<?,?> tcache = cache.unwrap(Cache.class);
+		tcache.setCleanUpIntervalMillis(1);
+
+		resetListenerCounts();
+
+		int puts = 0;
+		for (int i = 0; i < capacity ; i++)
+		{
+			cache.put(i, "Value " + i);
+			puts ++;
+		}
+		
+		checkEventCount(capacity, expiredListenerFiredCount);
+//		System.out.println("puts=" + puts + ", expiredListenerFiredCount=" + expiredListenerFiredCount + ", diff=" + (puts - expiredListenerFiredCount.get()) );
+	}
+	
+	
 }
