@@ -178,6 +178,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			// TODO Find a suitable way to calculate expiryIdleMillis for strict JSR107 mode.
 			//  Issue:The JSR107 TCK disallows free use of expiryPolicy methods. When using it here, the TCK will record failures,
 			// because it requires that methods are ONLY called at very specific times.
+			// => Workaround: For now, we just do a guess of 10 minutes 
+			expiryIdleMillis = 600_000; // 10 minutes
 		}
 		else
 		{
@@ -192,9 +194,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		// Cleaner should run often enough, but not too often. The chosen time is expiryIdleMillis / 10, but limited to 5min.
 		if (expiryIdleMillis <= 0)
 		{
-			expiryIdleMillis = 60_000;
+			expiryIdleMillis = 600_000;
 		}
-		this.cleanUpIntervalMillis = Math.min(5 * 60_000, expiryIdleMillis / 10);
+		if (expiryIdleMillis > 10)
+			this.cleanUpIntervalMillis = Math.min(5 * 60_000, expiryIdleMillis / 10);
+		else
+			this.cleanUpIntervalMillis = 1;
 
 		this.jamPolicy = builder.getJamPolicy();
 		// CacheLoader directly or via CacheLoaderFactory
@@ -1013,9 +1018,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		this.cleaner.setUncaughtExceptionHandler(this);
 		this.cleaner.start();
 
-	    // Don't call expiryPolicy methods in JSR107 mode. The JSR107 TCK gets confused about it, and considers it as a test failure.
-		String durationMsg = strictJSR107 ? "" : ", timeout: " + expiryPolicy.getExpiryForAccess();
-		logger.info(this.id + " Cache started" + durationMsg);
+		logger.info(this.id + " expiration started" + ", cleanupInterval=" + cleanUpIntervalMillis + "ms");
 	}
 
 	/**
@@ -1080,7 +1083,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private void cleanUp()
 	{
 		boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
-		Map<K, V> evictedElements = expiryNotification ? new HashMap<K, V>() : null;
+		Map<K, V> expiredElements = expiryNotification ? new HashMap<K, V>() : null;
 
 		// -1- Clean
 		int removedEntries = 0;
@@ -1098,15 +1101,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				if (removed) // SAE-150 Verify removal
 				{
 					++removedEntries;
-					if (evictedElements != null)
-						evictedElements.put(entry.getKey(), value);
+					if (expiredElements != null)
+						expiredElements.put(entry.getKey(), value);
 				}
 			}
 		}
 
 		// -2- Notify listeners
-		if (evictedElements != null)
-			listeners.dispatchEvents(evictedElements, EventType.EXPIRED, true);
+		if (expiredElements != null)
+			listeners.dispatchEvents(expiredElements, EventType.EXPIRED, true);
 
 		// -3- Stop Thread if cache is empty
 		if (objects.isEmpty())
