@@ -154,7 +154,6 @@ final class ListenerEntry<K,V>
 			
 			interestingEvents.add(event);
 			needsSend = true;
-			
 //			sentCount ++;
 			
 			if (i++ == batchSize)
@@ -162,6 +161,7 @@ final class ListenerEntry<K,V>
 //				sentBatches++;
 				scheduleEvents(interestingEvents, listenerRef, eventType, forceAsync);
 				needsSend = false;
+				interestingEvents = new ArrayList<>(batchSize);
 				i = 0;
 			}
 		}
