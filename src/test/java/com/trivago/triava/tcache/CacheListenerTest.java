@@ -23,10 +23,13 @@ import javax.cache.configuration.Factory;
 import javax.cache.configuration.FactoryBuilder;
 import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
 
+import com.trivago.triava.logging.TriavaConsoleLogger;
 import com.trivago.triava.tcache.eviction.Cache;
 
 public class CacheListenerTest extends CacheListenerTestBase
 {
+	final static boolean DEBUG_OUTPUT = false;
+	
 	private static final long serialVersionUID = -7831605500466126577L;
 
 	CacheListenerTest()
@@ -95,7 +98,9 @@ public class CacheListenerTest extends CacheListenerTestBase
 	
 	public void testWriteMoreThanCapacity()
 	{
-//		Cache.setLogger(new TriavaConsoleLogger());
+		if (DEBUG_OUTPUT)
+			Cache.setLogger(new TriavaConsoleLogger());
+		
 		int capacity = 10000;
 		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testWriteMoreThanCapacity", capacity);
 
@@ -110,7 +115,9 @@ public class CacheListenerTest extends CacheListenerTestBase
 		
 		int expireAtLeast = 10 * capacity; // Actually 99*capacity or at least 90*capacity could be checked
 		checkEventCountAtLeast(expireAtLeast, expiredListenerFiredCount);
-//		System.out.println("puts=" + puts + ", evictedListenerFiredCount=" + expiredListenerFiredCount + ", diff=" + (puts - expiredListenerFiredCount.get()) );
+		
+		if (DEBUG_OUTPUT)
+			System.out.println("puts=" + puts + ", evictedListenerFiredCount=" + expiredListenerFiredCount + ", diff=" + (puts - expiredListenerFiredCount.get()) );
 		
 		// Verify we have not notified more than we have written.
 		int expiredNotifications = expiredListenerFiredCount.get();
@@ -119,7 +126,8 @@ public class CacheListenerTest extends CacheListenerTestBase
 
 	public void testExpiryListenerWithAllExpiring()
 	{
-//		Cache.setLogger(new TriavaConsoleLogger());
+		if (DEBUG_OUTPUT)
+			Cache.setLogger(new TriavaConsoleLogger());
 		int capacity = 1_000_000;
 		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpiryListener", capacity+1, 1);
 		Cache<?,?> tcache = cache.unwrap(Cache.class);
@@ -127,6 +135,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 
 		resetListenerCounts();
 
+		@SuppressWarnings("unused")  // only for 		if (DEBUG_OUTPUT)
 		int puts = 0;
 		for (int i = 0; i < capacity ; i++)
 		{
@@ -135,7 +144,8 @@ public class CacheListenerTest extends CacheListenerTestBase
 		}
 		
 		checkEventCount(capacity, expiredListenerFiredCount);
-//		System.out.println("puts=" + puts + ", expiredListenerFiredCount=" + expiredListenerFiredCount + ", diff=" + (puts - expiredListenerFiredCount.get()) );
+		if (DEBUG_OUTPUT)
+			System.out.println("puts=" + puts + ", expiredListenerFiredCount=" + expiredListenerFiredCount + ", diff=" + (puts - expiredListenerFiredCount.get()) );
 	}
 	
 	
