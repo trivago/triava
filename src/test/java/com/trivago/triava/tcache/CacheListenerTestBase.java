@@ -64,7 +64,7 @@ public class CacheListenerTestBase implements Serializable
 	/**
 	 * Constructor for SYNC mode
 	 */
-	CacheListenerTestBase()
+	protected CacheListenerTestBase()
 	{
 		runMode = RunMode.SYNC;
 		maxWait = 0; // irrelevant
@@ -102,7 +102,7 @@ public class CacheListenerTestBase implements Serializable
 		return cache;
 	}
 	
-	Builder<Integer, String> createCacheBuilder(Integer size)
+	protected Builder<Integer, String> createCacheBuilder(Integer size)
 	{
 		Builder<Integer, String> builder = TCacheFactory.standardFactory().builder();
 		if (size != null)
