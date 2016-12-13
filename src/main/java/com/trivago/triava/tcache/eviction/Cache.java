@@ -671,7 +671,12 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			// Add entry initially with unlimited expiration, then update the idle from the existing holder
 			newHolder = new AccessTimeObjectHolder<>(data, builder.getCacheWriteMode());
-			holder = gatedHolder(this.objects.put(key, newHolder));
+			holder = this.objects.put(key, newHolder);
+			if (holder != null && holder.isInvalid())
+			{
+				expireEntry(key,holder); // SAE-190 Notify about expiration
+			}
+			holder = gatedHolder(holder);
 			long calculatedIdleTime = newHolder.calculateMaxIdleTimeFromUpdateOrCreation(holder != null, expiryPolicy, holder);
 			effectiveHolder = newHolder;
 			hasPut = true;
