@@ -22,7 +22,7 @@ import javax.cache.management.CacheStatisticsMXBean;
 
 import com.trivago.triava.tcache.eviction.Cache;
 
-public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
+public class TCacheStatisticsBean implements TCacheStatisticsMXBean, Serializable
 {
 	private static final long serialVersionUID = -2459622086065310568L;
 	
@@ -149,6 +149,12 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	{
 		// not measured, as this can limit throughput, as calls like System.nanoTime() can be very expensive
 		return 0;
+	}
+
+	@Override
+	public int getSize()
+	{
+		return tcache.size();
 	}
 
 }
