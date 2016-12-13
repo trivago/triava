@@ -125,6 +125,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	
 //	@ObjectSizeCalculatorIgnore
 	private volatile transient CleanupThread cleaner = null;
+	// The expiration queue is for the cleaner, but it is independent from the cleaner instance
+//	final BlockingQueue<SimpleEvictionEvent> expirationQueue = new ArrayBlockingQueue<>(100);
 	private volatile long cleanUpIntervalMillis;
 
 	//final HashInterner<V> interner = new HashInterner<>(100);
@@ -620,9 +622,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 
 		boolean hasPut = false;
 
-		boolean debugTCKtest = false;
-		long startNanos = System.nanoTime();
-		
 		if (putIfAbsent)
 		{
 			// Always use expiryForCreation. Either it is correct, or we do not care(wrong but not added to cache) 
@@ -631,6 +630,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			if (holder != null && holder.isInvalid())
 			{
 				// Entry was in backing map, but is actually invalid (e.g. expired) => just overwrite
+//				expireEntry(key,holder);
+//				enqueueExpirationEvent(key, holder);
 				this.objects.put(key, newHolder);
 				holder = null;
 			}
@@ -670,51 +671,43 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			// Add entry initially with unlimited expiration, then update the idle from the existing holder
 			newHolder = new AccessTimeObjectHolder<>(data, builder.getCacheWriteMode());
-			if (debugTCKtest) debugTimeIssue("AccessTimeObjectHolder() done", newHolder, startNanos);
 			holder = gatedHolder(this.objects.put(key, newHolder));
-			debugTCKtest = newHolder.setMaxIdleTimeAsUpdateOrCreation(holder != null, expiryPolicy, holder);
-			if (debugTCKtest) debugTimeIssue("setMaxIdleTimeAsUpdateOrCreation()1 done", newHolder, startNanos);
+			long calculatedIdleTime = newHolder.calculateMaxIdleTimeFromUpdateOrCreation(holder != null, expiryPolicy, holder);
 			effectiveHolder = newHolder;
 			hasPut = true;
 			// We have to complete the entry as late as possible, to make sure it cannot be found in the Cache before it is complete.
 			// Additionally, inputDate and lastAccessTime must be as accurate as possible. There was an issue before, as the TCK
-			// tests used an ExpiryPolicy-Server that took 20-60 ms to process the ExpiryPolicy. AT that point of time Elements with 20ms epxiration
+			// tests used an ExpiryPolicy-Server that took 20-60 ms to process the ExpiryPolicy. At that point of time Elements with 20ms expiration
 			// were already expired. The TCK is correct. Test in the TCK is org.jsr107.tck.expiry.CacheExpiryTest.testCacheStatisticsRemoveAll()
-			newHolder.complete(cacheTime); // TODO change it to use the two-arg complete() and remove the 1-arg complete() 
-			if (debugTCKtest) debugTimeIssue("setMaxIdleTimeAsUpdateOrCreation()2 done", newHolder, startNanos);
+			newHolder.complete(calculatedIdleTime, cacheTime); 
 		}
 
-		if (debugTCKtest)
-		{
-			boolean invalid = effectiveHolder.isInvalid(true);
-			if (invalid)
-				System.out.println("triava TCK-Debug: key=" + key + ", hasPut=" + hasPut + ", invalid-debug=" + invalid + ", expTime=" + newHolder.getExpirationTime() + "effectiveHolder=" + effectiveHolder);
-		}
-		if (debugTCKtest) debugTimeIssue("STEP 4", newHolder, startNanos);
 		AccessTimeObjectHolder<V> gatedEffectiveHolder = gatedHolder(effectiveHolder);
-		if (debugTCKtest) debugTimeIssue("STEP 5", newHolder, startNanos);
 		if (gatedEffectiveHolder != null)
 		{
-			if (debugTCKtest) debugTimeIssue("STEP 5b", newHolder, startNanos);
 			if (hasPut)
 				statisticsCalculator.incrementPutCount();
 		}
 
 		ensureCleanerIsRunning();
-//		if (debugTCKtest)
-//		{
-//			String invString = newHolder.isInvalid() ? "  !!!INVALID!!!" : "";
-//			System.out.println("triava TCK-Debug: key=" + key + ", hasPut=" + hasPut + ", effectiveHolder=" + gatedEffectiveHolder + ", expTime=" + newHolder.getExpirationTime() + invString);
-//		}
 		return new Holders<V>(gatedHolder(newHolder), gatedHolder(holder), gatedEffectiveHolder);
 	}
 
-	private void debugTimeIssue(String ctx, AccessTimeObjectHolder<V> newHolder, long startNanos)
-	{
-		float ms = (System.nanoTime()- startNanos)/1_000_000f;
-		if (ms > 15)
-			System.out.println("ctx: " + ctx + ": " +  ms  +"ms inputDate=" + newHolder.getInputDate() + "lastAccess=" + newHolder.getLastAccess() + ", expTime=" + newHolder.getExpirationTime());
-	}
+//	private void enqueueExpirationEvent(K key, AccessTimeObjectHolder<V> holder)
+//	{
+//		while (true)
+//		{
+//			Cache<K, V>.CleanupThread cleanerRef = ensureCleanerIsRunning();
+//			boolean added = expirationQueue.offer(new SimpleEvictionEvent(key, holder));
+//			if (added)
+//			{
+//				cleanerRef.processExpirationQueue();
+//				break;
+//			}
+//			
+//			// else: TODO Currently we spinlock here. This could be suboptimal
+//		}
+//	}
 
 	/**
 	 * Replace the entry stored by key with the given value.
@@ -802,13 +795,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 
 	/**
 	 * Checks whether the cleaner is running. If not, the cleaner gets started.
+	 * @return The CleanupThread
 	 */
-	private void ensureCleanerIsRunning()
+	private Cache<K, V>.CleanupThread ensureCleanerIsRunning()
 	{
-		if (cleaner == null)
-		{
-			startCleaner();
-		}
+		return startCleaner();
 	}
 
 	/**
@@ -1005,20 +996,24 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return errorMsg;
 	}
 
-	private synchronized void startCleaner()
+	private synchronized Cache<K, V>.CleanupThread startCleaner()
 	{
-		if (this.cleaner != null)
+		Cache<K, V>.CleanupThread cleanerRef = this.cleaner;
+		if (cleanerRef != null)
 		{
-			return;
+			return cleanerRef;
 		}
 
-		this.cleaner = new CleanupThread("CacheCleanupThread-" + id);
-		this.cleaner.setPriority(Thread.MAX_PRIORITY);
-		this.cleaner.setDaemon(true);
-		this.cleaner.setUncaughtExceptionHandler(this);
-		this.cleaner.start();
+		cleanerRef = new CleanupThread(id);
+		cleanerRef.setPriority(Thread.MAX_PRIORITY);
+		cleanerRef.setDaemon(true);
+		cleanerRef.setUncaughtExceptionHandler(this);
+		this.cleaner = cleanerRef;
+		cleanerRef.start();
 
 		logger.info(this.id + " expiration started" + ", cleanupInterval=" + cleanUpIntervalMillis + "ms");
+		
+		return cleanerRef;
 	}
 
 	/**
@@ -1083,7 +1078,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private void cleanUp()
 	{
 		boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
-		Map<K, V> expiredElements = expiryNotification ? new HashMap<K, V>() : null;
+		Map<K, V> evictedElements = expiryNotification ? new HashMap<K, V>() : null;
 
 		// -1- Clean
 		int removedEntries = 0;
@@ -1101,15 +1096,15 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				if (removed) // SAE-150 Verify removal
 				{
 					++removedEntries;
-					if (expiredElements != null)
-						expiredElements.put(entry.getKey(), value);
+					if (evictedElements != null)
+						evictedElements.put(entry.getKey(), value);
 				}
 			}
 		}
 
 		// -2- Notify listeners
-		if (expiredElements != null)
-			listeners.dispatchEvents(expiredElements, EventType.EXPIRED, true);
+		if (evictedElements != null)
+			listeners.dispatchEvents(evictedElements, EventType.EXPIRED, true);
 
 		// -3- Stop Thread if cache is empty
 		if (objects.isEmpty())
@@ -1474,17 +1469,44 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return statisticsCalculator;
 	}
 
+
+	boolean expireEntry(K key, AccessTimeObjectHolder<V> holder)
+	{
+		V value = holder.peek();
+		boolean removed = holder.release();
+		if (removed) // SAE-150 Verify removal
+		{
+			if (listeners.hasListenerFor(EventType.EXPIRED))
+			{
+				listeners.dispatchEvent(EventType.EXPIRED, key, value);
+			}
+		}
+		
+		return removed;
+	}
+	
+//	private class SimpleEvictionEvent
+//	{
+//		final K key;
+//		final AccessTimeObjectHolder<V> holder;
+//		
+//		public SimpleEvictionEvent(K key, AccessTimeObjectHolder<V> holder)
+//		{
+//			this.key = key;
+//			this.holder = holder;
+//		}
+//	}
+	
 	/**
 	 * Thread that removes expired entries.
 	 */
 	public class CleanupThread extends Thread
 	{
 		private volatile boolean running;  // Must be volatile, as it is modified via cancel() from a different thread
-		private int failedCounter = 0;
 
-		CleanupThread(String name)
+		CleanupThread(String cacheName)
 		{
-			super(name);
+			super("CacheCleanupThread-" + cacheName);
 		}
 
 		public void run()
@@ -1499,8 +1521,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 					// and the line below (sleep), the interruption gets lost and a full sleep will be done.
 					// TODO If that sleep is long (like 30s), and the shutdown Thread waits until this Thread is stopped,
 					// the shutdown Thread will wait very long.
-					sleep(cleanUpIntervalMillis);
-					this.failedCounter = 0;
+					sleep(cleanUpIntervalMillis); // TODO  Make sure we do not miss any notifications. notifications should be done for cancel-ing and force-processing
 					cleanUp();
 					if (Thread.interrupted())
 					{
@@ -1509,16 +1530,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				}
 				catch (InterruptedException ex)
 				{
-					if (this.running)
-					{
-						this.failedCounter++;
-						if (this.failedCounter > 10)
-						{
-							logger.error("possible endless loop detected, stopping loop");
-							stopCleaner();
-						}
-						logger.error("interrupted in run loop, restarting loop", ex);
-					}
+					logger.info("CleanupThread interrupted, keep running =" + running);
 				}
 			}
 			logger.info("CleanupThread " + this.getName() + " is leaving run()");
@@ -1533,6 +1545,88 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.interrupt();
 		}
 	
+//		/**
+//		 * Forces processing the expiration Queue. If the queue is already being processed when this method is called, thei method does nothing.
+//		 */
+//		private void processExpirationQueue()
+//		{
+//			this.interrupt();
+//		}
+		
+		
+//		private void cleanUp()
+//		{
+//			boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
+////			Map<K, V> expiredElements = expiryNotification ? new HashMap<K, V>() : null;
+//			Collection<TCacheEntryEvent<K, V>> expiredElements = expiryNotification ? new ArrayList<TCacheEntryEvent<K,V>>(16) : null; 
+//
+//			// -1- Clean
+//			int removedEntries = 0;
+//			for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = objects.entrySet().iterator(); iter.hasNext(); )
+//			{
+//				Entry<K, AccessTimeObjectHolder<V>> entry = iter.next();
+//				AccessTimeObjectHolder<V> holder = entry.getValue();
+//				if (holder.isInvalid())
+//				{
+//					iter.remove();
+//					if ( cleanupEntry(new SimpleEvictionEvent(entry.getKey(), holder), expiredElements) )
+//						removedEntries++;
+//				}
+//			}
+//			*/
+////			while (!expirationQueue.isEmpty())
+////			{
+////				SimpleEvictionEvent entry = expirationQueue.poll();
+////				if (entry != null)
+////				{
+////					if ( cleanupEntry(entry, expiredElements) );
+////						removedEntries++;
+////				}
+////			}
+//
+//			// -2- Notify listeners
+//			if (expiredElements != null && removedEntries > 0)
+//				listeners.dispatchEvents(expiredElements, EventType.EXPIRED, true);
+//
+//			// -3- Stop Thread if cache is empty
+//			if (objects.isEmpty())
+//			{
+//				stopCleaner();
+//			}
+//
+//			if (removedEntries != 0)
+//			{
+//				logger.info(id() + " Cache has expired objects from Cache, count=" + removedEntries);
+//			}
+//		}
+		
+//		void scheduleForExpiration(K key, AccessTimeObjectHolder<V> holder)
+//		{
+//			try
+//			{
+//				expirationQueue.put(new SimpleEvictionEvent(key, holder));
+//			}
+//			catch (InterruptedException ie)
+//			{
+//				logger.error("Interrupted while scheduling expiring: " + key);
+//			}
+//		}
+		
+//		private boolean cleanupEntry(SimpleEvictionEvent entry, Collection<TCacheEntryEvent<K, V>> expiredElements)
+//		{
+//			AccessTimeObjectHolder<V> holder = entry.holder;
+//			V value = holder.peek();
+//			boolean removed = holder.release();
+//			if (removed) // SAE-150 Verify removal
+//			{
+//				if (expiredElements != null)
+//				{
+//					expiredElements.add(new TCacheEntryEvent<K, V>(tCacheJSR107, EventType.EXPIRED, entry.key, value));
+//				}
+//			}
+//			
+//			return removed;
+//		}
 	}
 
 	@Override
