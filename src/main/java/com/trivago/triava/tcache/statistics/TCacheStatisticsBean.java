@@ -87,6 +87,9 @@ public class TCacheStatisticsBean implements CacheStatisticsMXBean, Serializable
 	{
 		if (averagingMode == StatisticsAveragingMode.PER_MINUTE)
 		{
+			if (getCacheGets() == 0)
+				return 0; // special treatment, as the code below would calculate 100 (100F - hitRatio = 100) 
+			
 			TCacheStatistics statistics2 = tcache.statistics();
 			return 100F - statistics2.getHitRatio();
 		}
