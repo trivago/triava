@@ -322,7 +322,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	{	
 		if (data == null)
 		{
-			return true; // Dropped, e.g. via expiration
+			return true; // Holder was released, e.g. via expiration
 		}
 
 		// -1- Check completeness

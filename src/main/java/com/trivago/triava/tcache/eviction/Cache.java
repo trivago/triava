@@ -630,7 +630,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			if (holder != null && holder.isInvalid())
 			{
 				// Entry was in backing map, but is actually invalid (e.g. expired) => just overwrite
-//				expireEntry(key,holder);
+				expireEntry(key,holder); // SAE-190 Notify about expiration
 //				enqueueExpirationEvent(key, holder);
 				this.objects.put(key, newHolder);
 				holder = null;
@@ -1470,16 +1470,19 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 
+	/**
+	 * Releases the given holder and sends an EXPIRED notification
+	 * @param key
+	 * @param holder
+	 * @return
+	 */
 	boolean expireEntry(K key, AccessTimeObjectHolder<V> holder)
 	{
 		V value = holder.peek();
 		boolean removed = holder.release();
 		if (removed) // SAE-150 Verify removal
 		{
-			if (listeners.hasListenerFor(EventType.EXPIRED))
-			{
-				listeners.dispatchEvent(EventType.EXPIRED, key, value);
-			}
+			listeners.dispatchEvent(EventType.EXPIRED, key, value);
 		}
 		
 		return removed;
