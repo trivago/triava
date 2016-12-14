@@ -675,8 +675,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			if (holder != null && holder.isInvalid())
 			{
 				expireEntry(key,holder); // SAE-190 Notify about expiration
+				holder = null;
 			}
-			holder = gatedHolder(holder);
 			long calculatedIdleTime = newHolder.calculateMaxIdleTimeFromUpdateOrCreation(holder != null, expiryPolicy, holder);
 			effectiveHolder = newHolder;
 			hasPut = true;
