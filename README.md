@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.13</version>
+      <version>0.9.14</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.13'
+	compile 'com.trivago:triava:0.9.14'
 }
 ```
 
@@ -57,6 +57,9 @@ dependencies {
     - cache: API cleanup, adding TimeUnit param to API
 - 0.9.13
     - cache: API cleanup, fix duplicate notification of Listeners
+- 0.9.14
+    - cache: Fix missing notification of Listeners
+
 
 
 ## Building:
@@ -77,11 +80,11 @@ Before uploading a new version, you should:
  - Run FindBugs and fix all bugs
  - Check for missing licensing header
  ```
- find . -name '*.java' -print0 | xargs -0 grep -L "Licensed under the Apache License, Version 2.0"
+ find . -name '*.java' ! -path './src/test/java/com/trivago/triava/tcache/tmp/*' -print0 | xargs -0 grep -L "Licensed under the Apache License, Version 2.0"
  ```
  - Update this README: Changes section
  - Update this README: Update all version numbers
- - Tag the release and upload (check with maintainers on details, e.g. in the triava Knowledge page)
+ - Tag the release and upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
 ```
 version=1.0; git tag -a v$version -m "v$version"
 mvn clean deploy -P release
