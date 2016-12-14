@@ -175,7 +175,6 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 					action.setEventType(EventType.UPDATED);
 					result = holders.oldHolder.peek();
 					changeStatus = ChangeStatus.CHANGED;
-	//				newHolder.setMaxIdleTime(oldHolder.getMaxIdleTime()); // TODO What to do with expiryForUpdateSecs(). How to apply this here, including the -1 case
 				}
 				else
 				{
