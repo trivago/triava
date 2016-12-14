@@ -35,6 +35,19 @@ public class CacheListenerTestAsync extends CacheListenerTest
 		testListener();
 	}
 
+
+//	@Test
+//	public void testExpiryListenerOverwriteWithPut()
+//	{
+//		testExpiryListenerOverwriteWithPut0();
+//	}
+
+	@Test
+	public void testExpiryListenerOverwriteWithPutifabsent()
+	{
+		testExpiryListenerOverwriteWithPutifabsent0();
+	}
+	
 	@Test
 	public void testWriteMoreThanCapacityAsynchronous()
 	{

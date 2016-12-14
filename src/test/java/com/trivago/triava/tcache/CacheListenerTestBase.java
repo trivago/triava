@@ -250,13 +250,38 @@ public class CacheListenerTestBase implements Serializable
 	{
 		private static final long serialVersionUID = 3609429653606739998L;
 		
+		final boolean printAllEvents;
+		final String name;
+		
+		MyExpiredListener(String name)
+		{
+			this(false, name);
+		}
+		MyExpiredListener(boolean printAllEvents, String name)
+		{
+			this.printAllEvents = printAllEvents;
+			this.name = name;
+		}
 		@Override
 		public void onExpired(Iterable<CacheEntryEvent<? extends Integer, ? extends String>> events)
 				throws CacheEntryListenerException
 		{
-			String msg = "EXPIRED!";
+			String msg = name + ":EXPIRED!";
 			int eventCount = countEvents(events, msg);
 			expiredListenerFiredCount.addAndGet(eventCount);
+			if (printAllEvents)
+			{
+				Iterator<CacheEntryEvent<? extends Integer, ? extends String>> iterator = events.iterator();
+				while (iterator.hasNext() )
+				{
+					
+					CacheEntryEvent<? extends Integer,? extends String> event = iterator.next();
+					System.out.println(msg + " Event: " + event.getValue());
+					
+				}
+				
+			}
+				
 		}
 
 		

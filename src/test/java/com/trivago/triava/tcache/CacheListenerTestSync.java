@@ -33,5 +33,17 @@ public class CacheListenerTestSync extends CacheListenerTest
 		testListener();
 	}	
 
+//	@Test
+//	public void testExpiryListenerOverwriteWithPut()
+//	{
+//		testExpiryListenerOverwriteWithPut0();
+//	}
+
+	@Test
+	public void testExpiryListenerOverwriteWithPutifabsent()
+	{
+		testExpiryListenerOverwriteWithPutifabsent0();
+	}
+
 	// Eviction is always asynchronous, so we do not check this here. See CacheListenerTestAsync instead.
 }
