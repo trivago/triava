@@ -5,7 +5,8 @@ Technology Compatibility Kits (TCK).
 
 ## JSR107 - Java Caching compliance
 - Triava Cache is a fully compliant JSR107 (Java Caching) implementation
-- Compliance report: https://github.com/cruftex/jsr107-test-zoo/blob/master/report.md
+  - JCP Listing: https://jcp.org/aboutJava/communityprocess/implementations/jsr107/index.html
+  - Compliance report: https://github.com/cruftex/jsr107-test-zoo/blob/master/report.md
 - All required functionality is available: cache operations (get, put, remove), listeners, Write-Through, Read-Through, Statistics 
 - Optional functionality: Supports both store-modes: Store-by-Reference and StoreByValue
 - Passes 465/465 tests. (100%)
