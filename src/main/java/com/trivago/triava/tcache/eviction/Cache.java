@@ -616,7 +616,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 //			logger.error("Adding object to Cache with infinite lifetime: " + key.toString() + " : " + data.toString());
 		// }
 
-		AccessTimeObjectHolder<V> holder; // holder returned by objects.put*().
+		AccessTimeObjectHolder<V> oldHolder; // holder returned by objects.put*().
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
 		AccessTimeObjectHolder<V> effectiveHolder; // holder that is effectively in the Cache
 
@@ -626,21 +626,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			// Always use expiryForCreation. Either it is correct, or we do not care(wrong but not added to cache) 
 			newHolder = new AccessTimeObjectHolder<V>(data, builder.getCacheWriteMode());
-			holder = this.objects.putIfAbsent(key, newHolder);
-			if (holder != null && holder.isInvalid())
+			oldHolder = this.objects.putIfAbsent(key, newHolder);
+			if (oldHolder != null && oldHolder.isInvalid())
 			{
 				// Entry was in backing map, but is actually invalid (e.g. expired) => just overwrite
-				expireEntry(key,holder); // SAE-190 Notify about expiration
+				expireEntry(key,oldHolder); // SAE-190 Notify about expiration
 //				enqueueExpirationEvent(key, holder);
 				this.objects.put(key, newHolder);
-				holder = null;
+				oldHolder = null;
 			}
 
 			/*
 			 *	A putIfAbsent() is also treated as a GET operation, so update cache statistics. 
 			 *	See putIfAbsent() docs above for a more  detailed explanation.
 			 */
-			if (holder == null)
+			if (oldHolder == null)
 			{
 				newHolder.complete(expiryPolicy.getExpiryForCreation(), cacheTime);
 				hasPut = true;
@@ -663,21 +663,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 					// So we only go here in native tcache mode (== !strictJSR107)
 					statisticsCalculator.incrementHitCount();
 				}
-				holder.incrementUseCount();
-				effectiveHolder = holder;
+				oldHolder.incrementUseCount();
+				effectiveHolder = oldHolder;
 			}
 		}
 		else
 		{
 			// Add entry initially with unlimited expiration, then update the idle from the existing holder
 			newHolder = new AccessTimeObjectHolder<>(data, builder.getCacheWriteMode());
-			holder = this.objects.put(key, newHolder);
-			if (holder != null && holder.isInvalid())
+			oldHolder = this.objects.put(key, newHolder);
+			if (oldHolder != null && oldHolder.isInvalid())
 			{
-				expireEntry(key,holder); // SAE-190 Notify about expiration
-				holder = null;
+				expireEntry(key,oldHolder); // SAE-190 Notify about expiration
+				oldHolder = null;
 			}
-			long calculatedIdleTime = newHolder.calculateMaxIdleTimeFromUpdateOrCreation(holder != null, expiryPolicy, holder);
+			long calculatedIdleTime = newHolder.calculateMaxIdleTimeFromUpdateOrCreation(oldHolder != null, expiryPolicy, oldHolder);
 			effectiveHolder = newHolder;
 			hasPut = true;
 			// We have to complete the entry as late as possible, to make sure it cannot be found in the Cache before it is complete.
@@ -695,7 +695,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		}
 
 		ensureCleanerIsRunning();
-		return new Holders<V>(gatedHolder(newHolder), gatedHolder(holder), gatedEffectiveHolder);
+		return new Holders<V>(gatedHolder(newHolder), gatedHolder(oldHolder), gatedEffectiveHolder);
 	}
 
 //	private void enqueueExpirationEvent(K key, AccessTimeObjectHolder<V> holder)
