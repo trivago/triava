@@ -233,7 +233,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		long idleDurationMillis = SecondsOrMillis.fromInternalToMillis(maxIdleTime);
 		long expirationDurationMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
 		// durationMillis: The smaller of expiration-time and idle-time wins
-		long durationMillis = expirationDurationMillis < idleDurationMillis ? expirationDurationMillis : idleDurationMillis;
+		long durationMillis = Math.min(expirationDurationMillis, idleDurationMillis);
 		return getInputDate() + durationMillis;
 	}
 
