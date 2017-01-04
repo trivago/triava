@@ -35,7 +35,7 @@ import com.trivago.triava.tcache.eviction.Cache;
  */
 public class CacheListenerTest extends CacheListenerTestBase
 {
-	final static boolean DEBUG_OUTPUT = false;
+	static boolean DEBUG_OUTPUT = false; // not final, to be able to adjust it per UnitTest
 	
 	private static final long serialVersionUID = -7831605500466126577L;
 
@@ -142,7 +142,6 @@ public class CacheListenerTest extends CacheListenerTestBase
 
 		resetListenerCounts();
 
-		@SuppressWarnings("unused")  // only for 		if (DEBUG_OUTPUT)
 		int puts = 0;
 		for (int i = 0; i < capacity ; i++)
 		{

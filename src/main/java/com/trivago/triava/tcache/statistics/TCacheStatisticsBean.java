@@ -18,8 +18,6 @@ package com.trivago.triava.tcache.statistics;
 
 import java.io.Serializable;
 
-import javax.cache.management.CacheStatisticsMXBean;
-
 import com.trivago.triava.tcache.eviction.Cache;
 
 public class TCacheStatisticsBean implements TCacheStatisticsMXBean, Serializable

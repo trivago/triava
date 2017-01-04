@@ -710,7 +710,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 //				break;
 //			}
 //			
-//			// else: TODO Currently we spinlock here. This could be suboptimal
+//			// else: This is a spinlock. This could be suboptimal. Rework this before enabling it.
 //		}
 //	}
 
@@ -1232,8 +1232,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * @param holder The holder to release
 	 * @return The value stored by the holder
 	 */
-	// TODO change access to package
-	public V releaseHolder(AccessTimeObjectHolder<V> holder)
+	V releaseHolder(AccessTimeObjectHolder<V> holder)
 	{
 		if (holder == null)
 		{
