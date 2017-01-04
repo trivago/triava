@@ -16,7 +16,6 @@
 
 package com.trivago.triava.tcache.eviction;
 
-import com.trivago.triava.tcache.core.FreezingEvictor;
 import com.trivago.triava.time.TimeSource;
 
 /**

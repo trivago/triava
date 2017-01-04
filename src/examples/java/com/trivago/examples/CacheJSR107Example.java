@@ -21,10 +21,10 @@ import javax.cache.Caching;
 import javax.cache.configuration.MutableConfiguration;
 import javax.cache.spi.CachingProvider;
 
+import com.trivago.triava.tcache.Cache;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.core.FreezingEvictor;
-import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.FreezingEvictor;
 import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**

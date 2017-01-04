@@ -16,13 +16,15 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import com.trivago.triava.tcache.AccessTimeObjectHolder;
+
 public class Holders<V>
 {
-	final AccessTimeObjectHolder<V> newHolder;
-	final AccessTimeObjectHolder<V> oldHolder;
-	final AccessTimeObjectHolder<V> effectiveHolder;
+	public final AccessTimeObjectHolder<V> newHolder;
+	public final AccessTimeObjectHolder<V> oldHolder;
+	public final AccessTimeObjectHolder<V> effectiveHolder;
 	
-	Holders(AccessTimeObjectHolder<V> newHolder,  AccessTimeObjectHolder<V> oldHolder, AccessTimeObjectHolder<V> effectiveHolder)
+	public Holders(AccessTimeObjectHolder<V> newHolder,  AccessTimeObjectHolder<V> oldHolder, AccessTimeObjectHolder<V> effectiveHolder)
 	{
 		this.newHolder = newHolder;
 		this.oldHolder = oldHolder;

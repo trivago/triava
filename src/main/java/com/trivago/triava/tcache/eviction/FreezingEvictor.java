@@ -14,12 +14,9 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.core;
+package com.trivago.triava.tcache.eviction;
 
 import java.util.Comparator;
-
-import com.trivago.triava.tcache.eviction.HolderFreezer;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Convenience class that implements EvictionInterface. The {@link #evictionComparator()} returns a default

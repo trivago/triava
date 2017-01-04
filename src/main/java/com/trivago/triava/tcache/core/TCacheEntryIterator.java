@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import javax.cache.Cache;
 import javax.cache.Cache.Entry;
 
-import com.trivago.triava.tcache.eviction.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 
@@ -45,7 +45,7 @@ public class TCacheEntryIterator<K, V> implements Iterator<Entry<K,V>>
 	final StatisticsCalculator statisticsCalculator;
 	final TCacheExpiryPolicy expiryPolicy;
 	
-	public TCacheEntryIterator(com.trivago.triava.tcache.eviction.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects, TCacheExpiryPolicy expiryPolicy)
+	public TCacheEntryIterator(com.trivago.triava.tcache.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects, TCacheExpiryPolicy expiryPolicy)
 	{
 		this.expiryPolicy = expiryPolicy;
 		mapIterator = objects.entrySet().iterator();

@@ -32,7 +32,7 @@ import javax.cache.event.CacheEntryRemovedListener;
 import javax.cache.event.CacheEntryUpdatedListener;
 import javax.cache.event.EventType;
 
-import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.Cache;
 
 /**
  * Holds a CacheEntryListenerConfiguration, and the objects created from it: CacheEntryEventFilter and

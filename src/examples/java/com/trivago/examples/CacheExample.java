@@ -16,12 +16,12 @@
 
 package com.trivago.examples;
 
+import com.trivago.triava.tcache.Cache;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheLoader;
-import com.trivago.triava.tcache.core.FreezingEvictor;
-import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.FreezingEvictor;
 import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**

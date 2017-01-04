@@ -32,7 +32,7 @@ public class HolderFreezer<K, V>
 	private final int tiebreaker = tiebreakerVal++;
 
 	
-	HolderFreezer(K key, TCacheHolder<V> holder, long frozenValue)
+	public HolderFreezer(K key, TCacheHolder<V> holder, long frozenValue)
 	{
 		this.key = key;
 		this.holder = holder;

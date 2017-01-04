@@ -19,7 +19,7 @@ package com.trivago.triava.tcache.statistics;
 /**
  * The statistics interface contains setters for Cache statistics.
  * Standard application code will not need to implement this interface, as
- * they can call {@link com.trivago.triava.tcache.eviction.Cache#statistics()}
+ * they can call {@link com.trivago.triava.tcache.Cache#statistics()}
  * to retrieve the current Cache Statistics.
  * <p>  
  * A reason to implement this instead of using TCacheStatistics is to

@@ -14,7 +14,7 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.eviction;
+package com.trivago.triava.tcache.util;
 
 /**
  * Utility class to convert a millisecond value to an internal representation, with precision of either milliseconds or seconds. 

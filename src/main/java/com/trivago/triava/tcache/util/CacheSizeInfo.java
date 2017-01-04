@@ -21,7 +21,7 @@ import com.trivago.triava.util.UnitFormatter;
 
 /**
  * Data class which stores  information of the cache size, namely number of elements and
- * size in bytes. It is used in {@link com.trivago.triava.tcache.eviction.Cache#reportSize(ObjectSizeCalculatorInterface)}.
+ * size in bytes. It is used in {@link com.trivago.triava.tcache.Cache#reportSize(ObjectSizeCalculatorInterface)}.
  * As reportSize() can take a serious amount of time, the number of elements is stored twice: Once before
  * the actual byte count is calculated, and one after. This makes it easier to see whether important changes
  * took place during calculation, like expiration, eviction or a mass-insert of elements.

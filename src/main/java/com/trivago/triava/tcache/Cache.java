@@ -14,7 +14,7 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.eviction;
+package com.trivago.triava.tcache;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -37,8 +37,6 @@ import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
-import com.trivago.triava.tcache.CacheWriteMode;
-import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.action.ActionContext;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
@@ -46,6 +44,8 @@ import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.StorageBackend;
 import com.trivago.triava.tcache.core.TCacheHolderIterator;
 import com.trivago.triava.tcache.event.ListenerCollection;
+import com.trivago.triava.tcache.eviction.Holders;
+import com.trivago.triava.tcache.eviction.TCacheHolder;
 import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.expiry.TouchedExpiryPolicy;
@@ -1456,18 +1456,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	// TODO Make this package-private / refactor
+	@Override
 	public CacheWriter<K, V> cacheWriter()
 	{
 		return cacheWriter;
 	}
 
 	// TODO Make this package-private / refactor
+	@Override
 	public ListenerCollection<K, V> listeners()
 	{
 		return listeners;
 	}
 
 	// TODO Make this package-private / refactor
+	@Override
 	public StatisticsCalculator statisticsCalculator()
 	{
 		return statisticsCalculator;

@@ -14,7 +14,7 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.eviction;
+package com.trivago.triava.tcache;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -56,6 +56,7 @@ import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.ListenerCollection;
+import com.trivago.triava.tcache.eviction.Holders;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 import com.trivago.triava.tcache.util.ChangeStatus;

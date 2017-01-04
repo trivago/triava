@@ -14,12 +14,9 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.core;
+package com.trivago.triava.tcache.eviction;
 
 import java.util.Comparator;
-
-import com.trivago.triava.tcache.eviction.HolderFreezer;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Eviction interface, that can operate on 4 values: Meta data, key, value and a "frozen value". Values that could

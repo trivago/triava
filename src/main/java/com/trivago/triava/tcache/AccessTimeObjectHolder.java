@@ -14,7 +14,7 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.eviction;
+package com.trivago.triava.tcache;
 
 import java.io.Serializable;
 import java.util.Random;
@@ -23,9 +23,10 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import javax.cache.CacheException;
 
-import com.trivago.triava.tcache.CacheWriteMode;
+import com.trivago.triava.tcache.eviction.TCacheHolder;
 import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
+import com.trivago.triava.tcache.util.SecondsOrMillis;
 import com.trivago.triava.tcache.util.Serializing;
 
 /**
@@ -36,6 +37,8 @@ import com.trivago.triava.tcache.util.Serializing;
  */
 public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 {
+	private static final long serialVersionUID = 1774522368637513622L;
+
 	@SuppressWarnings("rawtypes") // AccessTimeObjectHolder<V> would be incompatible with AccessTimeObjectHolder.class
 	AtomicIntegerFieldUpdater<AccessTimeObjectHolder> useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
 
@@ -237,6 +240,10 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		return getInputDate() + durationMillis;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 	<p>TODO The use count is not yet updated here. This makes behavior inconsistent, e.g. in the iterator 
+	 */
 	public V get()
 	{
 		setLastAccessTime();
@@ -285,14 +292,19 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		return Cache.millisEstimator.millis();
 	}
 	
-	/**
-	 * @return the lastAccess
-	 */
-	public long getLastAccess()
+	@Override
+	public long getLastAccessTime()
 	{
 		return Cache.baseTimeMillis + lastAccess;
 	}
+	
+	@Deprecated
+	public long getLastAccess()
+	{
+		return getLastAccessTime();
+	}
 
+	@Override
 	public int getUseCount()
 	{
 		return useCount;
@@ -308,17 +320,25 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		inputDate = (int)(currentTimeMillisEstimate() - Cache.baseTimeMillis);
 	}
 
+	@Override
+	@Deprecated
 	public long getInputDate()
+	{
+		return getCreationTime();
+	}
+	
+	@Override
+	public long getCreationTime()
 	{
 		return Cache.baseTimeMillis + inputDate;
 	}
-	
+
 	public boolean isInvalid()
 	{
 		return isInvalid(false);
 	}
-	
-	public boolean isInvalid(boolean debug)
+
+	private boolean isInvalid(boolean debug)
 	{	
 		if (data == null)
 		{
@@ -339,7 +359,6 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		if (expDurationMillis > 0L)
 		{
 			long cacheDurationMillis = millisNow - getInputDate();
-			// SRT-23661 maxCacheTime explicitly converted to long, to avoid overrun due to "1000*"
 			if (cacheDurationMillis > expDurationMillis) 
 			{
 				if (debug) System.out.println("Dropped because expired: millisNow=" + millisNow + ", maxCacheTime" + maxCacheTime + ", expDurationMillis" + expDurationMillis + "< cacheDurationMillis" + cacheDurationMillis);
@@ -358,7 +377,6 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		long lastAccess = getLastAccess();
 		long idleSince = millisNow - lastAccess;
 
-		// SRT-23661 maxIdleTime explicitly converted to long, to avoid overrun due to "1000*"
 		if (idleSince > idleDurationMillis)
 		{
 			if (debug) System.out.println("Dropped because idle: millisNow=" + millisNow + ", maxCacheTime" + maxCacheTime + ", idleDurationMillis" + idleDurationMillis + "< idleSince" + idleSince + ", lastAccess=" + lastAccess);

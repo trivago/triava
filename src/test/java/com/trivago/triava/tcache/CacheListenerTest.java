@@ -24,7 +24,6 @@ import javax.cache.configuration.FactoryBuilder;
 import javax.cache.configuration.MutableCacheEntryListenerConfiguration;
 
 import com.trivago.triava.logging.TriavaConsoleLogger;
-import com.trivago.triava.tcache.eviction.Cache;
 
 /**
  * Helper class for tests. Do not put @Test in any of these methods, instead put them in 
@@ -171,7 +170,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 	/**
 	 * Writes the same element lots of times, and checks if notification for overwritten expired elements are done. This test
 	 * is not fully safe, so you may want to re-run it on failures. As the test is important we keep it around, and hopefully
-	 * it can be enhanced to work fully relibale in the future.
+	 * it can be enhanced to work fully reliable in the future.
 	 * 
 	 * <p>
 	 * WARNING. This test contains a timing component, and may fail
@@ -209,7 +208,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 		// We do not want to wait for that, so we 
 		expectedNotifications = count - 1;
 
-		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpitestExpiryListenerOverwrite-" + (ifAbsent ? "putIfAbsent" : "put"), 1000, 1, true);
+		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpitestExpiryListenerOverwrite-" + (ifAbsent ? "putIfAbsent" : "put"), 1000, 1, DEBUG_OUTPUT);
 		Cache<?,?> tcache = cache.unwrap(Cache.class);
 		tcache.setCleanUpIntervalMillis(100_000);
 

@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import javax.cache.Cache;
 import javax.cache.Cache.Entry;
 
-import com.trivago.triava.tcache.eviction.AccessTimeObjectHolder;
+import com.trivago.triava.tcache.AccessTimeObjectHolder;
 import com.trivago.triava.tcache.eviction.TCacheHolder;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
@@ -47,7 +47,7 @@ public class TCacheHolderIterator<K,V> implements Iterator<Entry<K,TCacheHolder<
 	final TCacheExpiryPolicy expiryPolicy;
 	final boolean touch;
 	
-	public TCacheHolderIterator(com.trivago.triava.tcache.eviction.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects, TCacheExpiryPolicy expiryPolicy, boolean touch)
+	public TCacheHolderIterator(com.trivago.triava.tcache.Cache<K, V> tcache, ConcurrentMap<K, AccessTimeObjectHolder<V>> objects, TCacheExpiryPolicy expiryPolicy, boolean touch)
 	{
 		this.expiryPolicy = expiryPolicy;
 		this.touch = touch;

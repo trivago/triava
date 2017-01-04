@@ -35,13 +35,14 @@ import javax.cache.expiry.TouchedExpiryPolicy;
 import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.annotations.Beta;
+import com.trivago.triava.tcache.Cache;
+import com.trivago.triava.tcache.CacheLimit;
 import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
-import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.CacheLimit;
+import com.trivago.triava.tcache.eviction.EvictionInterface;
 import com.trivago.triava.tcache.eviction.LFUEviction;
 import com.trivago.triava.tcache.eviction.LRUEviction;
 import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;

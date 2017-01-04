@@ -14,7 +14,7 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.eviction;
+package com.trivago.triava.tcache;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,9 +30,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.cache.event.EventType;
 
 import com.trivago.triava.annotations.ObjectSizeCalculatorIgnore;
-import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.core.EvictionInterface;
+import com.trivago.triava.tcache.eviction.EvictionInterface;
+import com.trivago.triava.tcache.eviction.HolderFreezer;
 import com.trivago.triava.tcache.statistics.SlidingWindowCounter;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
 

@@ -35,8 +35,6 @@ import javax.cache.spi.CachingProvider;
 
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.TCacheProvider;
-import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.TCacheJSR107;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 

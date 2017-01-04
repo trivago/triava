@@ -31,8 +31,7 @@ import org.junit.Test;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.core.FreezingEvictor;
-import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.eviction.FreezingEvictor;
 import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**

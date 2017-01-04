@@ -19,7 +19,7 @@ package com.trivago.triava.tcache.core;
 import javax.cache.configuration.Configuration;
 import javax.cache.management.CacheMXBean;
 
-import com.trivago.triava.tcache.eviction.Cache;
+import com.trivago.triava.tcache.Cache;
 
 public class TCacheConfigurationBean<K,V> implements CacheMXBean
 {

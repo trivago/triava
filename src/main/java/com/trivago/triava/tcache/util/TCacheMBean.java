@@ -25,8 +25,8 @@ import javax.management.MBeanServerFactory;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
-import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.TCacheJSR107;
+import com.trivago.triava.tcache.Cache;
+import com.trivago.triava.tcache.TCacheJSR107;
 
 /**
  * Utility functions to register MBean objects. Concrete implementations for Configuration and

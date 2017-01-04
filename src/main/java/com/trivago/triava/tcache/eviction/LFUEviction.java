@@ -16,8 +16,6 @@
 
 package com.trivago.triava.tcache.eviction;
 
-import com.trivago.triava.tcache.core.FreezingEvictor;
-
 /**
  * LFU eviction based on use count
  * 

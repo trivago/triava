@@ -16,7 +16,7 @@
 
 package com.trivago.triava.tcache.statistics;
 
-import com.trivago.triava.tcache.eviction.TCacheJSR107;
+import com.trivago.triava.tcache.TCacheJSR107;
 import com.trivago.triava.tcache.util.TCacheMBean;
 
 public class TCacheStatisticsMBean extends TCacheMBean
