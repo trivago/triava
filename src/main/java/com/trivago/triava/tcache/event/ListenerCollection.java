@@ -17,28 +17,38 @@
 package com.trivago.triava.tcache.event;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.cache.configuration.CacheEntryListenerConfiguration;
 import javax.cache.event.EventType;
 
+import com.trivago.triava.tcache.Cache;
+import com.trivago.triava.tcache.TCacheJSR107;
 import com.trivago.triava.tcache.core.Builder;
-import com.trivago.triava.tcache.eviction.Cache;
-import com.trivago.triava.tcache.eviction.TCacheJSR107;
 
 public class ListenerCollection<K,V>
 {
-	private final Set<ListenerEntry<K,V> > listeners = new HashSet<>(); // Move this to be copy-on-write data structure
+	//@GuardedBy("this")
+	private final Set<ListenerEntry<K,V> > listeners = Collections.newSetFromMap(new ConcurrentHashMap<ListenerEntry<K,V>, Boolean>());
 	private final Builder<K, V> builder;
 	private final Cache<K, V> tcache;
 	private final TCacheJSR107<K, V> jsr107cache;
-	/** listenerPresent is a data structure to quickly lookup which kinds of listeners have been registered. Lookup time is O(1). */ 
-	private boolean listenerPresent[] = new boolean[EventType.values().length]; 
+	/** listenerPresentMask is a data structure to quickly lookup which kinds of listeners have been registered. Lookup time is O(1).
+	 * <p>
+	 * In the original implementation "listenerPresent" was of type boolean[]. This had the disadvantage that we cannot do a volatile write to
+	 * the array elements. This made it difficult to implement visibility of changes in #hasListenerFor(): Locking would be possible, but expensive.
+	 * Thus the current implementation uses a volatile "listenerPresentMask".
+	 * 
+	 * private final boolean listenerPresent[] = new boolean[EventType.values().length];
+	 */ 
+	//@GuardedBy("this")
+	private volatile short listenerPresentMask = 0;
 
 	/**
 	 * Creates a ListenerCollection that consists of all listeners from builder.getCacheEntryListenerConfigurations().
@@ -56,12 +66,14 @@ public class ListenerCollection<K,V>
 	    {
 	    	enableCacheEntryListener(it.next());
 	    }
-
 	}
 
 
-	// TODO Make this thread-safe (listeners is a simple HashSet and thus unsafe)
-	public void deregisterCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	/**
+	 * Deregisters a cache listener.
+	 * @param listenerConfiguration The Cache Listener
+	 */
+	public synchronized void deregisterCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
 	{
 		throwISEwhenClosed();
 
@@ -75,17 +87,48 @@ public class ListenerCollection<K,V>
 				it.remove();
 				// Reflect listener change in the configuration, as required by JSR107
 				builder.removeCacheEntryListenerConfiguration(listenerConfiguration);
-				// TODO The listenerPresent array should be updated to reflect the new state.
-				// The effect of not updating it has no functional impact. It is only leading to a small
-				// performance loss - see the usage of hasListenerFor(eventType).
 				break; // Can be only one, as it is in the Spec that Listeners must not added twice.
 			}
 		}
+
+		// Removing a listener invalidates the lookup array (just like in a bloom filter), thus rebuild it
+		rebuildListenerPresent();		
 	}
 
 
+	/**
+	 * Rebuild the listenerPresent lookup array 
+	 */
+	private void rebuildListenerPresent()
+	{
+//		boolean listenerPresentNew[] = new boolean[EventType.values().length];
+		short listenerPresentXnew = 0;
+		for (ListenerEntry<K, V> listener : listeners)
+		{
+			for (EventType eventType : EventType.values())
+			{
+				if (listener.isListeningFor(eventType))
+				{
+//					listenerPresentNew[eventType.ordinal()] = true;
+					listenerPresentXnew |= (1 << eventType.ordinal());
+				}
+			}
+		}
 
-	public void registerCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+		listenerPresentMask = listenerPresentXnew;
+
+//		for (int i=0; i<listenerPresentNew.length; i++)
+//		{
+//			listenerPresent[i] = listenerPresentNew[i];
+//		}
+	}
+
+
+	/**
+	 * Registers a cache listener.
+	 * @param listenerConfiguration The Cache Listener
+	 */
+	public synchronized void registerCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
 	{
 		throwISEwhenClosed();
 		
@@ -109,8 +152,7 @@ public class ListenerCollection<K,V>
 	 * @param listenerConfiguration
 	 * @return
 	 */
-	// TODO Make this thread-safe (listeners is a simple HashSet and thus unsafe)
-	boolean enableCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
+	private synchronized boolean enableCacheEntryListener(CacheEntryListenerConfiguration<K, V> listenerConfiguration)
 	{
 		DispatchMode dispatchMode = listenerConfiguration.isSynchronous() ? DispatchMode.SYNC : DispatchMode.ASYNC_TIMED;
 		ListenerEntry<K, V> newListener = new ListenerEntry<K, V>(listenerConfiguration, tcache, dispatchMode);
@@ -119,7 +161,8 @@ public class ListenerCollection<K,V>
 		{
 			if (newListener.isListeningFor(eventType))
 			{
-				listenerPresent[eventType.ordinal()] = true;
+//				listenerPresent[eventType.ordinal()] = true;
+				listenerPresentMask |= (1 << eventType.ordinal());
 			}
 		}
 
@@ -213,7 +256,9 @@ public class ListenerCollection<K,V>
 	 */
 	public boolean hasListenerFor(EventType eventType)
 	{
-		return (listenerPresent[eventType.ordinal()]);
+		int present = listenerPresentMask & (1 << eventType.ordinal());
+		return present != 0;
+//		return (listenerPresent[eventType.ordinal()]);
 	}
 	
 	/**
