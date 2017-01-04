@@ -18,11 +18,11 @@ package com.trivago.triava.tcache;
 
 import org.junit.Test;
 
-public class CacheListenerTestSync extends CacheListenerTest
+public class CacheListenerSyncTest extends CacheListenerTest
 {
 	private static final long serialVersionUID = -4160438253617454647L;
 
-	public CacheListenerTestSync()
+	public CacheListenerSyncTest()
 	{
 		super();
 	}
