@@ -16,20 +16,16 @@
 
 package com.trivago.triava.tcache.core;
 
-import java.io.Serializable;
-
 /**
- * tCache implementation of {@link javax.cache.Cache.Entry}. It is based on the native tCache entry
- * and can be unwrapped to it via unwrap(TCacheHolder.class)
+ * tCache implementation of {@link javax.cache.Cache.Entry}.
  * 
  * @author cesken
  *
  * @param <K> The key class
  * @param <V> The value class
  */
-public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>, Serializable
+public class TCacheJSR107Entry<K, V> implements javax.cache.Cache.Entry<K, V>
 {
-	private static final long serialVersionUID = -82945801672089469L;
 	final K key;
 	final V value;
 	

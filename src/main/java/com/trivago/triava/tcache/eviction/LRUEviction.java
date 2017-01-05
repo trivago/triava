@@ -16,6 +16,8 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import com.trivago.triava.tcache.TCacheHolder;
+
 /**
  * LRU eviction based on last access time
  * 
@@ -26,12 +28,14 @@ package com.trivago.triava.tcache.eviction;
  */
 public class LRUEviction<K,V> extends FreezingEvictor<K,V> 
 {
+	private static final long serialVersionUID = -5013091634465488676L;
+
 	/**
 	 * @return The last access time
 	 */
 	@Override
 	public long getFreezeValue(K key, TCacheHolder<V> holder)
 	{
-		return holder.getLastAccess();
+		return holder.getLastAccessTime();
 	}
 }

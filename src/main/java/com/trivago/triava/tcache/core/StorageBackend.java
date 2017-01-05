@@ -18,7 +18,7 @@ package com.trivago.triava.tcache.core;
 
 import java.util.concurrent.ConcurrentMap;
 
-import com.trivago.triava.tcache.eviction.TCacheHolder;
+import com.trivago.triava.tcache.TCacheHolder;
 
 /**
  * The basic interface for providing a storage backend that holds the values of  

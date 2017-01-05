@@ -24,7 +24,7 @@ import javax.cache.Cache;
 import javax.cache.Cache.Entry;
 
 import com.trivago.triava.tcache.AccessTimeObjectHolder;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
+import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 

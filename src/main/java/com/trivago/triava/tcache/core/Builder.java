@@ -36,15 +36,11 @@ import javax.cache.integration.CacheWriter;
 
 import com.trivago.triava.annotations.Beta;
 import com.trivago.triava.tcache.Cache;
-import com.trivago.triava.tcache.CacheLimit;
 import com.trivago.triava.tcache.CacheWriteMode;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
-import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.eviction.EvictionInterface;
-import com.trivago.triava.tcache.eviction.LFUEviction;
-import com.trivago.triava.tcache.eviction.LRUEviction;
 import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
 import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
 
@@ -74,7 +70,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private EvictionPolicy evictionPolicy = EvictionPolicy.LFU;
 	private EvictionInterface<K, V> evictionClass = null;
 	private HashImplementation hashImplementation = HashImplementation.ConcurrentHashMap;
-	private TCacheFactory factory = null;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
 	private boolean statistics = false; // off by JSR107 default
 	private boolean management = false; // off by JSR107 default
@@ -97,12 +92,9 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 * The native Builder by default uses a STORE_BY_REFERENCE model instead of the JSR107 default of STORE_BY_VALUE. 
 	 * <p>
 	 * Any Cache created by {@link #build()} is registered in the given factory/CacheManager. 
-	 * 
-	 * @param factory The associated managing TCacheFactory/CacheManager 
 	 */
-	public Builder(TCacheFactory factory)
+	public Builder()
 	{
-		this.factory = factory;
 		management = true;
 		statistics = true;
 		strictJSR107 = false;
@@ -120,12 +112,10 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 * <p>
 	 * Any Cache created by {@link #build()} is registered in the given factory/CacheManager. 
 	 * 
-	 * @param factory The associated managing TCacheFactory/CacheManager 
 	 * @param configuration Cache Configuration, which can also be a Builder
 	 */
-	public Builder(TCacheFactory factory, Configuration<K,V> configuration)
+	public Builder(Configuration<K,V> configuration)
 	{
-		this.factory = factory;
 		this.writeMode = null; // null means to derive it from configuration.isStoreByValue()
 		this.maxCacheTime = Long.MAX_VALUE; // JSR107 operates on ExpiryPolicy only
 		copyBuilder(configuration, this);
@@ -151,50 +141,18 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 */
 	public Cache<K, V> build()
 	{
-		if (factory == null)
-		{
-			factory = TCacheFactory.standardFactory();
-		}
-		
-		if (id == null)
-		{
-			id = "tcache-" + anonymousCacheId.incrementAndGet();
-		}
-
-		final Cache<K, V> cache;
-		if (evictionClass != null)
-		{
-			cache = new CacheLimit<>(this);
-		}
-		else
-		{
-			switch (evictionPolicy)
-			{
-				case LFU:
-					cache = new CacheLimit<>(this.setEvictionClass(new LFUEviction<K,V>()));
-					break;
-				case LRU:
-					cache = new CacheLimit<>(this.setEvictionClass(new LRUEviction<K,V>()));
-					break;
-//				case CLOCK:
-//					throw new UnsupportedOperationException("Experimental option is not activated: eviciton.CLOCK");
-//					break;
-//					// ClockEviction requires a TimeSource, but it may not be active yet (or even worse will change)
-//					// => either we need to activate the TimeSource here, or introduce an "Expiration Context" that provides the TimeSource
-//					cache = new CacheLimit<>(this.setEvictionClass(new ClockEviction<K,V>()));
-				case CUSTOM:
-					cache = new CacheLimit<>(this);
-					break;
-				case NONE:
-					cache = new Cache<>(this);
-					break;
-				default:
-					throw new IllegalArgumentException("Invalid evictionPolicy=" + evictionPolicy);
-			}
-		}
-		
-		return cache;
+		throw new UnsupportedOperationException("build() is only supported by internal subclasses.");
 	}
+	
+	static <Arg> Arg verifyNotNull(String name, Arg arg)
+	{
+		if (arg == null)
+		{
+			throw new IllegalArgumentException(name + " is null");
+		}
+		return arg;
+	}
+
 
 	public Builder<K,V> setId(String id)
 	{
@@ -376,21 +334,13 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		return this;
 	}
 
-	/**
-	 * @return the factory
-	 */
-	public TCacheFactory getFactory()
-	{
-		return factory;
-	}
-
-	/**
-	 * @param factory the factory to set
-	 */
-	public void setFactory(TCacheFactory factory)
-	{
-		this.factory = factory;
-	}
+//	/**
+//	 * @return the factory
+//	 */
+//	public TCacheFactory getFactory()
+//	{
+//		return factory;
+//	}
 
 	public boolean getStatistics()
 	{
@@ -689,7 +639,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		result = prime * result + ((evictionClass == null) ? 0 : evictionClass.hashCode());
 		result = prime * result + ((evictionPolicy == null) ? 0 : evictionPolicy.hashCode());
 		result = prime * result + expectedMapSize;
-		result = prime * result + ((factory == null) ? 0 : factory.hashCode());
 		result = prime * result + ((hashImplementation == null) ? 0 : hashImplementation.hashCode());
 		result = prime * result + ((id == null) ? 0 : id.hashCode());
 		result = prime * result + ((jamPolicy == null) ? 0 : jamPolicy.hashCode());
@@ -730,13 +679,6 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		if (evictionPolicy != other.evictionPolicy)
 			return false;
 		if (expectedMapSize != other.expectedMapSize)
-			return false;
-		if (factory == null)
-		{
-			if (other.factory != null)
-				return false;
-		}
-		else if (!factory.equals(other.factory))
 			return false;
 		if (hashImplementation != other.hashImplementation)
 			return false;

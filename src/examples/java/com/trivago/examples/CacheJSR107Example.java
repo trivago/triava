@@ -23,9 +23,9 @@ import javax.cache.spi.CachingProvider;
 
 import com.trivago.triava.tcache.Cache;
 import com.trivago.triava.tcache.TCacheFactory;
+import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.eviction.FreezingEvictor;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Examples for creating a Cache using the Java Caching API (JSR107). This example shows basic operations like
@@ -177,6 +177,7 @@ public class CacheJSR107Example
 	
 	static class EvictByNumber extends FreezingEvictor<Integer, Integer>
 	{
+		private static final long serialVersionUID = 1160605918585343273L;
 
 		@Override
 		public long getFreezeValue(Integer key, TCacheHolder<Integer> holder)

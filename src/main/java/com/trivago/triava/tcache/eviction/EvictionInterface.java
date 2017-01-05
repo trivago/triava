@@ -16,20 +16,26 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import java.io.Serializable;
 import java.util.Comparator;
+
+import com.trivago.triava.tcache.TCacheHolder;
 
 /**
  * Eviction interface, that can operate on 4 values: Meta data, key, value and a "frozen value". Values that could
  * change during an eviction run (like use count) must be "frozen" instead of used directly. 
  * Typical implementations will extend {@link FreezingEvictor} instead of directly implementing EvictionInterface,
  * as the former already implements the {@link #evictionComparator()}. 
+ * <p>
+ * Any EvictionInterface implementation must be Serializable, as it is part of the cache configuration, and any {@link javax.cache.configuration.Configuration}
+ * must be Serializable as configurations must be able to be transferred over the network to remote instances. 
  * 
  * @author cesken
  *
  * @param <K> Key class
  * @param <V> Value class
  */
-public interface EvictionInterface<K, V>
+public interface EvictionInterface<K, V> extends Serializable
 {
 	/**
 	 * Returns the Comparator implementing the eviction policy. Elements to be evicted earlier have to be sorted to the

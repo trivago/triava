@@ -16,7 +16,10 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import java.io.Serializable;
 import java.util.Comparator;
+
+import com.trivago.triava.tcache.TCacheHolder;
 
 /**
  * Convenience class that implements EvictionInterface. The {@link #evictionComparator()} returns a default
@@ -30,6 +33,7 @@ import java.util.Comparator;
  */
 abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 {
+	private static final long serialVersionUID = 4837286647549752950L;
 	private StandardComparator comparator = new StandardComparator();
 
 	/**
@@ -59,8 +63,10 @@ abstract public class FreezingEvictor<K, V> implements EvictionInterface<K, V>
 	{	
 	}
 
-	private class StandardComparator implements Comparator<HolderFreezer<K,V>>
+	private class StandardComparator implements Comparator<HolderFreezer<K,V>>, Serializable
 	{
+		private static final long serialVersionUID = 1207262209989301593L;
+
 		@Override
 		public int compare(HolderFreezer<K, V> o1, HolderFreezer<K, V> o2)
 		{

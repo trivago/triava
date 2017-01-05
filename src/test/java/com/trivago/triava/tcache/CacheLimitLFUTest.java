@@ -32,7 +32,6 @@ import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.eviction.FreezingEvictor;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Tests covering LFU eviction
@@ -182,6 +181,8 @@ public class CacheLimitLFUTest
 	 */
 	static class CustomerClassEvictor extends FreezingEvictor<Integer, CustomerType>
 	{
+		private static final long serialVersionUID = 4123354872819263514L;
+
 		@Override
 		public long getFreezeValue(Integer userId, TCacheHolder<CustomerType> customerType)
 		{

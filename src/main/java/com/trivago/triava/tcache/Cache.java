@@ -40,12 +40,11 @@ import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.action.ActionContext;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
+import com.trivago.triava.tcache.core.Holders;
 import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.StorageBackend;
 import com.trivago.triava.tcache.core.TCacheHolderIterator;
 import com.trivago.triava.tcache.event.ListenerCollection;
-import com.trivago.triava.tcache.eviction.Holders;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.expiry.TouchedExpiryPolicy;
@@ -109,6 +108,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 {
 	static TriavaLogger logger = new TriavaNullLogger();
 	
+	private final TCacheFactory factory;
+
 	final private String id;
 	final Builder<K,V> builder; // A reference to the Builder that created this Cache
 	final private boolean strictJSR107;
@@ -157,9 +158,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	/**
 	 * Construct a Cache, using the given configuration from the Builder.
 	 * @param builder The builder containing the configuration
+	 * @param factory The factory, in which this Cache will be registered.
 	 */
-	public Cache(Builder<K,V> builder)
+	public Cache(TCacheFactory factory, Builder<K,V> builder)
 	{
+		this.factory = factory;
 		this.id = builder.getId();
 		this.strictJSR107 = builder.isStrictJSR107();
 		this.kvUtil = new KeyValueUtil<K,V>(id);
@@ -241,8 +244,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		listeners = new ListenerCollection<>(this, builder);
 
 		tCacheJSR107.refreshActionRunners();
-		// TODO The call here is pretty awkward. It must be moved to TCacheFactory.createCache();
-		builder.getFactory().registerCache(this);
+		// Hint: It sounds more natural to call registerCache() within TCacheFactory.createCache(). Doing it here has the advantage to be able
+		//       to be compatible with construction via Builder.build() which is the native Triava Cache construction code.
+		factory.registerCache(this);
 
 		logger.info(this.toString());
 	}
@@ -319,7 +323,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		shutdownCustomImpl();
 		shutdownPrivate();
 		if (destroyCache)
-			builder.getFactory().destroyCache(id);
+			getFactory().destroyCache(id);
 	}
 
 	/**
@@ -1663,6 +1667,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 				+ ", managementEnabled=" + isManagementEnabled()
 				+ ", statisticsEnabled=" + isStatisticsEnabled()
 				+ "]";
+	}
+
+	TCacheFactory getFactory()
+	{
+		return factory;
 	}
 
 	

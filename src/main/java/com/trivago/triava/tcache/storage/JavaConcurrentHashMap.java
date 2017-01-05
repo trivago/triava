@@ -19,9 +19,9 @@ package com.trivago.triava.tcache.storage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.StorageBackend;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Implements a storage that uses Java's ConcurrentHashMap.

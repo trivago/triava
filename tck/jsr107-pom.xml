@@ -210,7 +210,7 @@
 
                 <!-- Change the following properties to your CacheManager and Cache implementation. Used by the unwrap tests. -->
                 <CacheManagerImpl>com.trivago.triava.tcache.TCacheFactory</CacheManagerImpl>
-                <CacheImpl>com.trivago.triava.tcache.eviction.Cache</CacheImpl>
+                <CacheImpl>com.trivago.triava.tcache.Cache</CacheImpl>
                 <CacheEntryImpl>com.trivago.triava.tcache.core.TCacheJSR107Entry</CacheEntryImpl>
 
                 <!--Change the following to point to your MBeanServer, so that the TCK can resolve it. -->

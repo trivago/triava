@@ -14,7 +14,7 @@
  * limitations under the License.
  **********************************************************************************/
 
-package com.trivago.triava.tcache.eviction;
+package com.trivago.triava.tcache.core;
 
 import com.trivago.triava.tcache.AccessTimeObjectHolder;
 

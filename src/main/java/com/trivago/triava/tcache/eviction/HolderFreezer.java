@@ -16,6 +16,7 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import com.trivago.triava.tcache.TCacheHolder;
 
 /**
  * Freezes all statistics that may change

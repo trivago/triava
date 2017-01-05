@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>0.9.14</version>
+      <version>0.9.15</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:0.9.14'
+	compile 'com.trivago:triava:0.9.15'
 }
 ```
 
@@ -59,6 +59,8 @@ dependencies {
     - cache: API cleanup, fix duplicate notification of Listeners
 - 0.9.14
     - cache: Fix missing notification of Listeners
+- 0.9.15
+    - Fixing the API for Version 1.0.
 
 
 

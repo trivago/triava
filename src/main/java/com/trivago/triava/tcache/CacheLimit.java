@@ -79,9 +79,9 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	private final BlockingQueue<Boolean> evictionNotifierQ = new LinkedBlockingQueue<>(2);
 
 
-	public CacheLimit(Builder<K, V> builder)
+	public CacheLimit(TCacheFactory factory, Builder<K, V> builder)
 	{
-		super(builder);
+		super(factory, builder);
 		if (builder.getEvictionClass() == null)
 		{
 			throw new IllegalArgumentException("evictionClass must not be null in an evicting Cache");

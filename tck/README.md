@@ -17,7 +17,7 @@ To verify compliance, clone the Technology Compatibility Kit from https://github
  cd jsr107tck.git
  
  # 1. Configure triava as implementation to test:
- # a. Edit the triava version to test at the <implementation-version> tag: 
+ # a. Edit the triava version to test at the implementation-version tag: 
  vi <TRIAVA_DISTRIBUTION>/tck/jsr107-pom.xml
  # b. Check that the changes look well (7 values should differ)
  diff <TRIAVA_DISTRIBUTION>/tck/jsr107-pom.xml pom.xml

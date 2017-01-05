@@ -34,6 +34,7 @@ import javax.cache.configuration.Configuration;
 import javax.cache.spi.CachingProvider;
 
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.core.InternalBuilder;
 import com.trivago.triava.tcache.core.TCacheProvider;
 import com.trivago.triava.tcache.util.CacheSizeInfo;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
@@ -136,7 +137,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	 */
 	public <K, V> Builder<K, V> builder()
 	{
-		return new Builder<K,V>(this);
+		return new InternalBuilder<K,V>(this);
 	}
 	
 	/**
@@ -331,7 +332,7 @@ public class TCacheFactory implements Closeable, CacheManager
 		}
 
 		// Create a new Builder, this will copy the configuration.
-		Builder<K,V> builder = new Builder<>(this, configuration);
+		InternalBuilder<K,V> builder = new InternalBuilder<>(this, configuration);
 		builder.setId(cacheName);
 		Cache<K, V> tcache = builder.build();
 		return tcache.jsr107cache();

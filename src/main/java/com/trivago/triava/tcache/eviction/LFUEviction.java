@@ -16,6 +16,8 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import com.trivago.triava.tcache.TCacheHolder;
+
 /**
  * LFU eviction based on use count
  * 
@@ -26,6 +28,8 @@ package com.trivago.triava.tcache.eviction;
  */
 public class LFUEviction<K,V> extends FreezingEvictor<K,V> 
 {
+	private static final long serialVersionUID = 1057551480816770116L;
+
 	/**
 	 * @return Use count
 	 */

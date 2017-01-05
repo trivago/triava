@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import javax.cache.CacheException;
 
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.util.SecondsOrMillis;
@@ -40,7 +39,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	private static final long serialVersionUID = 1774522368637513622L;
 
 	@SuppressWarnings("rawtypes") // AccessTimeObjectHolder<V> would be incompatible with AccessTimeObjectHolder.class
-	AtomicIntegerFieldUpdater<AccessTimeObjectHolder> useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
+	transient AtomicIntegerFieldUpdater<AccessTimeObjectHolder> useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
 
 	final static int SERIALIZATION_MASK = 0b11;
 	final static int SERIALIZATION_NONE = 0b00;

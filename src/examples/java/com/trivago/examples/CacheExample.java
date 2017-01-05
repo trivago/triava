@@ -19,10 +19,10 @@ package com.trivago.examples;
 import com.trivago.triava.tcache.Cache;
 import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.TCacheFactory;
+import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.CacheLoader;
 import com.trivago.triava.tcache.eviction.FreezingEvictor;
-import com.trivago.triava.tcache.eviction.TCacheHolder;
 
 /**
  * Examples for creating various types of Caches. Demonstrated features are put() and get() operations,
@@ -174,6 +174,8 @@ public class CacheExample
 	 */
 	static class CustomerClassEvictor extends FreezingEvictor<Integer, CustomerType>
 	{
+		private static final long serialVersionUID = -5033401953248307723L;
+
 		@Override
 		public long getFreezeValue(Integer userId, TCacheHolder<CustomerType> customerType)
 		{

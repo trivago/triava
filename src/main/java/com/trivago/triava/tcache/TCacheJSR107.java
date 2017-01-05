@@ -50,13 +50,13 @@ import com.trivago.triava.tcache.action.ReplaceAction;
 import com.trivago.triava.tcache.action.WriteBehindActionRunner;
 import com.trivago.triava.tcache.action.WriteThroughActionRunner;
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.core.Holders;
 import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.TCacheConfigurationBean;
 import com.trivago.triava.tcache.core.TCacheEntryIterator;
 import com.trivago.triava.tcache.core.TCacheJSR107Entry;
 import com.trivago.triava.tcache.core.TCacheJSR107MutableEntry;
 import com.trivago.triava.tcache.event.ListenerCollection;
-import com.trivago.triava.tcache.eviction.Holders;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsBean.StatisticsAveragingMode;
 import com.trivago.triava.tcache.util.ChangeStatus;
@@ -236,7 +236,7 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 	@Override
 	public CacheManager getCacheManager()
 	{
-		return tcache.builder.getFactory();
+		return tcache.getFactory();
 	}
 
 	@SuppressWarnings("unchecked")

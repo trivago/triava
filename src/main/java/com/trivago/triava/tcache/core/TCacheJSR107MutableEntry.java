@@ -16,8 +16,6 @@
 
 package com.trivago.triava.tcache.core;
 
-import java.io.Serializable;
-
 import javax.cache.integration.CacheLoader;
 import javax.cache.processor.MutableEntry;
 
@@ -30,10 +28,8 @@ import javax.cache.processor.MutableEntry;
  * @param <K> The key class
  * @param <V> The value class
  */
-public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V> implements MutableEntry<K, V>, Serializable
+public final class TCacheJSR107MutableEntry<K, V> extends TCacheJSR107Entry<K, V> implements MutableEntry<K, V>
 {
-	private static final long serialVersionUID = 6472791726900271842L;
-
 	public enum Operation { NOP, REMOVE, SET, LOAD, REMOVE_WRITE_THROUGH, GET }
 	private Operation operation = Operation.NOP;
 	V valueNew = null;

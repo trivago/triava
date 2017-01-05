@@ -16,6 +16,7 @@
 
 package com.trivago.triava.tcache.eviction;
 
+import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.time.TimeSource;
 
 /**
@@ -28,6 +29,8 @@ import com.trivago.triava.time.TimeSource;
  */
 public class ClockEviction<K,V> extends FreezingEvictor<K,V> 
 {
+	private static final long serialVersionUID = 6871216638625966432L;
+
 	long lastTimestamp;
 	TimeSource timeSource;
 	
@@ -54,7 +57,7 @@ public class ClockEviction<K,V> extends FreezingEvictor<K,V>
 	@Override
 	public long getFreezeValue(K key, TCacheHolder<V> holder)
 	{
-		long lastAccess = holder.getLastAccess();
+		long lastAccess = holder.getLastAccessTime();
 		if (lastAccess >= lastTimestamp)
 		{
 			// Was used => Sort back
