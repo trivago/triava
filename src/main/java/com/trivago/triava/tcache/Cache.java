@@ -175,27 +175,35 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		int spreadSeconds = (int)Math.min(Integer.MAX_VALUE, builder.getMaxCacheTimeSpread()/1000); // Spread is in seconds for technical reasons
 		this.maxCacheTimeSpread = spreadSeconds;
 
-		long expiryIdleMillis = 0;
+		long expiryIdleMillis = builder.getCleanUpIntervalMillis();
 		ExpiryPolicy epFromFactory = builder.getExpiryPolicyFactory().create();
+		
 		if (strictJSR107)
 		{
 			this.expiryPolicy = new TouchedExpiryPolicy(epFromFactory);
-			// TODO Find a suitable way to calculate expiryIdleMillis for strict JSR107 mode.
+			// There is no suitable way to calculate expiryIdleMillis for strict JSR107 mode.
 			//  Issue:The JSR107 TCK disallows free use of expiryPolicy methods. When using it here, the TCK will record failures,
 			// because it requires that methods are ONLY called at very specific times.
-			// => Workaround: For now, we just do a guess of 10 minutes 
-			expiryIdleMillis = 600_000; // 10 minutes
+			// => Workaround: For now, we just do a guess of 1 minute 
+			if (expiryIdleMillis == 0)
+			{
+				// Auto-tuning expiryIdleMillis
+				expiryIdleMillis = 600_000; // 10 minutes
+			}
 		}
 		else
 		{
 			this.expiryPolicy = new UntouchedExpiryPolicy(epFromFactory);
-
-			Duration expiryDuration = epFromFactory.getExpiryForAccess();
-			if (expiryDuration == null)
-				expiryDuration = epFromFactory.getExpiryForCreation();
-			expiryIdleMillis = expiryDuration.getAdjustedTime(0);
+			if (expiryIdleMillis == 0)
+			{
+				// Auto-tuning expiryIdleMillis
+				Duration expiryDuration = epFromFactory.getExpiryForAccess();
+				if (expiryDuration == null)
+					expiryDuration = epFromFactory.getExpiryForCreation();
+				expiryIdleMillis = expiryDuration.getAdjustedTime(0);
+			}
 		}
-
+		
 		// Cleaner should run often enough, but not too often. The chosen time is expiryIdleMillis / 10, but limited to 5min.
 		if (expiryIdleMillis <= 0)
 		{
@@ -787,19 +795,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	protected boolean ensureFreeCapacity()
 	{
 		return true;
-	}
-
-	/**
-	 * Sets the cleanup interval for expiring idle cache entries. If you do not call this method, the default
-	 * cleanup interval is used, which is 1/10 * idleTime. This is often a good value.
-	 * 
-	 * TODO This should go into the Builder
-	 * 
-	 * @param cleanUpIntervalMillis The eviction cleanup interval in milliseconds
-	 */
-	public void setCleanUpIntervalMillis(long cleanUpIntervalMillis)
-	{
-		this.cleanUpIntervalMillis = cleanUpIntervalMillis;
 	}
 
 	/**

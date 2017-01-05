@@ -52,7 +52,6 @@ public class CacheLimitLFUTest
 	public static void setUp()
 	{
 //		Cache.setLogger(new TriavaConsoleLogger());
-		cache.setCleanUpIntervalMillis(300);
 		cache.put("", 0);
 		
 		try 
@@ -67,15 +66,17 @@ public class CacheLimitLFUTest
 
 	private static Cache<String, Integer> buildLfuCache(String string, int maxidletime2, int maxcachetime2, int expectedMapSize)
 	{
-		Builder<String, Integer> builder = cacheBuilder(string, maxidletime2, maxcachetime2, expectedMapSize);
+		Builder<String, Integer> builder = cacheBuilder(string, maxidletime2, maxcachetime2, expectedMapSize, 300);
 		builder.setEvictionPolicy(EvictionPolicy.LFU);
 		return builder.build();
 	}
 
-	private static Builder<String, Integer> cacheBuilder(String string, int maxidletime2, int maxcachetime2, int expectedMapSize)
+	private static Builder<String, Integer> cacheBuilder(String string, int maxidletime2, int maxcachetime2, int expectedMapSize, Integer cleanupIntervalMillis)
 	{
 		Builder<String, Integer> builder = TCacheFactory.standardFactory().builder();
 		builder.setId(string).setExpectedMapSize(expectedMapSize);
+		if (cleanupIntervalMillis != null)
+			builder.setCleanupInterval(cleanupIntervalMillis, TimeUnit.MILLISECONDS);
 		builder.setMaxIdleTime(maxidletime2, TimeUnit.SECONDS).setMaxCacheTime(maxcachetime2, TimeUnit.SECONDS);
 		return builder;
 	}
@@ -108,7 +109,7 @@ public class CacheLimitLFUTest
 		if (!runAcceptanceTests)
 			return;
 		
-		Builder<String, Integer> builder = cacheBuilder("endlessExpiration0", 0, 0, 10);
+		Builder<String, Integer> builder = cacheBuilder("endlessExpiration0", 0, 0, 10, null);
 		Cache<String, Integer> cache = builder.build();
 
 		checkAfterTime(cache, "a", 12, 2000, true);
@@ -120,7 +121,7 @@ public class CacheLimitLFUTest
 		if (!runAcceptanceTests)
 			return;
 
-		Builder<String, Integer> builder = cacheBuilder("endlessExpiration1", Integer.MAX_VALUE, Integer.MAX_VALUE, 10);
+		Builder<String, Integer> builder = cacheBuilder("endlessExpiration1", Integer.MAX_VALUE, Integer.MAX_VALUE, 10, null);
 		Cache<String, Integer> cache = builder.build();
 
 		checkAfterTime(cache, "a", 12, 2000, true);
@@ -132,7 +133,7 @@ public class CacheLimitLFUTest
 		if (!runAcceptanceTests)
 			return;
 
-		Builder<String, Integer> builder = cacheBuilder("endlessExpiration1", 1, 1, 10);
+		Builder<String, Integer> builder = cacheBuilder("endlessExpiration1", 1, 1, 10, null);
 		Cache<String, Integer> cache = builder.build();
 
 		checkAfterTime(cache, "a", 12, 2000, false);

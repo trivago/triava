@@ -67,6 +67,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	private int expectedMapSize = 10000;
 	private int concurrencyLevel = 14;
 	private int mapConcurrencyLevel = 16;
+	private long cleanUpIntervalMillis = 0; // 0 = auto-tuning
+
 	private EvictionPolicy evictionPolicy = EvictionPolicy.LFU;
 	private EvictionInterface<K, V> evictionClass = null;
 	private HashImplementation hashImplementation = HashImplementation.ConcurrentHashMap;
@@ -215,6 +217,24 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		if (maxCacheTime <= 0)
 			throw new IllegalArgumentException("Invalid maxCacheTime: " + maxCacheTime);
 		this.maxCacheTime = timeUnit.toMillis(maxCacheTime);
+		return this;
+	}
+
+	/**
+	 * Sets the proposed cleanup interval for expiring cache entries. The Cache will use this value
+	 * when doing batch expiration. Out-of-bound values are
+	 * auto-tuned by the Cache to sane limits, which are currently between 1 ms and 5 minutes.
+	 * <p>
+	 * If you do not call this method, the default
+	 * cleanup interval is used. For JSR107 Caches this is 1 minute. For native Triava Caches this 
+	 * is auto-optimized according to a fraction of {@link #getMaxIdleTime()}. 
+	 * 
+	 * @param cleanupInterval The eviction cleanup interval. 0 means auto-tuning.
+	 * @param timeUnit The TimeUnit of cleanupInterval
+	 */
+	public Builder<K, V> setCleanupInterval(int cleanUpInterval, TimeUnit timeUnit)
+	{
+		this.cleanUpIntervalMillis = timeUnit.toMillis(cleanUpInterval);
 		return this;
 	}
 
@@ -407,6 +427,15 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
+	 * Returns the proposed cleanup interval. See {@link #setCleanUpIntervalMillis(long)} for details on how the Cache uses this value.   
+	 * @return The proposed cleanup interval. 0 means auto-tuning
+	 */
+	public long getCleanUpIntervalMillis()
+	{
+		return cleanUpIntervalMillis;
+	}
+	
+	/**
 	 * @return the expectedMapSize
 	 */
 	public int getExpectedMapSize()
@@ -577,6 +606,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 			target.strictJSR107 = sourceB.strictJSR107;
 			target.maxCacheTime = sourceB.maxCacheTime;
 			target.maxCacheTimeSpread = sourceB.maxCacheTimeSpread;
+			this.cleanUpIntervalMillis = sourceB.cleanUpIntervalMillis;
 			target.expectedMapSize = sourceB.expectedMapSize;
 			target.concurrencyLevel = sourceB.concurrencyLevel;
 			if (sourceB.evictionPolicy != null)
@@ -647,6 +677,7 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		result = prime * result + mapConcurrencyLevel;
 		result = prime * result + (int) (maxCacheTime ^ (maxCacheTime >>> 32));
 		result = prime * result + (int) (maxCacheTimeSpread ^ (maxCacheTimeSpread >>> 32));
+		result = prime * result + (int) (cleanUpIntervalMillis ^ (cleanUpIntervalMillis >>> 32));
 		result = prime * result + expiryPolicyFactory.hashCode();
 		result = prime * result + (statistics ? 1231 : 1237);
 		result = prime * result + ((valueType == null) ? 0 : valueType.hashCode());
@@ -710,6 +741,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 		if (maxCacheTime != other.maxCacheTime)
 			return false;
 		if (maxCacheTimeSpread != other.maxCacheTimeSpread)
+			return false;
+		if (cleanUpIntervalMillis != other.cleanUpIntervalMillis)
 			return false;
 		if (! expiryPolicyFactory.equals(other.expiryPolicyFactory))
 			return false;

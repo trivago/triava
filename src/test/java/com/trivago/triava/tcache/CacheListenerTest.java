@@ -81,7 +81,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 
 	private javax.cache.Cache<Integer, String> createCache(String name, Integer size)
 	{
-		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + runMode, size, null);
+		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-sync-" + runMode, size, null, null);
 		Factory<UpdateListener> ulFactory = FactoryBuilder.factoryOf(new UpdateListener());
 		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, runMode == RunMode.SYNC);
 		cache.registerCacheEntryListener(listenerConf);
@@ -90,12 +90,12 @@ public class CacheListenerTest extends CacheListenerTestBase
 	
 	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, Integer size)
 	{
-		return createCacheWithExpiredListener(name, size, null, false);
+		return createCacheWithExpiredListener(name, size, null, false, null);
 	}
 	
-	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, Integer size, Integer expirationMillis, boolean printAllEvents)
+	private javax.cache.Cache<Integer, String> createCacheWithExpiredListener(String name, Integer size, Integer expirationMillis, boolean printAllEvents, Integer cleanupIntervalMillis)
 	{
-		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-" + runMode, size, expirationMillis);
+		javax.cache.Cache<Integer, String> cache = createJsr107Cache(name + "-" + runMode, size, expirationMillis, cleanupIntervalMillis);
 		Factory<MyExpiredListener> ulFactory = FactoryBuilder.factoryOf(new MyExpiredListener(printAllEvents, name));
 		CacheEntryListenerConfiguration<Integer, String> listenerConf = new MutableCacheEntryListenerConfiguration<>(ulFactory, null, false, runMode == RunMode.SYNC);
 		cache.registerCacheEntryListener(listenerConf);
@@ -135,9 +135,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 		if (DEBUG_OUTPUT)
 			Cache.setLogger(new TriavaConsoleLogger());
 		int capacity = 1_000_000;
-		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpiryListener", capacity+1, 1, false);
-		Cache<?,?> tcache = cache.unwrap(Cache.class);
-		tcache.setCleanUpIntervalMillis(1);
+		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpiryListener", capacity+1, 1, false, 1);
 
 		resetListenerCounts();
 
@@ -208,9 +206,7 @@ public class CacheListenerTest extends CacheListenerTestBase
 		// We do not want to wait for that, so we 
 		expectedNotifications = count - 1;
 
-		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpitestExpiryListenerOverwrite-" + (ifAbsent ? "putIfAbsent" : "put"), 1000, 1, DEBUG_OUTPUT);
-		Cache<?,?> tcache = cache.unwrap(Cache.class);
-		tcache.setCleanUpIntervalMillis(100_000);
+		javax.cache.Cache<Integer, String> cache = createCacheWithExpiredListener("testExpitestExpiryListenerOverwrite-" + (ifAbsent ? "putIfAbsent" : "put"), 1000, 1, DEBUG_OUTPUT, 100_000);
 
 		resetListenerCounts();
 
