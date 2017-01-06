@@ -50,7 +50,7 @@ public interface EvictionInterface<K, V> extends Serializable
 	 * value that may change over the course of the eviction sorting process. Examples of changing values are the usage
 	 * count or the last use timestamp. 
 	 * <p>
-	 * TODO For v0.9.5: First, rename this to getSnapshot() as it is clearer. Secondly, we could allow snapshots to be objects,
+	 * TODO For v2.0: First, rename this to getSnapshot() as it is clearer. Secondly, we could allow snapshots to be objects,
 	 * and then we would have "public interface EvictionInterface&lt;K, V, SNAPSHOT&gt;"
 	 * 
 	 * @param key The key of the cache entry

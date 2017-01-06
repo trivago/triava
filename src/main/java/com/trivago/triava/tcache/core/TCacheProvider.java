@@ -191,8 +191,14 @@ public class TCacheProvider implements CachingProvider
 		}
 	}
 
-	// TODO This MUST be package-private. Refactor 
-	public void removeCacheManager(CacheManager cacheManager)
+	/**
+	 * Removes the cache manager from this cache provider. Normal application code should not call this method, but call {@link TCacheFactory#close()} instead.
+	 * <p>
+	 * This method may be removed from the public API in V2.0
+	 * @deprecated Use {@link TCacheFactory#close()}
+	 * @param cacheManager The cache manager to remove
+	 */
+	public void removeCacheManager0(CacheManager cacheManager)
 	{
 		synchronized (cacheManagersLock)
 		{

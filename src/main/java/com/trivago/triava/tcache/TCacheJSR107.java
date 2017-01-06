@@ -499,9 +499,8 @@ public class TCacheJSR107<K, V> implements javax.cache.Cache<K, V>
 			}
 			catch (Exception exc)
 			{
-				// Wrap loader Exceptions in CacheLoaderExcpeption. The TCK requires it, but it is possibly a TCK bug.
-
-				// TODO Check back after clarifying whether this requirement is a TCK bug:
+				// Wrap loader Exceptions in CacheLoaderExcpeption. The JSR107 Spec is a bit confusing on it, but we do it as
+				// the TCK requires it, and it was discussed on the bug tracker:
 				// https://github.com/jsr107/jsr107tck/issues/99
 				String message = "CacheLoader " + tcache.id() + " failed to load keys";
 				throw new CacheLoaderException(message + " This is a wrapped exception. See https://github.com/jsr107/jsr107tck/issues/99", exc);

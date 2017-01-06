@@ -216,7 +216,7 @@ public class CacheLimitLFUTest
 	@Test
 	public void customEvictionTestReverse()
 	{
-		// TODO Test currently fails, if we set a reasonable limit of ACCEPTABLE_NON_PREMIUM_RATE = 11;
+		// Test currently fails, if we set a reasonable limit of ACCEPTABLE_NON_PREMIUM_RATE = 11;
 		// 11% would be acceptable, but we often end up with 25-26%. This may indicate a bug.
 		// Using 26% works, but this is way too high, as it includes both "overfill" and "underfill" space.
 		// "Overfill" should go away after the eviction thread is done, so there should be not more than 10-11%.

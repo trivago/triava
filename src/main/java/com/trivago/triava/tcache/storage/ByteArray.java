@@ -20,9 +20,9 @@ import java.util.Arrays;
 
 /**
  * A data structure holding a byte array, and provides  a {@link #hashCode} based on the byte array content.
- * Important note: The arrays used for creating instances of this class must not be modified. See {@link ByteArray#ByteArray(byte[])} for details.
+ * Important note: The arrays used for creating instances of this class must not be modified as its hash code is cached. See {@link ByteArray#ByteArray(byte[])} for details.
  */
-public class ByteArray // TODO Should not be public, as it is not (yet) a method of general interest.
+public class ByteArray
 {
 	final byte[] bytes;
 	final int hashCode;
@@ -51,9 +51,9 @@ public class ByteArray // TODO Should not be public, as it is not (yet) a method
 			/**
 			 * Much data. Only sample the bytes, to match the following goals:
 			 * 1) Do not read all bytes as the byte array could be huge (MB, GB)
-			 * 2) We do not simply take the first or last bytes, as they could be a header trailer that is always identical (e.g. with gzip one often sees the same 10 identical header bytes). => use "step"
+			 * 2) We do not simply take the first or last bytes, as they could be a header or trailer that is always identical (e.g. with gzip one often sees the same 10 identical header bytes). => use "step"
 			 * 3) We want to read as "local" as possible, e.g. read everything from one memory page (typically 4 or 8KB)  => limit using a "count"
-			 * 4) Try to read also uneven positions (e.g. 0, 31, 62, 93), because it can easily happen to hit similar data (e.g. there is often a 0 in the "high byte/MSB's" of integers in an an int[] array).
+			 * 4) Try to read also uneven positions (e.g. 0, 31, 62, 93), because it can easily happen to hit similar data (e.g. there is often a 0 in the "high byte/MSB's" of integers in an int[] array).
 			 */
 			count = 32; // 1), 3)
 			step = Math.min(31, bytes.length / count); // 2), 4) 
