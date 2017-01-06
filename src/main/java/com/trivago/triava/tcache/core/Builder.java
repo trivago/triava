@@ -231,10 +231,11 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	 * 
 	 * @param cleanupInterval The eviction cleanup interval. 0 means auto-tuning.
 	 * @param timeUnit The TimeUnit of cleanupInterval
+	 * @return This Builder
 	 */
-	public Builder<K, V> setCleanupInterval(int cleanUpInterval, TimeUnit timeUnit)
+	public Builder<K, V> setCleanupInterval(int cleanupInterval, TimeUnit timeUnit)
 	{
-		this.cleanUpIntervalMillis = timeUnit.toMillis(cleanUpInterval);
+		this.cleanUpIntervalMillis = timeUnit.toMillis(cleanupInterval);
 		return this;
 	}
 
@@ -427,8 +428,8 @@ public class Builder<K,V> implements CompleteConfiguration<K, V>
 	}
 
 	/**
-	 * Returns the proposed cleanup interval. See {@link #setCleanUpIntervalMillis(long)} for details on how the Cache uses this value.   
-	 * @return The proposed cleanup interval. 0 means auto-tuning
+	 * Returns the proposed cleanup interval in ms. See {@link #setCleanupInterval(int, TimeUnit)} for details on how the Cache uses this value.   
+	 * @return The proposed cleanup interval in ms. 0 means auto-tuning
 	 */
 	public long getCleanUpIntervalMillis()
 	{
