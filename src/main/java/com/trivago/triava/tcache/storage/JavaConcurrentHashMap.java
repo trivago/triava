@@ -37,7 +37,7 @@ public class JavaConcurrentHashMap<K,V> implements StorageBackend<K, V>
 	public ConcurrentMap<K, TCacheHolder<V>> createMap(Builder<K,V> builder, double evictionMapSizeFactor)
 	{
 		double loadFactor = 0.75F;
-		int requiredMapSize = (int) (builder.getExpectedMapSize() / loadFactor) + (int)evictionMapSizeFactor;
+		int requiredMapSize = (int) (builder.getMaxElements() / loadFactor) + (int)evictionMapSizeFactor;
 		return new ConcurrentHashMap<>(requiredMapSize, (float) loadFactor,
 				builder.getMapConcurrencyLevel());
 	}

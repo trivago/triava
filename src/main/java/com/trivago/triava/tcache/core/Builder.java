@@ -202,12 +202,22 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 		return this;
 	}
 
-	@Override
-	public Builder<K,V> setExpectedMapSize(int expectedMapSize)
+	/**
+	 * @deprecated Use {@link #setMaxElements(int)}
+	 * @param maxElements See {@link #setMaxElements(int)}
+	 * @return This Builder
+	 */
+	public Builder<K,V> setExpectedMapSize(int maxElements)
 	{
-		if (expectedMapSize < 0)
+		return setMaxElements(maxElements);
+	}
+	
+	@Override
+	public Builder<K,V> setMaxElements(int maxElements)
+	{
+		if (maxElements < 0)
 			throw new IllegalArgumentException("Invalid expectedMapSize: " + expectedMapSize);
-		this.expectedMapSize = expectedMapSize;
+		this.expectedMapSize = maxElements;
 		return this;
 	}
 
@@ -354,11 +364,9 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	{
 		return cleanUpIntervalMillis;
 	}
-	
-	/**
-	 * @return the expectedMapSize
-	 */
-	public int getExpectedMapSize()
+
+	@Override
+	public int getMaxElements()
 	{
 		return expectedMapSize;
 	}
@@ -812,4 +820,5 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	{
 		listenerConfigurations.remove(listenerConfiguration);
 	}
+
 }

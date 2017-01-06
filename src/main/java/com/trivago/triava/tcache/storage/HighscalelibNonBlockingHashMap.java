@@ -46,7 +46,7 @@ public class HighscalelibNonBlockingHashMap<K,V> implements StorageBackend<K, V>
 			Constructor<?> cons = cacheClass.getDeclaredConstructor(int.class);
 			
 			double loadFactor = 0.75F;
-			int requiredMapSize = (int) (builder.getExpectedMapSize() / loadFactor) + (int)evictionMapSizeFactor;
+			int requiredMapSize = (int) (builder.getMaxElements() / loadFactor) + (int)evictionMapSizeFactor;
 	
 			@SuppressWarnings({ "unchecked", "rawtypes" })
 			ConcurrentMap<K, TCacheHolder<V>> inst = (ConcurrentMap) cons.newInstance(requiredMapSize);

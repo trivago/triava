@@ -162,7 +162,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	protected int evictionExtraSpace(Builder<K, V> builder)
 	{
 		double factor = EVICTION_SPACE_PERCENT / 100D; //  20/100d = 0.2
-		userDataElements = builder.getExpectedMapSize();
+		userDataElements = builder.getMaxElements();
 		
 		final int parallelityEvictionSpace;
 		if (FEATURE_ExtraParEvictionSpace)

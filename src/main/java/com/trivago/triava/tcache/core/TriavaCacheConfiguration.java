@@ -105,14 +105,14 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 
 	/**
 	 * Sets the expected number of elements to be stored. Cache instances with eviction policy will start evicting
-	 * after reaching {@link #getExpectedMapSize()}. Cache instances of unlimited size
+	 * after reaching {@link #getMaxElements()}. Cache instances of unlimited size
 	 * {@link EvictionPolicy}.NONE will use this value only as a hint
 	 * for initially sizing the underlying storage structures.
 	 * 
-	 * @param expectedMapSize The expected number of elements to be stored
+	 * @param maxElements The maximum number of elements to be stored
 	 * @return This Builder
 	 */
-	B setExpectedMapSize(int expectedMapSize);
+	B setMaxElements(int maxElements);
 
 	/**
 	 * Sets the expected concurrency level. In other words, the number of application Threads that concurrently write to the Cache.
@@ -237,9 +237,10 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	long getCleanUpIntervalMillis();
 	
 	/**
-	 * @return the expectedMapSize
+	 * @see #setMaxElements(int)
+	 * @return the maximum number of elements.
 	 */
-	int getExpectedMapSize();
+	int getMaxElements();
 
 	/**
 	 * @return the concurrencyLevel
