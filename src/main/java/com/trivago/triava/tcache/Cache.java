@@ -44,6 +44,7 @@ import com.trivago.triava.tcache.core.Holders;
 import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.core.StorageBackend;
 import com.trivago.triava.tcache.core.TCacheHolderIterator;
+import com.trivago.triava.tcache.core.TriavaCacheConfiguration;
 import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.expiry.Constants;
 import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
@@ -298,8 +299,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return id;
 	}
 
-	// TODO Eventually make package private. OTOH this is just the cache configuration.
-	public Builder<K, V> builder()
+	public TriavaCacheConfiguration<K, V, ? extends Builder<K,V>> configuration()
 	{
 		return builder;
 	}
@@ -321,11 +321,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * calling that from CacheManager.destroyCache() also looks unclean.
 	 * In the future this would be a good point to refactor.
 	 * 
-	 * TODO This method must NOT be public
-	 * 
 	 * @param destroyCache true means to call destroyCache()
 	 */
-	public final void close0(boolean destroyCache)
+	final void close0(boolean destroyCache)
 	{
 		shuttingDown = true;
 		shutdownCustomImpl();
@@ -1204,7 +1202,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * between immediately and the given maximum delay. The chosen time will never increase
 	 * the natural expiration time of the object.
 	 * <p>
-	 * This method is especially useful if many objects are to be expired, and fetching data is an expensive operation.
+	 * This method is especially useful if many cache entries are to be invalidated, and fetching data is an expensive operation.
 	 * As each call to this method will chose a different expiration time, expiration and thus possible re-fetching
 	 * will spread over a longer time, and helps to avoid resource overload (like DB, REST Service, ...).
 	 * 
@@ -1454,26 +1452,28 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			throw new IllegalStateException("Cache already closed: " + id());
 	}
 
-	// TODO Make this package-private / refactor
+	// --- ACTION CONTEXT -------------------------------------------------------------------------------------
+	// Future directions: The action context may be made available to the user, and he could modify it on a
+	//                    per-request basis, e.g. for providing "withAsync", changing timeouts, expiration
+	//                    or to forbid write-through (e.g. for negative caching).
 	@Override
 	public CacheWriter<K, V> cacheWriter()
 	{
 		return cacheWriter;
 	}
 
-	// TODO Make this package-private / refactor
 	@Override
 	public ListenerCollection<K, V> listeners()
 	{
 		return listeners;
 	}
 
-	// TODO Make this package-private / refactor
 	@Override
 	public StatisticsCalculator statisticsCalculator()
 	{
 		return statisticsCalculator;
 	}
+	// --- ACTION CONTEXT -------------------------------------------------------------------------------------
 
 
 	/**

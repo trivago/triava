@@ -38,11 +38,6 @@ public interface TCacheHolder<V> extends Serializable
 	 * @return The value
 	 */
 	V peek();
-	/**
-	 * @deprecated Use {@link #getLastAccessTime()}
-	 * @return See {@link #getLastAccessTime()}
-	 */
-	long getLastAccess();
 	
 	/**
 	 * Returns the last access time, given in MILLISECONDS since EPOCH
@@ -55,12 +50,6 @@ public interface TCacheHolder<V> extends Serializable
 	 * @return the use count
 	 */
 	int getUseCount();
-	
-	/**
-	 * @deprecated Use {@link #getCreationTime()}
-	 * @return The creation time in ms
-	 */
-	long getInputDate(); // TODO rename This is not a Date! it is a timestamp
 	
 	/**
 	 * Returns the creation time of this holder, given in ms since EPOCH.
@@ -77,8 +66,9 @@ public interface TCacheHolder<V> extends Serializable
 	long getExpirationTime();
 	
 	/**
-	 * Returns whether this holder is valid.
-	 * @return true if it is not valid.
+	 * Returns whether this holder is valid. A formerly valid holder can become invalid when it expires, and this method reflects that: An expired
+	 * holder is invalid.    
+	 * @return true if it is invalid. This includes expired holders.
 	 */
 	boolean isInvalid();
 }

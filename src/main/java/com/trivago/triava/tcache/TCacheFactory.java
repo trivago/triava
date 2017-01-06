@@ -142,7 +142,7 @@ public class TCacheFactory implements Closeable, CacheManager
 	
 	/**
 	 * Registers a Cache to this factory. Registered caches will be used for bulk operations like
-	 * {@link #shutdownAll()}.
+	 * {@link #close()}.
 	 * 
 	 * @param cache The Cache to register
 	 *  @throws IllegalStateException If a cache with the same id is already registered in this factory.
@@ -255,20 +255,9 @@ public class TCacheFactory implements Closeable, CacheManager
 		else
 		{
 			// From Caching provider
-			cachingProvider.removeCacheManager(this);
+			cachingProvider.removeCacheManager0(this);
 			closed = true;
 		}
-	}
-	
-
-	/**
-	 * Shuts down all Cache instances, which were registered via {@link #registerCache(Cache)}. It waits until
-	 * all cleaners have stopped.
-	 * @deprecated Please migrate to the JSR-107 compatible method {@link #close()}
-	 */
-	public void shutdownAll()
-	{
-		close();
 	}
 
 	@Override

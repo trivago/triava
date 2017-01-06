@@ -33,33 +33,33 @@ public class TCacheConfigurationBean<K,V> implements CacheMXBean
 	@Override
 	public String getKeyType()
 	{
-		Configuration<K,V> config = tcache.builder();
+		Configuration<K,V> config = tcache.configuration();
 		return config.getKeyType().getCanonicalName();
 	}
 
 	@Override
 	public String getValueType()
 	{
-		Configuration<K,V> config = tcache.builder();
+		Configuration<K,V> config = tcache.configuration();
 		return config.getValueType().getCanonicalName();
 	}
 
 	@Override
 	public boolean isReadThrough()
 	{
-		return tcache.builder().isReadThrough();
+		return tcache.configuration().isReadThrough();
 	}
 
 	@Override
 	public boolean isWriteThrough()
 	{
-		return tcache.builder().isWriteThrough();
+		return tcache.configuration().isWriteThrough();
 	}
 
 	@Override
 	public boolean isStoreByValue()
 	{
-		return tcache.builder().isStoreByValue();
+		return tcache.configuration().isStoreByValue();
 	}
 
 	@Override
