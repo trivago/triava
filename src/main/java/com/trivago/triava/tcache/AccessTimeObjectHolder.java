@@ -60,9 +60,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 20 #4
 	private int lastAccess = 0; // in milliseconds relative to baseTimeMillis
 	// 24 #4
-	private int maxIdleTime = 0;  // in milliseconds or seconds
+	private int maxIdleTime = 0;  // in milliseconds or seconds relative to inputDate
 	// 28 #4
-	private int maxCacheTime = 0; // in milliseconds or seconds
+	private int maxCacheTime = 0; // in milliseconds or seconds relative to inputDate
 	// 32 #4
 	private volatile int useCount = 0;
 	// 36
@@ -205,7 +205,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		{
 			// Prolong time: 
 			// 1) Find out how long we currently live in the Cache
-			long cacheDurationMillis = currentTimeMillisEstimate() - getInputDate();
+			long cacheDurationMillis = currentTimeMillisEstimate() - getCreationTime();
 			// 2) Prolong by idleTimeSecs.
 			try
 			{
@@ -218,7 +218,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 			}
 			catch (Exception exc)
 			{
-				System.out.println("updateMaxIdleTime() failed idleTimeMillis=" +idleTimeMillis + ", getInputDate()=" +getInputDate() + ", cacheDurationMillis=" + cacheDurationMillis); 
+				System.out.println("updateMaxIdleTime() failed idleTimeMillis=" +idleTimeMillis + ", getInputDate()=" + getCreationTime() + ", cacheDurationMillis=" + cacheDurationMillis); 
 			}
 //			int newMaxIdleTarget = (int)Math.min(  (cacheDurationMillis/1000) + idleTimeSecs, (long)Integer.MAX_VALUE);
 //			this.maxIdleTime = newMaxIdleTarget;
@@ -227,35 +227,28 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	}
 
 
-	/**
-	 * 
-	 */
+	@Override
 	public long getExpirationTime()
 	{
 		long idleDurationMillis = SecondsOrMillis.fromInternalToMillis(maxIdleTime);
 		long expirationDurationMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
 		// durationMillis: The smaller of expiration-time and idle-time wins
 		long durationMillis = Math.min(expirationDurationMillis, idleDurationMillis);
-		return getInputDate() + durationMillis;
+		return getCreationTime() + durationMillis;
 	}
 
 	/**
 	 * {@inheritDoc}
 	 * 	<p>TODO The use count is not yet updated here. This makes behavior inconsistent, e.g. in the iterator 
 	 */
+	@Override
 	public V get()
 	{
 		setLastAccessTime();
 		return peek();
 	}
 
-	/**
-	 * Return the data, without modifying statistics or any other metadata like access time.
-	 * 
-	 * TODO Check whether we should check validity here via {@link #isInvalid()}
-	 * 
-	 * @return The value of this holder 
-	 */
+	@Override
 	@SuppressWarnings("unchecked") 
 	public V peek()
 	{
@@ -297,12 +290,6 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		return Cache.baseTimeMillis + lastAccess;
 	}
 	
-	@Deprecated
-	public long getLastAccess()
-	{
-		return getLastAccessTime();
-	}
-
 	@Override
 	public int getUseCount()
 	{
@@ -320,18 +307,12 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	}
 
 	@Override
-	@Deprecated
-	public long getInputDate()
-	{
-		return getCreationTime();
-	}
-	
-	@Override
 	public long getCreationTime()
 	{
 		return Cache.baseTimeMillis + inputDate;
 	}
 
+	@Override
 	public boolean isInvalid()
 	{
 		return isInvalid(false);
@@ -357,7 +338,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		long expDurationMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
 		if (expDurationMillis > 0L)
 		{
-			long cacheDurationMillis = millisNow - getInputDate();
+			long cacheDurationMillis = millisNow - getCreationTime();
 			if (cacheDurationMillis > expDurationMillis) 
 			{
 				if (debug) System.out.println("Dropped because expired: millisNow=" + millisNow + ", maxCacheTime" + maxCacheTime + ", expDurationMillis" + expDurationMillis + "< cacheDurationMillis" + cacheDurationMillis);
@@ -373,7 +354,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 			return true;
 		}
 
-		long lastAccess = getLastAccess();
+		long lastAccess = getLastAccessTime();
 		long idleSince = millisNow - lastAccess;
 
 		if (idleSince > idleDurationMillis)
@@ -384,20 +365,51 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		return false;
 	}
 
-
+	/**
+	 * <pre>
+	 *   |-------------- maxCacheTimeMillis --------------|
+	 *   |                                                |
+	 *   |--- newMaxCacheTimeMillis ---|                  |
+	 *   |                             |                  |
+	 *  -|---------|-------------------|------------------|------------------------------------- time
+	 *   |         |                   |                  |
+	 *   |         now                 now + delayMillis  |
+	 *   |                  = expirationOnNewExpireUntil  |
+	 *   |                                                |
+	 *   inputDate + baseTimeMillis = creationTime        creationTime + maxCacheTime
+	 * </pre>
+	 * 
+	 * @param maxDelay The maximum delay time until the object will be expired
+	 * @param timeUnit The time unit for maxDelay
+	 * @param random The random generator to use
+	 */
 	public void setExpireUntil(int maxDelay, TimeUnit timeUnit, Random random)
 	{
-		// TODO setExpireUntil() currently only works properly, if the element has been just put in the Cache.
-		//      The issue is, that maxDelay is used set maxCacheTime instead of prolonging it from now
-		//      In other words: Expiration is currently at insertTime + maxDelay (WRONG) instead of now + maxDelay  
-		int maxDelaySecs = (int)timeUnit.toSeconds(maxDelay);
-		long delayMillis = 1000l * random.nextInt(maxDelaySecs);
-		
-		long expDurationMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
-		if (expDurationMillis == 0 || delayMillis < expDurationMillis)
+		// -1- Create a random idleTime in the interval [0 ... maxDelay-1]
+		long millis = timeUnit.toMillis(maxDelay);
+		final long delayMillis;
+		// There is no Random.nextLong(), so we need a special handling to not getting integer overruns
+		if (millis <= Integer.MAX_VALUE)
 		{
-			// holder.maxCacheTime was not set (never expires), or new value is smaller => use it 
-			maxCacheTime = SecondsOrMillis.fromMillisToInternal(delayMillis);
+			delayMillis = random.nextInt((int)millis);
+		}
+		else
+		{
+			int maxDelaySecs = (int)timeUnit.toSeconds(maxDelay);
+			delayMillis = 1000l * random.nextInt(maxDelaySecs);			
+		}
+
+		// -2- Calculate current expiration from cache time and the one from the newly planned expireUntil  
+		long maxCacheTimeMillis = SecondsOrMillis.fromInternalToMillis(maxCacheTime);
+		long creationTime = getCreationTime();
+		long expirationOnCacheTime = maxCacheTimeMillis + creationTime;
+		long expirationOnNewExpireUntil = currentTimeMillisEstimate() + delayMillis;
+		
+		if (maxCacheTimeMillis == 0 || expirationOnNewExpireUntil < expirationOnCacheTime)
+		{
+			// holder.maxCacheTime was not set (never expires), or new value is smaller => use it
+			long newMaxCacheTimeMillis = expirationOnNewExpireUntil - creationTime;
+			maxCacheTime = SecondsOrMillis.fromMillisToInternal(newMaxCacheTimeMillis);
 		}
 		// else: Keep delay, as holder will already expire sooner than delaySecs.
 	}
