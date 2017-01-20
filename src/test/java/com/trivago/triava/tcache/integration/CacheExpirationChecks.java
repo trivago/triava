@@ -36,6 +36,8 @@ import com.trivago.triava.tcache.core.TCacheHolderIterator;
  *             ONLY RUN THEM IF YOU KNOW THE INNER WORKINGS OF TRIAVA CACHE.
  * <p> 
  * These tests verify tCache expiration behavior. They are important for catching critical bugs before a release.
+ * They are not tested in the Maven test scope, as the class name does not start or end with "Test".
+ * 
  * Please note that some tests are highly implementation specific and exploit knowledge of the internal workings.
  * They may fail at any time, and additionally some of the tests have time based race conditions, e.g. may fail if the test machine is overloaded, does GC or JIT is running.
  * This means: Sporadic test failures are not of concern. But if a test fails all the time, this is an indication of an issue and should be addressed.

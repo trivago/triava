@@ -46,9 +46,10 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	final static int SERIALIZATION_SERIALIZABLE = 0b01;
 	final static int SERIALIZATION_EXTERNIZABLE = 0b10;
 
-	final static int STATE_MASK = 0b0100000;
+	final static int STATE_MASK = 0b1100000;
 	final static int STATE_INCOMPLETE = 0b0000000;
 	final static int STATE_COMPLETE = 0b0100000;
+	final static int STATE_RELEASED = 0b1000000;
 
 	// offset #field-size
 	// 0 #12
@@ -69,7 +70,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	/**
 	 * Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable
 	 */
-	byte flags;
+	private volatile byte flags;
 	// 37
 	
 	/**
@@ -157,11 +158,14 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	{
 		synchronized (this)
 		{
-			boolean releasedData = data != null;
-			data = null;
+			boolean alreadyReleased = (flags & STATE_MASK) == STATE_RELEASED;
 			// SAE-150 Inform the caller whether he has released the holder. Hint: Other threads may
 			//         have called this concurrently, e.g. two deletes, expiration and/or eviciton.
-			return releasedData;
+			if (alreadyReleased)
+				return false;
+			
+			flags = (byte)((flags & ~STATE_MASK) | STATE_RELEASED);
+			return true;
 		}
 	}
 	
@@ -326,10 +330,10 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		}
 
 		// -1- Check completeness
-		boolean incomplete = (flags & STATE_MASK) == STATE_INCOMPLETE;
+		boolean incomplete = (flags & STATE_MASK) != STATE_COMPLETE;
 		if (incomplete)
 		{
-			if (debug) System.out.println("Dropped because incomplete: flags=" + flags + ": " + data);
+			if (debug) System.out.println("Dropped because holder is not complete: flags=" + flags + ": " + data);
 			return true;
 		}
 		

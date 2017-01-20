@@ -102,7 +102,7 @@ public class TCacheHolderIterator<K,V> implements Iterator<Entry<K,TCacheHolder<
 	 * the same value, until {@link #next()} is called. This method skips all invalid
 	 * Holders.   
 	 * 
-	 * @return The next element, or null if there is no nbext element
+	 * @return The next element, or null if there is no next element
 	 */
 	private java.util.Map.Entry<K, AccessTimeObjectHolder<V>> peekNext()
 	{
