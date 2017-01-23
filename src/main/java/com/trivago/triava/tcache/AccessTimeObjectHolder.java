@@ -41,15 +41,15 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	@SuppressWarnings("rawtypes") // AccessTimeObjectHolder<V> would be incompatible with AccessTimeObjectHolder.class
 	transient AtomicIntegerFieldUpdater<AccessTimeObjectHolder> useCountAFU = AtomicIntegerFieldUpdater.newUpdater(AccessTimeObjectHolder.class, "useCount");
 
-	final static int SERIALIZATION_MASK = 0b11;
-	final static int SERIALIZATION_NONE = 0b00;
-	final static int SERIALIZATION_SERIALIZABLE = 0b01;
-	final static int SERIALIZATION_EXTERNIZABLE = 0b10;
+	final static int SERIALIZATION_MASK = 0b0000_0011;
+	final static int SERIALIZATION_NONE = 0b0000_0000;
+	final static int SERIALIZATION_SERIALIZABLE = 0b0000_0001;
+	final static int SERIALIZATION_EXTERNALIZABLE = 0b0000_0010;
 
-	final static int STATE_MASK = 0b1100000;
-	final static int STATE_INCOMPLETE = 0b0000000;
-	final static int STATE_COMPLETE = 0b0100000;
-	final static int STATE_RELEASED = 0b1000000;
+	final static int STATE_MASK = 0b0110_0000;
+	final static int STATE_INCOMPLETE = 0b0000_0000;
+	final static int STATE_COMPLETE = 0b0010_0000;
+	final static int STATE_RELEASED = 0b0100_0000;
 
 	// offset #field-size
 	// 0 #12
@@ -69,8 +69,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 36
 	/**
 	 * Bit 0,1: Serialization mode. 00=Not serialized, 01=Serializable, 10=Externizable
+     *
 	 */
-	private volatile byte flags;
+	private volatile byte flags = STATE_INCOMPLETE;
 	// 37
 	
 	/**
@@ -85,6 +86,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		try
 		{
 //			long start = System.nanoTime();
+            //Since we initializing with flags = 0, the serialization flags can be directly assigned instead of using binary operations.
 			switch (writeMode)
 			{
 				case Identity:
@@ -124,7 +126,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		this(value, writeMode);
 		complete(maxIdleTimeMillis, maxCacheTimeSecs);
 	}
-	
+
 	void complete(long maxIdleTimeMillis, long maxCacheTimeMillis)
 	{
 		this.maxIdleTime = SecondsOrMillis.fromMillisToInternal(maxIdleTimeMillis);
@@ -266,7 +268,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 				case SERIALIZATION_SERIALIZABLE:
 					Object dataRef = data; // defensive copy
 					return dataRef != null ? (V)Serializing.fromBytearray((byte[])(dataRef)) : null;
-				case SERIALIZATION_EXTERNIZABLE:
+				case SERIALIZATION_EXTERNALIZABLE:
 				default:
 					throw new UnsupportedOperationException("Serialization type is not supported: " + serializationMode);
 
