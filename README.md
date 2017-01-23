@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>1.0-rc1</version>
+      <version>1.0.0</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:1.0-rc1'
+	compile 'com.trivago:triava:1.0.0'
 }
 ```
 
@@ -63,6 +63,8 @@ dependencies {
     - Fixing the API for Version 1.0.
 - 1.0-rc1
     - Release candidate for v1.0
+- 1.0.0
+    - Release v1.0.0
 
 
 
@@ -90,7 +92,7 @@ Before uploading a new version, you should:
  - Update this README: Update all version numbers
  - Tag the release and upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
 ```
-version=1.0; git tag -a v$version -m "v$version"
+version=1.0.0; git tag -a v$version -m "v$version"
 mvn clean deploy -P release
 ```
 
