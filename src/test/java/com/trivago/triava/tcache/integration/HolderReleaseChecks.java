@@ -55,7 +55,7 @@ import com.trivago.triava.tcache.TCacheHolder;
  * <pre>
  * Important to keep in mind:
  *  - The internal time precision in Triava Cache is currently 10ms.
- *  - Expiration and Eviciton are both running in batches.
+ *  - Expiration and Eviction are both running in batches.
  *  - The Cache can slightly overfill during batch eviction (size is a soft limit), but never above a hard limit.
  *  </pre>
  * 
