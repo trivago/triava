@@ -1641,28 +1641,31 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	@Override
 	public String toString()
 	{
-		return "TriavaCache [id=" + id
-				//", builder=" + builder
-				//+ ", strictJSR107=" + strictJSR107
-				
-				+ ", storeClass=" + objects.getClass().getName()
-				+ ", storeMode=" + builder.getCacheWriteMode()
-				
-				+ ", maxCacheTime=" + maxCacheTime + "ms"
-				+ ", maxCacheTimeSpread=" + maxCacheTimeSpread*1000 + "ms"
-				
-				+ ", expiryPolicyType=" + expiryPolicy.getClass().getName()
-				+ ", expirationInterval=" + cleanUpIntervalMillis + "ms"
-				+ ", jamPolicy=" + jamPolicy
-				
-				+ ", hasLoader=" + (loader != null)
-				+ ", hasWriter=" + (! (cacheWriter instanceof NopCacheWriter) )
-				+ ", listeners=" + listeners.size()
-				
-				+ ", managementEnabled=" + isManagementEnabled()
-				+ ", statisticsEnabled=" + isStatisticsEnabled()
-				+ "]";
+		return "TriavaCache [" + configToString() + "]";
 	}
+
+	protected String configToString() {
+        return "id=" + id
+           //", builder=" + builder
+           //+ ", strictJSR107=" + strictJSR107
+
+           + ", storeClass=" + objects.getClass().getName()
+           + ", storeMode=" + builder.getCacheWriteMode()
+
+           + ", maxCacheTime=" + maxCacheTime + "ms"
+           + ", maxCacheTimeSpread=" + maxCacheTimeSpread*1000 + "ms"
+
+           + ", expiryPolicyType=" + expiryPolicy.getClass().getName()
+           + ", expirationInterval=" + cleanUpIntervalMillis + "ms"
+           + ", jamPolicy=" + jamPolicy
+
+           + ", hasLoader=" + (loader != null)
+           + ", hasWriter=" + (! (cacheWriter instanceof NopCacheWriter) )
+           + ", listeners=" + listeners.size()
+
+           + ", managementEnabled=" + isManagementEnabled()
+           + ", statisticsEnabled=" + isStatisticsEnabled();
+    }
 
 	TCacheFactory getFactory()
 	{

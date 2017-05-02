@@ -195,7 +195,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		{
 			logger.info("Cache eviction tuning [" + id() +"]. Size=" + userDataElements + ", BLOCK=" + blockStartAt
                         + ", evictToPos=" + evictUntilAtLeast + ", normal-evicting=" + evictNormallyElements
-                        + ((evictionClass != null) ? (", eviction-class=" + evictionClass.getClass().getSimpleName()): ""));
+                        + evictionConfigInfo());
 		}
 		
 		return blockStartAt - userDataElements;
@@ -599,18 +599,13 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	}
 
     @Override
-    public String toString() {
-	    String superString = super.toString();
-	    StringBuilder sb = new StringBuilder();
-	    sb.append(superString.substring(0, superString.length() - 1));
-	    sb.append(", maxElements=").append(builder.getMaxElements());
-        sb.append(", eviction policy: ").append(builder.getEvictionPolicy());
-        if (builder.getEvictionPolicy() == EvictionPolicy.CUSTOM
-            && builder.getEvictionClass() != null)
-        {
-            sb.append(", eviction class: ").append(builder.getEvictionClass().getClass().getSimpleName());
-        }
-        sb.append("]");
-        return sb.toString();
+    protected String configToString() {
+        return super.configToString() + evictionConfigInfo();
+    }
+
+    protected String evictionConfigInfo() {
+        EvictionInterface<K, V> evictionClass = builder.getEvictionClass();
+        return ", maxElements=" + builder.getMaxElements()
+             + ", eviction-class=" + ((evictionClass != null) ? evictionClass.getClass().getSimpleName() : "null");
     }
 }
