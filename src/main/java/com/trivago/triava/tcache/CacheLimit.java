@@ -193,7 +193,9 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		evictUntilAtLeast = userDataElements - evictNormallyElements;
 		if (LOG_INTERNAL_DATA)
 		{
-			logger.info("Cache eviction tuning [" + id() +"]. Size=" + userDataElements + ", BLOCK=" + blockStartAt + ", evictToPos=" + evictUntilAtLeast + ", normal-evicting=" + evictNormallyElements);
+			logger.info("Cache eviction tuning [" + id() +"]. Size=" + userDataElements + ", BLOCK=" + blockStartAt
+                        + ", evictToPos=" + evictUntilAtLeast + ", normal-evicting=" + evictNormallyElements
+                        + evictionConfigInfo());
 		}
 		
 		return blockStartAt - userDataElements;
@@ -596,4 +598,14 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		return super.fillCacheStatistics(cacheStatistic);
 	}
 
+    @Override
+    protected String configToString() {
+        return super.configToString() + evictionConfigInfo();
+    }
+
+    protected String evictionConfigInfo() {
+        EvictionInterface<K, V> evictionClass = builder.getEvictionClass();
+        return ", maxElements=" + builder.getMaxElements()
+             + ", eviction-class=" + ((evictionClass != null) ? evictionClass.getClass().getSimpleName() : "null");
+    }
 }
