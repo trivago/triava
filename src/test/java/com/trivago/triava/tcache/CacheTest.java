@@ -61,7 +61,7 @@ public class CacheTest
 	@Before
 	public void setUpEach()
 	{
-		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTime, TimeUnit.SECONDS).setMaxIdleTime(maxIdleTime, TimeUnit.SECONDS) .build();
+		cache = TCacheFactory.standardFactory().<String,Integer>builder().setMaxElements(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTime, TimeUnit.SECONDS).setMaxIdleTime(maxIdleTime, TimeUnit.SECONDS) .build();
 		assertTrue("Cache is not empty at start of test",  cache.size() == 0);
 	}
 	
@@ -131,7 +131,7 @@ public class CacheTest
 		cacheB.setId(id);
 		cacheB	.setMaxIdleTime(idleTime, TimeUnit.SECONDS)
                 .setMaxCacheTime(cacheTime, TimeUnit.SECONDS)
-                .setExpectedMapSize(size);
+                .setMaxElements(size);
 
 		return cacheB.build();
 	}

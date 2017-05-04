@@ -73,7 +73,7 @@ public class CacheExpirationChecks
 	@Before
 	public void setUpEach()
 	{
-		cache = TCacheFactory.standardFactory().<String,Integer>builder().setExpectedMapSize(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTimeMillis, TimeUnit.MILLISECONDS).setMaxIdleTime(maxIdleTimeMillis, TimeUnit.MILLISECONDS) .build();
+		cache = TCacheFactory.standardFactory().<String,Integer>builder().setMaxElements(DEFAULT_CAPACITY).setMaxCacheTime(maxCacheTimeMillis, TimeUnit.MILLISECONDS).setMaxIdleTime(maxIdleTimeMillis, TimeUnit.MILLISECONDS) .build();
 		assertTrue("Cache is not empty at start of test",  cache.size() == 0);
 	}
 	

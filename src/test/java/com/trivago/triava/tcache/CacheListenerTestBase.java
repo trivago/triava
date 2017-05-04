@@ -112,7 +112,7 @@ public class CacheListenerTestBase implements Serializable
 		Builder<Integer, String> builder = TCacheFactory.standardFactory().builder();
 		if (size != null)
 		{
-			builder.setExpectedMapSize(size);
+			builder.setMaxElements(size);
 		}
 		return builder;
 	}
