@@ -74,7 +74,7 @@ public class CacheLimitLFUTest
 	private static Builder<String, Integer> cacheBuilder(String string, int maxidletime2, int maxcachetime2, int expectedMapSize, Integer cleanupIntervalMillis)
 	{
 		Builder<String, Integer> builder = TCacheFactory.standardFactory().builder();
-		builder.setId(string).setExpectedMapSize(expectedMapSize);
+		builder.setId(string).setMaxElements(expectedMapSize);
 		if (cleanupIntervalMillis != null)
 			builder.setCleanupInterval(cleanupIntervalMillis, TimeUnit.MILLISECONDS);
 		builder.setMaxIdleTime(maxidletime2, TimeUnit.SECONDS).setMaxCacheTime(maxcachetime2, TimeUnit.SECONDS);
@@ -242,7 +242,7 @@ public class CacheLimitLFUTest
 //		int ACCEPTABLE_NON_PREMIUM_RATE = 26;
 		
 		Builder<Integer, CustomerType> builder = TCacheFactory.standardFactory().builder();
-		builder.setId("customEviction-reverse=" + reverse).setExpectedMapSize(MAP_SIZE);
+		builder.setId("customEviction-reverse=" + reverse).setMaxElements(MAP_SIZE);
 		builder.setEvictionClass(new CustomerClassEvictor());
 		Cache<Integer, CustomerType> ccache = builder.build();
 		

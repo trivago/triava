@@ -57,7 +57,7 @@ public class CacheExample
 	private static void exampleCachePut(TCacheFactory factory)
 	{
 		Builder<Integer, String> builder = factory.builder();
-		builder.setId("exampleCachePut").setExpectedMapSize(10);
+		builder.setId("exampleCachePut").setMaxElements(10);
 		Cache<Integer, String> cache = builder.build();
 		
 		putElements(cache,10);
@@ -70,7 +70,7 @@ public class CacheExample
 	private static void exampleCacheEnableMBeans(TCacheFactory factory)
 	{
 		Builder<Integer, String> builder = factory.builder();
-		builder.setId("exampleCacheEnableMBeans").setExpectedMapSize(10);
+		builder.setId("exampleCacheEnableMBeans").setMaxElements(10);
 		Cache<Integer, String> cache = builder.build();
 		// Configuration MBean
 		cache.enableManagement(true);
@@ -83,7 +83,7 @@ public class CacheExample
 	private static void exampleCachePutWithEvictionLRU(TCacheFactory factory)
 	{
 		Builder<Integer, String> builder = factory.builder();
-		builder.setId("exampleCachePutWithEvictionLRU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LRU);
+		builder.setId("exampleCachePutWithEvictionLRU").setMaxElements(5).setEvictionPolicy(EvictionPolicy.LRU);
 		Cache<Integer, String> cache = builder.build();
 		
 		putElements(cache,10);
@@ -92,7 +92,7 @@ public class CacheExample
 	private static void exampleCachePutWithEvictionLFU(TCacheFactory factory)
 	{
 		Builder<Integer, String> builder = factory.builder();
-		builder.setId("exampleCachePutWithEvictionLFU").setExpectedMapSize(5).setEvictionPolicy(EvictionPolicy.LFU);
+		builder.setId("exampleCachePutWithEvictionLFU").setMaxElements(5).setEvictionPolicy(EvictionPolicy.LFU);
 		Cache<Integer, String> cache = builder.build();
 		
 		putElements(cache,10);
