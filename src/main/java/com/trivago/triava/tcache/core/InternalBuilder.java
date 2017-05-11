@@ -26,13 +26,12 @@ import com.trivago.triava.tcache.eviction.LFUEviction;
 import com.trivago.triava.tcache.eviction.LRUEviction;
 
 /**
- * An Builder used that additionally also stores the TCacheFactory. The TCacheFactory is only used for internal purposes in the {@link #build()} call. It is not
- * transmitted over the network, as it contains a Classloader and other non-serializable fields. This means, you can transfer the cache configuration object and
- * can use it as a fully working {@link CompleteConfiguration}
- * available
+ * A Builder that additionally stores the TCacheFactory. The TCacheFactory is only used for internal purposes in the {@link #build()} call. It cannot
+ * be transmitted over the network, as it contains a Classloader and other non-serializable fields. If you want to transmit a {@link CompleteConfiguration}
+ * you should instantiate a {@link Builder} instead, which contains a {@link CompleteConfiguration}.
  * <p>
  * Implementation note: The factory has been moved from Builder to this class, to keep Builder a pure configuration class. The factory was in fact never copied in
- * Builder.copyBuilder(), and thus it makes sense to also remove it from Serialization and to finalize the v1.0 API.
+ * Builder.copyBuilder(), and thus it was removed  from Serialization in the course of finalizing the v1.0 API.
  * 
  * 
  * @author cesken
