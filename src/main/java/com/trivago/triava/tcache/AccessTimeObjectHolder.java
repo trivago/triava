@@ -224,7 +224,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 			}
 			catch (Exception exc)
 			{
-				System.out.println("updateMaxIdleTime() failed idleTimeMillis=" +idleTimeMillis + ", getInputDate()=" + getCreationTime() + ", cacheDurationMillis=" + cacheDurationMillis); 
+			    Cache.logger.error("updateMaxIdleTime() failed idleTimeMillis=" +idleTimeMillis + ", getInputDate()=" + getCreationTime() + ", cacheDurationMillis=" + cacheDurationMillis); 
 			}
 //			int newMaxIdleTarget = (int)Math.min(  (cacheDurationMillis/1000) + idleTimeSecs, (long)Integer.MAX_VALUE);
 //			this.maxIdleTime = newMaxIdleTarget;
