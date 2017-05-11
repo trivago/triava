@@ -418,34 +418,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 
 
 	/**
-	 * Copied from com.trivago.commons.util.Util.sleepSimple()
-	 * Sleep the given number of milliseconds. This method returns after the given time or if the calling
-	 * thread gets interrupted via InterruptedException. As the method potentially sleeps much shorter than
-	 * wanted due to InterruptedException, you should only call this method when you are prepared to handle
-	 * shorter sleep times.
-	 * <br>
-	 * Future directions: This method should possibly want to call Thread.interrupt() in case of InterruptedException,
-	 * so callers at least have the chance to be aware of the interruption. Or it could check the server status
-	 * and throw something like ServiceShuttingDownException(). Before doing ANY of this, we need to think about
-	 * how (and whether) we want to provide a safe service shutdown. 
-	 * 
-	 * @param sleepMillis The sleep time in milliseconds
-	 */
-	public static void sleepSimple(long sleepMillis)
-	{
-		if (sleepMillis <= 0)
-			return;
-
-		try
-		{
-			Thread.sleep(sleepMillis);
-		}
-		catch (InterruptedException e)
-		{ // Thread.currentThread().interrupt(); // cesken Add this after release
-		} // ignore, as documented
-	}
-
-	/**
 	 * Add an object to the cache under the given key, using the default idle time and default cache time.
 	 * @param key The key
 	 * @param value The value
