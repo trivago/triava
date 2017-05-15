@@ -93,26 +93,25 @@ final class ListenerEntry<K,V>
 				em = new ListenerCacheEventManager<K,V>();
 			}
 		}
-		
+
 		eventManager = em;
 
-		if (dispatchMode.isAsync())
-		{
-			this.dispatchQueue = new ArrayBlockingQueue<TCacheEntryEventCollection<K,V>>(1024);
-			/**
-			 * Future directions: Starting the listener in the constructor is problematic.
-			 * If this class would be subclassed, the Thread would start too early. Right now it cannot happen, as this class is final.
-			 * Second, we possibly want a Thread restart mechanism anyhow, like we have with the expiration and eviction threads. For the
-			 * latter, there should be a dedicated "BackgroundThreadController<T>" class that controls/restarts background threads.
-			 */
-			dispatchThread = ensureListenerThreadIsRunning();
-		}
-		else
-		{
-			dispatchQueue = null;
-		}
 
-	}
+        /**
+         * Initialize dispatchQueue and corresponding Thread. This has to be done even for the synchronous
+         * DispatchMode#SYNC, as it can be forced to operate asynchronously for internal operations like
+         * expiration and eviction.
+         */
+        this.dispatchQueue = new ArrayBlockingQueue<TCacheEntryEventCollection<K, V>>(1024);
+        /**
+         * Future directions: Starting the listener in the constructor is problematic. If this class would be
+         * subclassed, the Thread would start too early. Right now it cannot happen, as this class is final.
+         * Second, we possibly want a Thread restart mechanism anyhow, like we have with the expiration and
+         * eviction threads. For the latter, there should be a dedicated "BackgroundThreadController<T>" class
+         * that controls/restarts background threads.
+         */
+        dispatchThread = ensureListenerThreadIsRunning();
+    }
 	
 	CacheEntryListenerConfiguration<K, V> getConfig()
 	{
