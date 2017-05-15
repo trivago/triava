@@ -39,15 +39,7 @@ public class ListenerCollection<K,V>
 	private final Builder<K, V> builder;
 	private final Cache<K, V> tcache;
 	private final TCacheJSR107<K, V> jsr107cache;
-	/** listenerPresentMask is a data structure to quickly lookup which kinds of listeners have been registered. Lookup time is O(1).
-	 * <p>
-	 * In the original implementation "listenerPresent" was of type boolean[]. This had the disadvantage that we cannot do a volatile write to
-	 * the array elements. This made it difficult to implement visibility of changes in #hasListenerFor(): Locking would be possible, but expensive.
-	 * Thus the current implementation uses a volatile "listenerPresentMask".
-	 * 
-	 * private final boolean listenerPresent[] = new boolean[EventType.values().length];
-	 */ 
-	//@GuardedBy("this")
+	/// listenerPresentMask is a data structure to quickly lookup which kinds of listeners have been registered. Lookup time is O(1).
 	private volatile short listenerPresentMask = 0;
 
 	/**
@@ -101,7 +93,6 @@ public class ListenerCollection<K,V>
 	 */
 	private void rebuildListenerPresent()
 	{
-//		boolean listenerPresentNew[] = new boolean[EventType.values().length];
 		short listenerPresentXnew = 0;
 		for (ListenerEntry<K, V> listener : listeners)
 		{
@@ -109,18 +100,12 @@ public class ListenerCollection<K,V>
 			{
 				if (listener.isListeningFor(eventType))
 				{
-//					listenerPresentNew[eventType.ordinal()] = true;
 					listenerPresentXnew |= (1 << eventType.ordinal());
 				}
 			}
 		}
 
 		listenerPresentMask = listenerPresentXnew;
-
-//		for (int i=0; i<listenerPresentNew.length; i++)
-//		{
-//			listenerPresent[i] = listenerPresentNew[i];
-//		}
 	}
 
 
@@ -161,7 +146,6 @@ public class ListenerCollection<K,V>
 		{
 			if (newListener.isListeningFor(eventType))
 			{
-//				listenerPresent[eventType.ordinal()] = true;
 				listenerPresentMask |= (1 << eventType.ordinal());
 			}
 		}
@@ -258,7 +242,6 @@ public class ListenerCollection<K,V>
 	{
 		int present = listenerPresentMask & (1 << eventType.ordinal());
 		return present != 0;
-//		return (listenerPresent[eventType.ordinal()]);
 	}
 	
 	/**
