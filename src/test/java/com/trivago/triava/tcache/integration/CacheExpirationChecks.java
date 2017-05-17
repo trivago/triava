@@ -97,7 +97,6 @@ public class CacheExpirationChecks
 		
 		long timePutAtOrAfter = System.currentTimeMillis();
 		cache.put("2", 2, customIdleTime, customCacheTime, TimeUnit.MILLISECONDS);
-		long timePutAtOrBefore = System.currentTimeMillis();
 		int untilMillis = 1000;
 		if (sleepMillis > 0)
 		{
@@ -107,9 +106,12 @@ public class CacheExpirationChecks
 			}
 			catch (InterruptedException e)
 			{
-				e.printStackTrace();
+				throw new RuntimeException(e); // We do not expect InterruptedException
 			}
 		}
+		
+		// As long as sleepMillis is smaller than customIdleTime, the entry should still be in the Cache now
+		
 		long timeExpireUntilAtOrAfter = System.currentTimeMillis();
 		cache.expireUntil("2", untilMillis , TimeUnit.MILLISECONDS);
 		
@@ -117,14 +119,21 @@ public class CacheExpirationChecks
 		Entry<String, TCacheHolder<Integer>> first = iterator.next();
 		TCacheHolder<Integer> holder = first.getValue();
 		
-//		long timeNow = System.currentTimeMillis();
-		long timeMustExpireBefore = timePutAtOrBefore + untilMillis;
-		long timeMustExpireBefore2 = timeExpireUntilAtOrAfter + untilMillis;
+		long timeMustExpireBefore = timeExpireUntilAtOrAfter + untilMillis;
 		long expTime = holder.getExpirationTime();
 		
-		assertTrue("expirationTime later than expected for put: " + expTime + " >= " + timeMustExpireBefore, expTime < timeMustExpireBefore);
-		assertTrue("expirationTime later than expected for expireUntil: " + expTime + " >= " + timeMustExpireBefore, expTime < timeMustExpireBefore2);
+		
+		/*  
+		 *                                                                                                  customIdleTile             customCacheTime
+		 *     +--------------------------------------------------------------------------------------...---+-------------------...----+------
+		 *     |
+		 *    put  timePutAtOrBefore   sleep(500)                           expired   timeMustExpireBefore
+		 *     |  |                       |                                   |          |
+		 *     +--+---------+500ms--------+---------+expireUntil:[0-999]ms----+----------+
+		 */
+		assertTrue("expirationTime later than expected for expireUntil: " + expTime + " >= " + timeMustExpireBefore, expTime < timeMustExpireBefore);
 		assertTrue("expirationTime before put: " + expTime + " < " + timePutAtOrAfter, expTime >= timePutAtOrAfter);
+		assertTrue("expirationTime before put: " + expTime + " <= " + customCacheTime, expTime > customCacheTime); // Hard bound. You cannot prolong after it
 		
 	}
 	
