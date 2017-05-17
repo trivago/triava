@@ -8,7 +8,7 @@ TrivaCache is fully JCache / JSR107 (Java Caching) compliant. For more about com
 Licensed under the Apache License, Version 2.0
 
 ## Usage:
-To start, look at the [examples folder](./src/examples/java/com/trivago/examples).
+To start, look at the [examples folder](./src/examples/java/com/trivago/examples). Further interesting examples are in the [tcache unit test folder](src/test/java/com/trivago/triava/tcache/) and [util unit test folder](src/test/java/com/trivago/triava/utli/).  
 
 ### Usage in Maven: pom.xml
 triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>1.0.0</version>
+      <version>1.0.1</version>
     </dependency>
   </dependencies>
 ```
@@ -27,44 +27,12 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:1.0.0'
+	compile 'com.trivago:triava:1.0.1'
 }
 ```
 
 ## Changes ##
-- v0.4.0 Initial version. Production ready.
-- v0.9.0 Finalized package structure. Moved existing unit tests to triava project.
-- v0.9.1 cache: Implementing JSR107 compliance (work in progress)
-    - MXBean support: Configuration and Statistics
-    - Added CacheManager.destroyCache()
-    - Added JSR methods ...replace...() methods.
-- 0.9.4
-    - cache: Listener support for synchronous and asynchronous events.
-    - cache: Support CacheLoader, ListenerConfiguration, MutableEntry, EntryProcessor
-    - util:  Added a UnitFormatter to format values to units, e.g. "10.53MiB", "20.5s" or "10GW, 200MW, 25W". The Unit formatter
-             supports SI units (1000 based, kilo, k), IEC60027-2 units (1024 based, kibi, Ki) and JEDEC units (1024 based, Kilo, K)
-- 0.9.5
-    - cache: Support Store-By-Value.
-    - cache: Fully JSR107 compliance for Statistic, Write-Through, Read-Through
-- 0.9.6
-    - cache: JSR107 ExpiryPolicy support    
-    - cache: Incompatible changes:
-        - idleTime=0 means immediately expired instead of no expiration
-        - Signature of put() with idle/cache times changed from long to int
-- 0.9.8
-    - cache: Fully JCache / JSR107 compliance 
-- 0.9.9
-    - cache: API cleanup, adding TimeUnit param to API
-- 0.9.13
-    - cache: API cleanup, fix duplicate notification of Listeners
-- 0.9.14
-    - cache: Fix missing notification of Listeners
-- 0.9.15
-    - Fixing the API for Version 1.0.
-- 1.0-rc1
-    - Release candidate for v1.0
-- 1.0.0
-    - Release v1.0.0
+See [Changelog](CHANGES.md)
 
 
 
@@ -83,16 +51,17 @@ Maintainers can upload new versions to Maven Central Staging:
 
 Before uploading a new version, you should:
  - Fix all Javadocs warnings
+ - Run long tests from package com.trivago.triava.tcache.integration manually
  - Run FindBugs and fix all bugs
  - Check for missing licensing header
  ```
  find . -name '*.java' ! -path './src/test/java/com/trivago/triava/tcache/tmp/*' -print0 | xargs -0 grep -L "Licensed under the Apache License, Version 2.0"
  ```
- - Update this README: Changes section
+ - Update [Changelog](CHANGES.md)
  - Update this README: Update all version numbers
  - Tag the release and upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
 ```
-version=1.0.0; git tag -a v$version -m "v$version"
+version=1.0.1; git tag -a v$version -m "v$version"
 mvn clean deploy -P release
 ```
 
