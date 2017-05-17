@@ -8,7 +8,7 @@ TrivaCache is fully JCache / JSR107 (Java Caching) compliant. For more about com
 Licensed under the Apache License, Version 2.0
 
 ## Usage:
-To start, look at the [examples folder](./src/examples/java/com/trivago/examples). Further interesting examples are in the [tcache unit test folder](src/test/java/com/trivago/triava/tcache/) and [util unit test folder](src/test/java/com/trivago/triava/utli/).  
+To start, look at the [examples folder](./src/examples/java/com/trivago/examples). Further interesting examples are in the [tcache unit test folder](src/test/java/com/trivago/triava/tcache/) and [util unit test folder](src/test/java/com/trivago/triava/util/).  
 
 ### Usage in Maven: pom.xml
 triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%3A%22triava%22)
