@@ -1,6 +1,7 @@
 v1.x Releases
 =============
-
+- 1.0.2
+     - SAE-340 Fix expiration for high TTL, time based expiration logging, by Christian Esken
 - 1.0.1
     - SAE-336 Fix NPE in synchronous listener by Christian Esken
     - SAE-299 Add logging of eviction policy by Rupesh Patayane

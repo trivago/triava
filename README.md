@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>1.0.1</version>
+      <version>1.0.2</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:1.0.1'
+	compile 'com.trivago:triava:1.0.2'
 }
 ```
 
@@ -57,12 +57,15 @@ Before uploading a new version, you should:
  ```
  find . -name '*.java' ! -path './src/test/java/com/trivago/triava/tcache/tmp/*' -print0 | xargs -0 grep -L "Licensed under the Apache License, Version 2.0"
  ```
- - Update [Changelog](CHANGES.md)
- - Update pom.xml with version number
- - Update this README: Update all version numbers
- - Tag the release and upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
+ - Release notes and versioning
+ -- Update [Changelog](CHANGES.md)
+ -- Update pom.xml with version number
+ -- Update this README: Update all version numbers
+ -- Commit changes
+ - Upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
+ - Tag the release, if the release is good
 ```
-version=1.0.1; git tag -a v$version -m "v$version"
+version=1.0.2; git tag -a v$version -m "v$version"
 mvn clean deploy -P release
 ```
 
