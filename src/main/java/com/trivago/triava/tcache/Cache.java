@@ -107,7 +107,8 @@ import com.trivago.triava.time.TimeSource;
  */
 public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionContext<K, V>
 {
-	static TriavaLogger logger = new TriavaNullLogger();
+    static long CLEANUP_LOG_INTERVAL = TimeUnit.SECONDS.toMillis(60);
+    static TriavaLogger logger = new TriavaNullLogger();
 	
 	private final TCacheFactory factory;
 
@@ -128,7 +129,6 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 //	@ObjectSizeCalculatorIgnore
 	private volatile transient CleanupThread cleaner = null;
 	// The expiration queue is for the cleaner, but it is independent from the cleaner instance
-//	final BlockingQueue<SimpleEvictionEvent> expirationQueue = new ArrayBlockingQueue<>(100);
 	private volatile long cleanUpIntervalMillis;
 
 	//final HashInterner<V> interner = new HashInterner<>(100);
@@ -1049,7 +1049,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		cleaner = null;
 	}
 
-	private void cleanUp()
+	private int cleanUp()
 	{
 		boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
 		Map<K, V> evictedElements = expiryNotification ? new HashMap<K, V>() : null;
@@ -1086,10 +1086,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			stopCleaner();
 		}
 
-		if (removedEntries != 0)
-		{
-			logger.info(this.id + " Cache has expired objects from Cache, count=" + removedEntries);
-		}
+		return removedEntries;
 	}
 
 	/**
@@ -1466,149 +1463,69 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return removed;
 	}
 	
-//	private class SimpleEvictionEvent
-//	{
-//		final K key;
-//		final AccessTimeObjectHolder<V> holder;
-//		
-//		public SimpleEvictionEvent(K key, AccessTimeObjectHolder<V> holder)
-//		{
-//			this.key = key;
-//			this.holder = holder;
-//		}
-//	}
-	
-	/**
-	 * Thread that removes expired entries.
-	 */
-	public class CleanupThread extends Thread
-	{
-		private volatile boolean running;  // Must be volatile, as it is modified via cancel() from a different thread
+    /**
+     * Thread that removes expired entries.
+     */
+    public class CleanupThread extends Thread
+    {
+        private volatile boolean running; // volatile: modified via cancel() from a different thread
+        private int removedEntries = 0;
+        private long nextLogTimeMillis = System.currentTimeMillis() + CLEANUP_LOG_INTERVAL;
+        
+        CleanupThread(String cacheName)
+        {
+            super("CacheCleanupThread-" + cacheName);
+        }
 
-		CleanupThread(String cacheName)
-		{
-			super("CacheCleanupThread-" + cacheName);
-		}
+        public void run()
+        {
+            logger.info("CleanupThread " + this.getName() + " has entered run()");
+            this.running = true;
+            while (running)
+            {
+                try
+                {
+                    // About stopping: If interruption takes place between the lines above (while running)
+                    // and the line below (sleep), the interruption gets lost and a full sleep will be done.
+                    
+                    // TODO If cleanUpIntervalMillis is long (like 30s), and the shutdown Thread waits until this Thread
+                    // is stopped, the shutdown Thread will wait very long.
+                    sleep(cleanUpIntervalMillis);
+                    
+                    removedEntries += cleanUp();
+                    if (removedEntries != 0)
+                    {
+                        long now = millisEstimator.millis();
+                        if (now > nextLogTimeMillis)
+                        {
+                            logger.info(id() + " Cache has expired objects from Cache, count=" + removedEntries);
+                            removedEntries = 0;
+                            nextLogTimeMillis = now + CLEANUP_LOG_INTERVAL;
+                        }
+                    }
+                    if (Thread.interrupted())
+                    {
+                        throw new InterruptedException();
+                    }
+                }
+                catch (InterruptedException ex)
+                {
+                    logger.info("CleanupThread interrupted, keep running =" + running);
+                }
+            }
+            logger.info("CleanupThread " + this.getName() + " is leaving run()");
+        }
 
-		public void run()
-		{
-			logger.info("CleanupThread " + this.getName() + " has entered run()");
-			this.running = true;
-			while (running)
-			{
-				try
-				{
-					// About stopping: If interruption takes place between the lines above (while running)
-					// and the line below (sleep), the interruption gets lost and a full sleep will be done.
-					// TODO If that sleep is long (like 30s), and the shutdown Thread waits until this Thread is stopped,
-					// the shutdown Thread will wait very long.
-					sleep(cleanUpIntervalMillis); // TODO  Make sure we do not miss any notifications. notifications should be done for cancel-ing and force-processing
-					cleanUp();
-					if (Thread.interrupted())
-					{
-						throw new InterruptedException();
-					}
-				}
-				catch (InterruptedException ex)
-				{
-					logger.info("CleanupThread interrupted, keep running =" + running);
-				}
-			}
-			logger.info("CleanupThread " + this.getName() + " is leaving run()");
-		}
-		
-		/**
-		 * Interrupts the {@link CleanupThread} and marks it for stopping
-		 */
-		public void cancel()
-		{
-			this.running = false;
-			this.interrupt();
-		}
-	
-//		/**
-//		 * Forces processing the expiration Queue. If the queue is already being processed when this method is called, thei method does nothing.
-//		 */
-//		private void processExpirationQueue()
-//		{
-//			this.interrupt();
-//		}
-		
-		
-//		private void cleanUp()
-//		{
-//			boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
-////			Map<K, V> expiredElements = expiryNotification ? new HashMap<K, V>() : null;
-//			Collection<TCacheEntryEvent<K, V>> expiredElements = expiryNotification ? new ArrayList<TCacheEntryEvent<K,V>>(16) : null; 
-//
-//			// -1- Clean
-//			int removedEntries = 0;
-//			for (Iterator<Entry<K, AccessTimeObjectHolder<V>>> iter = objects.entrySet().iterator(); iter.hasNext(); )
-//			{
-//				Entry<K, AccessTimeObjectHolder<V>> entry = iter.next();
-//				AccessTimeObjectHolder<V> holder = entry.getValue();
-//				if (holder.isInvalid())
-//				{
-//					iter.remove();
-//					if ( cleanupEntry(new SimpleEvictionEvent(entry.getKey(), holder), expiredElements) )
-//						removedEntries++;
-//				}
-//			}
-//			*/
-////			while (!expirationQueue.isEmpty())
-////			{
-////				SimpleEvictionEvent entry = expirationQueue.poll();
-////				if (entry != null)
-////				{
-////					if ( cleanupEntry(entry, expiredElements) );
-////						removedEntries++;
-////				}
-////			}
-//
-//			// -2- Notify listeners
-//			if (expiredElements != null && removedEntries > 0)
-//				listeners.dispatchEvents(expiredElements, EventType.EXPIRED, true);
-//
-//			// -3- Stop Thread if cache is empty
-//			if (objects.isEmpty())
-//			{
-//				stopCleaner();
-//			}
-//
-//			if (removedEntries != 0)
-//			{
-//				logger.info(id() + " Cache has expired objects from Cache, count=" + removedEntries);
-//			}
-//		}
-		
-//		void scheduleForExpiration(K key, AccessTimeObjectHolder<V> holder)
-//		{
-//			try
-//			{
-//				expirationQueue.put(new SimpleEvictionEvent(key, holder));
-//			}
-//			catch (InterruptedException ie)
-//			{
-//				logger.error("Interrupted while scheduling expiring: " + key);
-//			}
-//		}
-		
-//		private boolean cleanupEntry(SimpleEvictionEvent entry, Collection<TCacheEntryEvent<K, V>> expiredElements)
-//		{
-//			AccessTimeObjectHolder<V> holder = entry.holder;
-//			V value = holder.peek();
-//			boolean removed = holder.release();
-//			if (removed) // SAE-150 Verify removal
-//			{
-//				if (expiredElements != null)
-//				{
-//					expiredElements.add(new TCacheEntryEvent<K, V>(tCacheJSR107, EventType.EXPIRED, entry.key, value));
-//				}
-//			}
-//			
-//			return removed;
-//		}
-	}
+        /**
+         * Interrupts the {@link CleanupThread} and marks it for stopping
+         */
+        public void cancel()
+        {
+            this.running = false;
+            this.interrupt();
+        }
+
+    }
 
 	@Override
 	public String toString()
