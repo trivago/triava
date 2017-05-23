@@ -54,6 +54,6 @@ public class SecondsOrMillis
 			return internal;
 		else if (internal == Integer.MIN_VALUE)
 			return Long.MAX_VALUE;
-		return -internal * 1000;
+		return ((long)-internal) * 1000L;
 	}
 }
