@@ -394,8 +394,13 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 		// -1- Create a random idleTime in the interval [0 ... maxDelay-1]
 		long millis = timeUnit.toMillis(maxDelay);
 		final long delayMillis;
-		// There is no Random.nextLong(), so we need a special handling to not getting integer overruns
-		if (millis <= Integer.MAX_VALUE)
+
+		if (millis == 0)
+		{
+            delayMillis = millis;
+        }
+        // There is no Random.nextLong(), so we need a special handling to not getting integer overruns
+        else if (millis <= Integer.MAX_VALUE)
 		{
 			delayMillis = random.nextInt((int)millis);
 		}
