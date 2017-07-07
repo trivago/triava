@@ -1167,17 +1167,20 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 	
 	/**
-	 * Schedule the object for the given key for expiration. The time will be chosen randomly
+	 * Schedule the entry for the given key for expiration. The time will be chosen randomly
 	 * between immediately and the given maximum delay. The chosen time will never increase
 	 * the natural expiration time of the object.
+     * If the given maximum delay is {@code 0}, the entry is set to expire immediately.
 	 * <p>
 	 * This method is especially useful if many cache entries are to be invalidated, and fetching data is an expensive operation.
 	 * As each call to this method will chose a different expiration time, expiration and thus possible re-fetching
 	 * will spread over a longer time, and helps to avoid resource overload (like DB, REST Service, ...).
 	 * 
-	 * @param key The key for the object to expire
+	 * @param key The key for the entry to expire
 	 * @param maxDelay The maximum delay time until the object will be expired
 	 * @param timeUnit The time unit for maxDelay
+     *
+     * @throws IllegalArgumentException - if the maxDelay value is < 0
 	 */
 	public void expireUntil(K key, int maxDelay, TimeUnit timeUnit)
 	{
@@ -1186,6 +1189,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 			return;
 		}
+
+		if (maxDelay < 0) {
+		    throw new IllegalArgumentException(String.format("maxDelay value must be >= 0. Passed in value was: [%d]", maxDelay));
+        }
 
 		holder.setExpireUntil(maxDelay, timeUnit, random);
 	}
