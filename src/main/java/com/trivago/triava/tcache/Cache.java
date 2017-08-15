@@ -977,8 +977,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		{
 		    /**
 		     * Fast-path without locks. This no-lock is required because startCleaner() is called on every write.
-		     * A lock would thus be a bottleneck in multithreaded applications. The bottelneck has been confirmed in real-world
-		     * scenarios using YourKit, and also via throughput benchcmarks.
+		     * A lock would thus be a bottleneck in multi-threaded applications. The bottleneck has been confirmed in real-world
+		     * scenarios using YourKit, and also via throughput benchmarks.
 		     */
 			return cleanerRef;
 		}
