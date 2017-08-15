@@ -1189,7 +1189,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * @param maxDelay The maximum delay time until the object will be expired
 	 * @param timeUnit The time unit for maxDelay
      *
-     * @throws IllegalArgumentException - if the maxDelay value is < 0
+     * @throws IllegalArgumentException - if the maxDelay value is &lt; 0
 	 */
 	public void expireUntil(K key, int maxDelay, TimeUnit timeUnit)
 	{
