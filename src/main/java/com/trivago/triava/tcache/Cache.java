@@ -970,20 +970,29 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		return errorMsg;
 	}
 
-	private synchronized Cache<K, V>.CleanupThread startCleaner()
+	private Cache<K, V>.CleanupThread startCleaner()
 	{
 		Cache<K, V>.CleanupThread cleanerRef = this.cleaner;
 		if (cleanerRef != null)
 		{
+		    /**
+		     * Fast-path without locks. This no-lock is required because startCleaner() is called on every write.
+		     * A lock would thus be a bottleneck in multi-threaded applications. The bottleneck has been confirmed in real-world
+		     * scenarios using YourKit, and also via throughput benchmarks.
+		     */
 			return cleanerRef;
 		}
 
-		cleanerRef = new CleanupThread(id);
-		cleanerRef.setPriority(Thread.MAX_PRIORITY);
-		cleanerRef.setDaemon(true);
-		cleanerRef.setUncaughtExceptionHandler(this);
-		this.cleaner = cleanerRef;
-		cleanerRef.start();
+		synchronized (this) {
+		    if (cleaner == null) {
+        		cleanerRef = new CleanupThread(id);
+        		cleanerRef.setPriority(Thread.MAX_PRIORITY);
+        		cleanerRef.setDaemon(true);
+        		cleanerRef.setUncaughtExceptionHandler(this);
+        		this.cleaner = cleanerRef;
+                        cleanerRef.start();
+		    }
+		}
 
 		logger.info(this.id + " expiration started" + ", cleanupInterval=" + cleanUpIntervalMillis + "ms");
 		
@@ -1038,7 +1047,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * This is called, should the CleanupThread should go down on an unexpected (uncaught) Exception.
+	 * This is called, if the CleanupThread goes down on an unexpected (uncaught) Exception.
 	 */
 	@Override
 	public void uncaughtException(Thread thread, Throwable throwable)
@@ -1180,7 +1189,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 * @param maxDelay The maximum delay time until the object will be expired
 	 * @param timeUnit The time unit for maxDelay
      *
-     * @throws IllegalArgumentException - if the maxDelay value is < 0
+     * @throws IllegalArgumentException - if the maxDelay value is &lt; 0
 	 */
 	public void expireUntil(K key, int maxDelay, TimeUnit timeUnit)
 	{

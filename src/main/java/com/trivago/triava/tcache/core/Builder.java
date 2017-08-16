@@ -240,6 +240,7 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	@Override
 	public Builder<K,V> setEvictionClass(EvictionInterface<K, V> clazz)
 	{
+	    // TODO This is also called for standard LFU and LRU caches, so ANY cache currently has  evictionPolicy == CUSTOM after construction.
 		this.evictionPolicy = EvictionPolicy.CUSTOM;
 		this.evictionClass = clazz;
 		return this;
