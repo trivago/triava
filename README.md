@@ -2,7 +2,7 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-TrivaCache is fully JCache / JSR107 (Java Caching) compliant. For more about compliance, read the [TCK information](./tck/README.md)
+TriavaCache is fully JCache / JSR107 (Java Caching) compliant. For more about compliance, read the [TCK information](./tck/README.md)
 
 ## License
 Licensed under the Apache License, Version 2.0
