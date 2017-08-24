@@ -4,7 +4,7 @@
 	<groupId>com.trivago</groupId>
 	<artifactId>triava</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.4.RC</version>
+	<version>1.0.4.RC2</version>
 	<name>triava</name>
 	<url>https://github.com/trivago/triava</url>
 	<description>The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more. </description>
