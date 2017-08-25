@@ -2,7 +2,7 @@ v1.x Releases
 =============
 - 1.0.4
      - SAE-411 Reduce lock contention for mutating operations, by Christian Esken
-     - SAE-427 (triava-3) AtomicIntegerFieldUpdater in Holder should be static, by max-neverov
+     - SAE-427 (triava-3) AtomicIntegerFieldUpdater in Holder should be static, by Maxim Neverov
 - 1.0.3
      - SAE-340 Fix expiration for high TTL, time based expiration logging, by Christian Esken
 - 1.0.1
