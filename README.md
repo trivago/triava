@@ -58,10 +58,10 @@ Before uploading a new version, you should:
  find . -name '*.java' ! -path './src/test/java/com/trivago/triava/tcache/tmp/*' -print0 | xargs -0 grep -L "Licensed under the Apache License, Version 2.0"
  ```
  - Release notes and versioning
- -- Update [Changelog](CHANGES.md)
- -- Update pom.xml with version number
- -- Update this README: Update all version numbers
- -- Commit changes
+     - Update [Changelog](CHANGES.md)
+     - Update pom.xml with version number
+     - Update this README: Update all version numbers
+     - Commit changes
  - Upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
  - Tag the release, if the release is good
 ```
