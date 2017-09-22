@@ -55,7 +55,6 @@ public class CacheReadOnlyBenchmark
         Cache<Integer, Integer> cache = TCacheFactory.standardFactory().<Integer, Integer> builder()
                 .setId(name)
                 .setMaxElements(size).setMaxCacheTime(maxCacheTimeMins, TimeUnit.MINUTES)
-                .setCacheWriteMode(CacheWriteMode.Serialize)
                 .setMaxIdleTime(maxIdleTimeMins, TimeUnit.MINUTES).build();
         
         return cache;
