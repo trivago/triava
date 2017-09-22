@@ -42,7 +42,9 @@ public interface StatisticsCalculator extends java.io.Serializable
 	// --- Methods for calculating the change --- 
 	/**
 	 * Ends the current measurement interval, and returns the hits and misses since the
-	 * last measurement.
+	 * last measurement.This method is called only once per measurement interval, which is
+	 * 1 minute. See {@link com.trivago.triava.tcache.Cache#CACHE_HITRATE_MAX_VALIDITY_MILLIS}
+	 * 
 	 * @return The absolute count of hits and misses since the last measurement
 	 */
 	HitAndMissDifference tick();

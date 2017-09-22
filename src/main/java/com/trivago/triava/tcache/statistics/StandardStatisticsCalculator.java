@@ -21,8 +21,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Implementation for StatisticsCalculator, that implements all statistics, using Atomic counters.
  * @author cesken
+ * @deprecated Use {@link LongAdderStatisticsCalculator} instead. This class will be removed in triava 2.0
  *
  */
+@Deprecated
 public class StandardStatisticsCalculator implements StatisticsCalculator, java.io.Serializable
 {
 	private static final long serialVersionUID = -4811885483869803392L;

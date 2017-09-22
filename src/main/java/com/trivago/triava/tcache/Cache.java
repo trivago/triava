@@ -51,8 +51,8 @@ import com.trivago.triava.tcache.expiry.TCacheExpiryPolicy;
 import com.trivago.triava.tcache.expiry.TouchedExpiryPolicy;
 import com.trivago.triava.tcache.expiry.UntouchedExpiryPolicy;
 import com.trivago.triava.tcache.statistics.HitAndMissDifference;
+import com.trivago.triava.tcache.statistics.LongAdderStatisticsCalculator;
 import com.trivago.triava.tcache.statistics.NullStatisticsCalculator;
-import com.trivago.triava.tcache.statistics.StandardStatisticsCalculator;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 import com.trivago.triava.tcache.statistics.TCacheStatistics;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
@@ -791,7 +791,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	 */
 	public V get(K key) throws RuntimeException
 	{
-		AccessTimeObjectHolder<V> holder = getFromMap(key);
+		AccessTimeObjectHolder<V> holder = getFromMap(key, true);
 		return holder == null ? null : holder.get();
 	}
 
@@ -1390,7 +1390,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			}
 			else
 			{
-				statisticsCalculator = new StandardStatisticsCalculator();
+				statisticsCalculator = new LongAdderStatisticsCalculator();
 				TCacheStatisticsMBean.instance().register(this);
 				jsr107cache().refreshActionRunners(); // Action runner must use the new statistics
 			}
