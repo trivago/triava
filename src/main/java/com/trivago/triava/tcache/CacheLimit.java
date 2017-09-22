@@ -47,6 +47,7 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
  */
 public class CacheLimit<K, V> extends Cache<K, V>
 {
+    private static final boolean INTERMEDIATE_NOTFULL_NOTIFICATION = false;
 	/**
 	 * FREE_PERCENTAGE defines how much elements to free.
 	 * Percentage relates to evictionStartAt. 
@@ -315,7 +316,17 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
 					if (expiryNotification && evictedElements == null)
 					{
-						evictedElements = new HashMap<K,V>();
+					    /**
+					     * The HashMap must not do internal resizing, as that is an expensive operation and
+					     * could finally lead to write stalls. Thus the Eviction Map is sized so big, that the evicted elements will fit, see elementsToRemove().
+					     * We allow overload with a loadFactor of 1.5, as we do only write once and read once using an iterator.
+					     * Iterating should not be problematic.
+					     */
+					        int evictionMapSize = Math.max(evictNormallyElements, blockStartAt - userDataElements);
+						evictedElements = new HashMap<K,V>(evictionMapSize, 1.5f);
+						// TODO We should use an ArrayList instead of a Map, as it is more efficient, especially with memory locality
+						// The ArrayList will hold: key1, value1, key2, value2, ... , keyN, valueN
+						// For the listeners we need to create a Map, but at that time victionNotifierDone.notifyAll() was already called resolving a possible write stall. 
 					}
 
 //					if (LOG_INTERNAL_DATA && logInternalExtendedData())
@@ -355,6 +366,9 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					 * This behavior is wanted, as in presence of an Exception we cannot be sure whether elements were evicted at all.
 					 */
 					evictedElements.clear();
+                                        // We either want to clear the map or recreate it. The JMH GetPutBenchmark from Caffeine showed repeatedly 3-4% better performance for both
+                                        // read_only and readwrite, so we keep evictedElements.clear() for now. Future directions: HashMap might degrade over time, so recreate it from time to time.
+                                        //evictedElements = null;
 				}
 
 			} // while running
@@ -436,6 +450,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 			// a moving goal, we want to be as close as possible to the true value. So lets call
 			// elementsToRemove() again.
 			int elemsToRemove = elementsToRemove();
+			int notifyCountdown = 1000;
 			for (HolderFreezer<K, V> entryToRemove : toCheck)
 			{
 				K key = entryToRemove.getKey();
@@ -450,6 +465,36 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					 * the base class. Also if someone calls #remove(), the entry can disappear.
 					 */
 					++removedCount;
+					if (INTERMEDIATE_NOTFULL_NOTIFICATION)
+					{
+					    /**
+					     * This is an optimization to notify blocked writers asap instead of at the end of eviction.
+					     * This is (very likely) not fully thread safe, so the feature is disabled.
+					     * 
+					     * Blocked writer could miss notifications and be stuck forever. The order of events could be:
+					     * 1) A blocked writer Thread B is notified. B does not wait on the lock any longer
+					     * 2) Before B can write we run out of space
+					     * 3) Eviction thread is running and notifies. B does not see it, as it currently does not wait
+					     * 4) B calls evictionNotifierDone.wait() but missed the notify.
+					     * 
+					     * To test and reproduce: Use a test with a single writer thread. As no other thread writes there
+					     * will be no more eviction triggering via ensureFreeCapacity(). 
+					     * 
+					     * Future directions: replace lock object with a Condition object, just like it is done in many Queue implementations:
+					     * final Condition notFull  = lock1.newCondition();
+					     * final Condition full     = lock2.newCondition();
+					     * final Condition overfull = lock3.newCondition();
+					     */
+        					if (notifyCountdown-- == 0 && objects.size() < userDataElements) {
+        	                                       synchronized (evictionNotifierDone)
+        	                                        {
+        
+        	                                           evictionNotifierDone.notifyAll();
+        	                                        }
+        					    notifyCountdown = 1000;
+        					}
+					}
+					
 					if (expiryNotification)
 						evictedElements.put(key, oldValue);
 					if (removedCount >= elemsToRemove)
