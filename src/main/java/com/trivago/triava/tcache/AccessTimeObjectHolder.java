@@ -150,9 +150,8 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	 * Releases all references to objects that this holder holds. This makes sure that the data object can be
 	 * collected by the GC, even if the holder would still be referenced by someone.
 	 * <p>
-	 *     This is the end-of-life for the instance. The data field is now null, which means the entry is
-	 *     invalid. Even if another thread has a reference to this holder, he cannot access the data field.
-	 *     any longer.
+	 *     This is the end-of-life for the instance, and {@link #isInvalid()} yields true from now on. If a reference to this holder is stored for a longer
+	 *     time, a Thread should check {@link #isInvalid()}.   
 	 * </p>
 	 * @return true, if the call has released the holder. false, if the holder was already released before.
 	 */

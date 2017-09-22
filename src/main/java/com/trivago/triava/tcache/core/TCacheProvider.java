@@ -212,7 +212,6 @@ public class TCacheProvider implements CachingProvider
 	{
 		if (optionalFeature == OptionalFeature.STORE_BY_REFERENCE)
 			return true;
-		// TCK JSR107 Actually STORE_BY_VALUE is currently not supported  
 
 		// Unknown / new feature => not supported 
 		return false;
