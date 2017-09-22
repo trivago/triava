@@ -18,6 +18,7 @@ package com.trivago.triava.tcache.action;
 
 import javax.cache.integration.CacheWriter;
 
+import com.trivago.triava.tcache.core.NopCacheWriter;
 import com.trivago.triava.tcache.event.ListenerCollection;
 import com.trivago.triava.tcache.statistics.StatisticsCalculator;
 
@@ -26,11 +27,20 @@ public abstract class ActionRunner<K,V>
 	final CacheWriter<K, V> cacheWriter;
 	final ListenerCollection<K, V> listeners;
 	final StatisticsCalculator stats;
+
 	
 	ActionRunner(ActionContext<K,V> actionContext)
 	{
 		// actionContext. It is currently taken directly from the Cache
-		this.cacheWriter = actionContext.cacheWriter();
+	        CacheWriter<K, V> writer = actionContext.cacheWriter();
+	        if (writer instanceof NopCacheWriter)
+	        {
+	            this.cacheWriter = null;
+	        }
+	        else
+	        {               
+	            this.cacheWriter = actionContext.cacheWriter();
+	        }
 		this.listeners = actionContext.listeners();
 		this.stats = actionContext.statisticsCalculator();		
 	}
