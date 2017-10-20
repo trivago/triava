@@ -427,6 +427,21 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		putToMap(key, value, Constants.EXPIRY_NOCHANGE, cacheTimeSpread(), false, false);
 	}
 
+	/**
+	 * Add an object to the cache under the given key, using the default idle time and default cache time.
+	 * Returns the previous value for the key, or null if no previous entry was present.
+	 *
+	 * @param key The key
+	 * @param value The value
+	 * @return The previous value
+	 */
+	public V getAndPut(K key, V value)
+	{
+		Holders<V> holders = putToMapI(key, value, cacheTimeSpread(), false);
+		AccessTimeObjectHolder<V> oldHolder = holders != null ? holders.oldHolder : null;
+		return oldHolder != null ? oldHolder.peek() : null;
+	}
+
 	Random randomCacheTime = new Random(System.currentTimeMillis());
 
 	/**
