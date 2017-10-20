@@ -18,7 +18,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>1.0.4</version>
+      <version>1.0.5</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +27,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:1.0.4'
+	compile 'com.trivago:triava:1.0.5'
 }
 ```
 
@@ -65,7 +65,7 @@ Before uploading a new version, you should:
  - Upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
  - Tag the release, if the release is good
 ```
-version=1.0.4; git tag -a v$version -m "v$version"
+version=1.0.5; git tag -a v$version -m "v$version"
 mvn clean deploy -P release
 ```
 

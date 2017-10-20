@@ -1,5 +1,8 @@
 v1.x Releases
 =============
+- 1.0.5
+     - SAE-453 Performance boost: Move statistics from AtoicLong to LongAdder
+     - SAE-483 Add getAndPut() to triava cache interface
 - 1.0.4
      - SAE-411 Reduce lock contention for mutating operations, by Christian Esken
      - SAE-427 (triava-3) AtomicIntegerFieldUpdater in Holder should be static, by Maxim Neverov
