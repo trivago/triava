@@ -64,6 +64,7 @@ import com.trivago.triava.tcache.util.ChangeStatus;
 import com.trivago.triava.tcache.util.KeyValueUtil;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 import com.trivago.triava.tcache.util.TCacheConfigurationMBean;
+import com.trivago.triava.tcache.util.Weigher;
 import com.trivago.triava.time.EstimatorTimeSource;
 import com.trivago.triava.time.SystemTimeSource;
 import com.trivago.triava.time.TimeSource;
@@ -115,7 +116,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	final private String id;
 	final Builder<K,V> builder; // A reference to the Builder that created this Cache
 	final private boolean strictJSR107;
-	final static long baseTimeMillis = System.currentTimeMillis();
+	final long baseTimeMillis;
 	
 	final TCacheExpiryPolicy expiryPolicy;
 	
@@ -132,6 +133,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private volatile long cleanUpIntervalMillis;
 
 	//final HashInterner<V> interner = new HashInterner<>(100);
+
+
+    protected final CacheLimit.FullChecker fullChecker;
+    private final Weigher weigher;
 
 	/**
 	 * Cache hit counter.
@@ -216,6 +221,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.cleanUpIntervalMillis = 1;
 
 		this.jamPolicy = builder.getJamPolicy();
+		this.weigher = builder.getWeigher();
 		// CacheLoader directly or via CacheLoaderFactory
 		Factory<javax.cache.integration.CacheLoader<K, V>> lf = builder.getCacheLoaderFactory();
 		if (lf != null)
@@ -243,12 +249,17 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.cacheWriter = cwWrapper;
 		}
 
+        boolean hasWeigher = builder.getWeigher() != null;
+        this.fullChecker = hasWeigher ? new CacheLimit.SizeFullChecker(builder.getId()) : new CacheLimit
+            .DummyFullChecker();
+
 		objects = createBackingMap(builder);
 
 		enableStatistics(builder.getStatistics());
 		enableManagement(builder.isManagementEnabled());
 
-		activateTimeSource();
+		millisEstimator = activateTimeSource(builder.getTimeSource());
+        baseTimeMillis = millisEstimator.millis();
 
 		listeners = new ListenerCollection<>(this, builder);
 
@@ -358,6 +369,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		enableStatistics(false);
 		enableManagement(false);
 		listeners.shutdown();
+		if (millisEstimator != millisEstimatorStatic) {
+		    // shutdown the TimeSource, if it is not the shared/global TimeSource instance
+		    millisEstimator.shutdown();
+        }
 		String errorMsg = stopAndClear(MAX_SHUTDOWN_WAIT_MILLIS);
 		if (errorMsg != null)
 		{
@@ -622,7 +637,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (putIfAbsent)
 		{
 			// Always use expiryForCreation. Either it is correct, or we do not care(wrong but not added to cache) 
-			newHolder = new AccessTimeObjectHolder<V>(data, builder.getCacheWriteMode());
+			newHolder = new AccessTimeObjectHolder<V>(data, builder.getCacheWriteMode(), this);
 			oldHolder = this.objects.putIfAbsent(key, newHolder);
 			if (oldHolder != null && oldHolder.isInvalid())
 			{
@@ -667,7 +682,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		else
 		{
 			// Add entry initially with unlimited expiration, then update the idle from the existing holder
-			newHolder = new AccessTimeObjectHolder<>(data, builder.getCacheWriteMode());
+			newHolder = new AccessTimeObjectHolder<>(data, builder.getCacheWriteMode(), this);
 			oldHolder = this.objects.put(key, newHolder);
 			if (oldHolder != null && oldHolder.isInvalid())
 			{
@@ -725,7 +740,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		kvUtil.verifyKeyAndValueNotNull(key, value);
 
 		AccessTimeObjectHolder<V> newHolder; // holder that was created via new.
-		newHolder = new AccessTimeObjectHolder<V>(value, Constants.EXPIRY_MAX, cacheTimeSpread(), builder.getCacheWriteMode());
+		newHolder = new AccessTimeObjectHolder<V>(value, Constants.EXPIRY_MAX, cacheTimeSpread(),
+            builder.getCacheWriteMode(), this);
 		AccessTimeObjectHolder<V> oldHolder = gatedHolder(this.objects.replace(key, newHolder));
 
 		if (oldHolder != null)
@@ -759,7 +775,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			return ChangeStatus.CAS_FAILED_EQUALS; // oldValue does not match => do not replace
 		}
 		
-		newHolder = new AccessTimeObjectHolder<V>(newValue, Constants.EXPIRY_MAX, cacheTimeSpread(), builder.getCacheWriteMode());
+		newHolder = new AccessTimeObjectHolder<V>(newValue, Constants.EXPIRY_MAX, cacheTimeSpread(),
+            builder.getCacheWriteMode(), this);
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
 		if (replaced)
 			newHolder.updateMaxIdleTime(expiryPolicy.getExpiryForUpdate());
@@ -917,7 +934,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private long cacheHitRatePreviousTimeMillis = System.currentTimeMillis();
 	private boolean managementEnabled = false;
 	// @ObjectSizeCalculatorIgnore
-	static TimeSource millisEstimator = null;
+	final TimeSource millisEstimator;
+    // @ObjectSizeCalculatorIgnore
+    static TimeSource millisEstimatorStatic = null;
 	final static Object millisEstimatorLock = new Object();
 
 	/**
@@ -1015,24 +1034,25 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	/**
-	 * Returns the TimeSource for this Cache. The TimeSource is used for any situation where the current time is required, for
-	 * example the input date for a cache entry or on getting the current time when doing expiration.   
+	 * Returns the effective TimeSource for this Cache. The TimeSource is used for any situation where the current time
+     * is required, for example the input date for a cache entry or on getting the current time when doing expiration.
 	 * 
-	 * Instantiates the TimeSource if it is not yet there.
+	 * If #timeSource is null, then the default TimeSource is used. The latter is a 10ms precision time source.
 	 * 
 	 * @return The TimeSource for this Cache.
+     * @param timeSource
 	 */
-	protected TimeSource activateTimeSource()
+	protected TimeSource activateTimeSource(TimeSource timeSource)
 	{
-		synchronized (millisEstimatorLock)
-		{
-			if (millisEstimator == null)
-			{
-				millisEstimator = new EstimatorTimeSource(new SystemTimeSource(), 10, logger);
-			}
-		}
-
-		return millisEstimator;
+	    if (timeSource != null) {
+	        return timeSource;
+        }
+        synchronized (millisEstimatorLock) {
+            if (millisEstimatorStatic == null) {
+                millisEstimatorStatic = new EstimatorTimeSource(new SystemTimeSource(), 10, logger);
+            }
+        }
+        return millisEstimatorStatic;
 	}
 
 	private void stopCleaner()
@@ -1243,6 +1263,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		boolean released = holder.release();
 		if (released)
 		{
+		    fullChecker.remove(oldData);
 			// SAE-150 Return oldData, if it the current call released it. This is the regular case.
 			return oldData;
 		}

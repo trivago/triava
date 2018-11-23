@@ -19,13 +19,14 @@ package com.trivago.triava.tcache;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
 import javax.cache.event.EventType;
 
@@ -35,6 +36,7 @@ import com.trivago.triava.tcache.eviction.EvictionInterface;
 import com.trivago.triava.tcache.eviction.HolderFreezer;
 import com.trivago.triava.tcache.statistics.SlidingWindowCounter;
 import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
+import com.trivago.triava.tcache.util.Weigher;
 
 /**
  * A size limited Cache, that evicts elements asynchronously in the background.
@@ -42,8 +44,8 @@ import com.trivago.triava.tcache.statistics.TCacheStatisticsInterface;
  * 
  * @author cesken
  *
- * @param K Key type
- * @param V Value type
+ * @param <K> Key type
+ * @param <V> Value type
  */
 public class CacheLimit<K, V> extends Cache<K, V>
 {
@@ -55,12 +57,6 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	private static final int FREE_PERCENTAGE = 10; // Future directions: Move to instance. Add to Builder.
 	private static final float EVICTION_SPACE_PERCENT = 15; // Future directions: Move to instance. Add to Builder.
 	
-	// --- FEATURE_ExtraParEvictionSpace START ----------
-	private static final boolean FEATURE_ExtraParEvictionSpace = false;
-	private static final int EVICTION_SPACE_PER_WRITER = 2500;
-	private static final int MAXIMUM_EVICTION_SPACE_FOR_WRITERS = 200000;
-	// --- FEATURE_ExtraParEvictionSpace END ----------
-
 	private static final boolean LOG_INTERNAL_DATA = true;
 	private static final boolean LOG_INTERNAL_EXTENDED_DATA = false;
 
@@ -90,51 +86,202 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		this.evictionClass = builder.getEvictionClass();
 	}
 
-	// *** VALUES BELOW ARE FIXED AT CONSTRUCTION. See evictionExtraSpace(builder) ************************  
-	private int userDataElements; // SET DURING  CONSTRUCTION
-	private int blockStartAt; // SET DURING  CONSTRUCTION
-	private int evictUntilAtLeast; // SET DURING  CONSTRUCTION
-	private int evictNormallyElements; // SET DURING  CONSTRUCTION
-	// *** VALUES ABOVE ARE FIXED AT CONSTRUCTION. See evictionExtraSpace(builder) ************************  
+	interface FullChecker<V> {
+        boolean isFull();
+        boolean isOverfull();
+        void add(V value);
+        void remove(V value);
+        int elementsToRemove(int currentElements);
+        int initializeSpace(int maxElements);
+
+        String configToString();
+    }
+
+    static class DummyFullChecker<V> implements FullChecker<V> {
+
+        @Override
+        public boolean isFull() {
+            return false;
+        }
+
+        @Override
+        public boolean isOverfull() {
+            return false;
+        }
+
+        @Override
+        public void add(V value) {
+        }
+
+        @Override
+        public void remove(V value) {
+        }
+
+        @Override
+        public int elementsToRemove(int currentElements) {
+            return 0;
+        }
+
+        @Override
+        public int initializeSpace(int maxElements) {
+            return 0;
+        }
+
+        @Override
+        public String configToString() {
+            return "DummyFullChecker";
+        }
+    }
+
+	static class SizeFullChecker<V> implements FullChecker<V> {
+        private int userDataElements;
+        private int blockStartAt;
+        private int evictUntilAtLeast;
+        private int evictNormallyElements;
+
+        private LongAdder overallWeight = new LongAdder();
+        private final String cacheId;
+
+        SizeFullChecker(String cacheId) {
+            this.cacheId = cacheId;
+        }
+
+        /**
+         * Returns whether the Cache is full. We declare the Cache full, when it has reached the number of expected
+         * elements, even though there may be some extra eviction space available.
+         *
+         * @return true, if the cache is full
+         */
+        @Override
+        public boolean isFull() {
+            int size = overallWeight.intValue();
+            boolean full = size >= userDataElements;
+            //		if (LOG_INTERNAL_DATA && LOG_INTERNAL_EXTENDED_DATA && full)
+            //		{
+            //			logger.info("isFull: size=" + size + ", userDataElements=" +  userDataElements);
+            //		}
+
+            return full;
+        }
+
+        /**
+         * Returns whether the cache is overfull. We declare the Cache full, when it has reached the blocking position.
+         *
+         * @return true, if the cache is overfull
+         */
+        @Override
+        public boolean isOverfull() {
+            // maxElements = expectedElements from the configuration. NOT how we sized the ConcurrentMap.
+            int size = overallWeight.intValue();
+            boolean full = size >= blockStartAt;
+            if (full) {
+                if (LOG_INTERNAL_DATA && logInternalExtendedData())
+                    logger.info("Overfull [" + cacheId + "]. currentSize=" + size + ", blockStartAt=" + blockStartAt);
+            }
+
+            return full;
+        }
+
+        @Override
+        public void add(V value) {
+            overallWeight.add(1);
+            /*
+            Weigher weigher = safeCast(value);
+            if (weigher != null) {
+                overallWeight.add(weigher.weight());
+            }
+            */
+        }
+
+        @Override
+        public void remove(V value) {
+            overallWeight.add(-1);
+            /*
+            Weigher weigher = safeCast(value);
+            if (weigher != null) {
+                overallWeight.add(-weigher.weight());
+            }
+            */
+        }
+
+        private Weigher safeCast(V value) {
+            return value instanceof Weigher ? (Weigher)value : null;
+        }
+
+        /**
+         * Determine how many elements to remove. The goal is to reach the interval
+         * [ {@link #evictUntilAtLeast}, {@link #userDataElements}]. Typically we would try to
+         * evict {@link #evictNormallyElements} elements.
+         *
+         * @return The number of elements to remove
+         */
+        public int elementsToRemove(int currentElements)
+        {
+            if (currentElements < userDataElements)
+            {
+                // [0, userDataElements-1] means: Not full. Nothing to evict.
+                return 0;
+            }
+
+            // ----------------------------------------------------------
+
+            int removeTargetPos = currentElements - evictNormallyElements;
+            if (removeTargetPos > userDataElements)
+            {
+                // Evict will reach [userDataElements, MAX_INT] : Evicting not enough
+                removeTargetPos = userDataElements - evictNormallyElements;
+            }
+
+            // removeTargetPos in now in the interval [-MAX_INT,  userDataElements-1]
+            if (removeTargetPos >= evictUntilAtLeast)
+            {
+                // Evict will reach [evictUntilAtLeast, userDataElements-1] : Good
+            }
+            else
+            {
+                // Evict will reach [0, evictUntilAtLeast-1] : Too much
+                removeTargetPos = evictUntilAtLeast;
+            }
+
+            // else: Make sure we make room for at least until evictUntilAtLeast
+            int removeCount1 = currentElements - removeTargetPos;
+            if (removeCount1 < 0)
+            {
+                logger.error("Trying to evict a negative number of elements. id=" + cacheId + ", currentElements=" + currentElements + ", removeCount=" + removeCount1);
+            }
+
+            return removeCount1 < 0 ? 0 : removeCount1;
+        }
+
+        @Override
+        public int initializeSpace(int maxElements) {
+            double factor = EVICTION_SPACE_PERCENT / 100D; //  20/100d = 0.2
+            userDataElements = maxElements;
+
+            long normalEvictionSpace = (long)(userDataElements * factor);
+            long plannedSizeLong = userDataElements + normalEvictionSpace;
+            blockStartAt = (int)Math.min(plannedSizeLong, Integer.MAX_VALUE);
+
+            evictNormallyElements = (int)((double)userDataElements * FREE_PERCENTAGE / 100D);
+            evictNormallyElements = Math.max(1, evictNormallyElements); // evict always 1 or more
+            evictUntilAtLeast = userDataElements - evictNormallyElements;
+            if (LOG_INTERNAL_DATA)
+            {
+                logger.info("Cache eviction tuning [" + cacheId +"]. Size=" + userDataElements + ", BLOCK=" + blockStartAt
+                            + ", evictToPos=" + evictUntilAtLeast + ", normal-evicting=" + evictNormallyElements
+                            + configToString());
+            }
+
+            return blockStartAt - userDataElements;
+        }
+
+        @Override
+        public String configToString() {
+            return "SizeFullChecker=" + userDataElements;
+        }
 
 
-	/**
-	 * Returns whether the Cache is full. We declare the Cache full, when it has reached the number of
-	 * expected elements, even though there may be some extra eviction space available.
-	 * 
-	 * @return true, if the cache is full
-	 */
-	protected boolean isFull()
-	{
-		int size = objects.size();
-		boolean full = size >= userDataElements;
-//		if (LOG_INTERNAL_DATA && LOG_INTERNAL_EXTENDED_DATA && full)
-//		{
-//			logger.info("isFull: size=" + size + ", userDataElements=" +  userDataElements);
-//		}
-		
-		return full;
-	}
-	
-	/**
-	 * Returns whether the cache is overfull. We declare the Cache full, when it has reached the 
-	 * blocking position.
-	 * @return true, if the cache is overfull
-	 */
-	protected boolean isOverfull()
-	{
-		// maxElements = expectedElements from the configuration. NOT how we sized the ConcurrentMap. 
-		int size = objects.size();
-		boolean full = size >= blockStartAt;
-		if (full)
-		{
-			if (LOG_INTERNAL_DATA && logInternalExtendedData())
-				logger.info("Overfull [" + id() +"]. currentSize=" +  size + ", blockStartAt="+ blockStartAt);
-		}
-		
-		return full;
-	}
-
+    }
 
 	private static final boolean logInternalExtendedData()
 	{
@@ -162,91 +309,13 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	@Override
 	protected int evictionExtraSpace(Builder<K, V> builder)
 	{
-		double factor = EVICTION_SPACE_PERCENT / 100D; //  20/100d = 0.2
-		userDataElements = builder.getMaxElements();
-		
-		final int parallelityEvictionSpace;
-		if (FEATURE_ExtraParEvictionSpace)
-		{
-			/**
-			 * This can take a significant amount of extra memory, especially for small sized caches which contain
-			 * big elements. Example would be a Session cache, with (e.g.) 2000 Elements, each sized 500KB => 1GB size.
-			 * If we would allow the below number, it would allow 2500*14 = 35000 more elements => 17,5GB.
-			 * This is clearly undesirable. Thus the feature is currently off.
-			 * 
-			 * It may likely be more desirable to let "factor" grow, e.g. by 1% per 5 Threads (max 20%) 
-			 */
-			int evictionSpacePerWriter = builder.getConcurrencyLevel() * EVICTION_SPACE_PER_WRITER;
-			parallelityEvictionSpace = Math.min(evictionSpacePerWriter, MAXIMUM_EVICTION_SPACE_FOR_WRITERS);
-		}
-		else
-		{
-			parallelityEvictionSpace = 0;
-		}
-
-		long normalEvictionSpace = (long)(userDataElements * factor);
-		long extraEvictionSpace = Math.max(normalEvictionSpace, parallelityEvictionSpace);
-		long plannedSizeLong = userDataElements + extraEvictionSpace;
-		blockStartAt = (int)Math.min(plannedSizeLong, Integer.MAX_VALUE); 
-		
-		evictNormallyElements = (int)((double)userDataElements * FREE_PERCENTAGE / 100D);
-		evictNormallyElements = Math.max(1, evictNormallyElements); // evict always 1 or more
-		evictUntilAtLeast = userDataElements - evictNormallyElements;
-		if (LOG_INTERNAL_DATA)
-		{
-			logger.info("Cache eviction tuning [" + id() +"]. Size=" + userDataElements + ", BLOCK=" + blockStartAt
-                        + ", evictToPos=" + evictUntilAtLeast + ", normal-evicting=" + evictNormallyElements
-                        + evictionConfigInfo());
-		}
-		
-		return blockStartAt - userDataElements;
+	    int extraElements = fullChecker.initializeSpace(builder.getMaxElements());
+	    return extraElements;
 	}
 
-	/**
-	 * Determine how many elements to remove. The goal is to reach the interval
-	 * [ {@link #evictUntilAtLeast}, {@link #userDataElements}]. Typically we would try to
-	 * evict {@link #evictNormallyElements} elements.
-	 *
-	 * @return The number of elements to remove
-	 */
-	protected int elementsToRemove()
-	{
-		int currentElements = objects.size();
-		if (currentElements < userDataElements)
-		{
-			// [0, userDataElements-1] means: Not full. Nothing to evict.
-			return 0;
-		}
-		
-		// ----------------------------------------------------------
-		
-		int removeTargetPos = currentElements - evictNormallyElements;
-		if (removeTargetPos > userDataElements)
-		{
-			// Evict will reach [userDataElements, MAX_INT] : Evicting not enough
-			removeTargetPos = userDataElements - evictNormallyElements;
-		}
-		
-		// removeTargetPos in now in the interval [-MAX_INT,  userDataElements-1]
-		if (removeTargetPos >= evictUntilAtLeast)
-		{
-			// Evict will reach [evictUntilAtLeast, userDataElements-1] : Good
-		}
-		else
-		{
-			// Evict will reach [0, evictUntilAtLeast-1] : Too much
-			removeTargetPos = evictUntilAtLeast;
-		}
-
-		// else: Make sure we make room for at least until evictUntilAtLeast
-		int removeCount1 = currentElements - removeTargetPos;
-		if (removeCount1 < 0)
-		{
-			logger.error("Trying to evict a negative number of elements. id=" + id() + ", currentElements=" + currentElements + ", removeCount=" + removeCount1);
-		}
-		
-		return removeCount1 < 0 ? 0 : removeCount1;
-	}
+    protected int elementsToRemove() {
+        return fullChecker.elementsToRemove(objects.size()); // TODO Weigher!!!
+    }
 
 	/**
 	 * Returns a reference to the EvictionThread, starting the thread if it is not running.
@@ -290,7 +359,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		volatile boolean running = true;
 		volatile boolean evictionIsRunning = false;
 		
-		Map<K,V> evictedElements = new HashMap<>();
+		List<Object> evictedElements = new ArrayList<>();
 		boolean expiryNotification = false;
 		
 		// Future directions: Pass a "Listener" down here, instead of the full tcache 
@@ -322,11 +391,12 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					     * We allow overload with a loadFactor of 1.5, as we do only write once and read once using an iterator.
 					     * Iterating should not be problematic.
 					     */
-					        int evictionMapSize = Math.max(evictNormallyElements, blockStartAt - userDataElements);
-						evictedElements = new HashMap<K,V>(evictionMapSize, 1.5f);
+					        int evictionMapSize = fullChecker.elementsToRemove(objects.size());
+						evictedElements = new ArrayList<>(2*evictionMapSize + 10);
 						// TODO We should use an ArrayList instead of a Map, as it is more efficient, especially with memory locality
 						// The ArrayList will hold: key1, value1, key2, value2, ... , keyN, valueN
-						// For the listeners we need to create a Map, but at that time victionNotifierDone.notifyAll() was already called resolving a possible write stall. 
+						// For the listeners we need to create a Map, but at that time evictionNotifierDone.notifyAll
+                        // () was already called resolving a possible write stall.
 					}
 
 //					if (LOG_INTERNAL_DATA && logInternalExtendedData())
@@ -341,9 +411,14 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					
 					if (expiryNotification)
 					{
+					    HashMap<K,V> evictedElementsMap = new HashMap<K,V>(evictedElements.size(), 1.0f);
+					    for (int i=0; i<evictedElements.size(); i+=2) {
+					        evictedElementsMap.put((K)evictedElements.get(i), (V)evictedElements.get(i+1));
+					    }
+					    
 						// Send "EXPIRED" notifications (this is EVICTION, but it is not documented in the JSR107 specs
 						// whether one should send "REMOVED" or "EXPIRED" for evictions.
-						listeners.dispatchEvents(evictedElements, EventType.EXPIRED, true);
+						listeners.dispatchEvents(evictedElementsMap, EventType.EXPIRED, true);
 					}
 				}
 				catch (InterruptedException e)
@@ -485,7 +560,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 					     * final Condition full     = lock2.newCondition();
 					     * final Condition overfull = lock3.newCondition();
 					     */
-        					if (notifyCountdown-- == 0 && objects.size() < userDataElements) {
+        					if (notifyCountdown-- == 0 && !fullChecker.isFull()) {
         	                                       synchronized (evictionNotifierDone)
         	                                        {
         
@@ -495,8 +570,10 @@ public class CacheLimit<K, V> extends Cache<K, V>
         					}
 					}
 					
-					if (expiryNotification)
-						evictedElements.put(key, oldValue);
+					if (expiryNotification) {
+					    evictedElements.add(key);
+                                            evictedElements.add(oldValue);
+					}
 					if (removedCount >= elemsToRemove)
 						break;
 				}
@@ -589,14 +666,14 @@ public class CacheLimit<K, V> extends Cache<K, V>
 	@Override
 	protected boolean ensureFreeCapacity()
 	{
-		if (!isFull())
+		if (!fullChecker.isFull())
 			return true;
 
 		EvictionThread evictionThread = ensureEvictionThreadIsRunning();
 		evictionThread.trigger();
 		
 
-		if (isOverfull())
+		if (fullChecker.isOverfull())
 		{
 			counterEvictionsHalts.incrementAndGet();
 			if ( jamPolicy == JamPolicy.DROP)
@@ -609,7 +686,7 @@ public class CacheLimit<K, V> extends Cache<K, V>
 		}
 		
 		// JamPolicy.WAIT
-		while (isOverfull())
+		while (fullChecker.isOverfull())
 		{
 			try
 			{
@@ -645,12 +722,9 @@ public class CacheLimit<K, V> extends Cache<K, V>
 
     @Override
     protected String configToString() {
-        return super.configToString() + evictionConfigInfo();
+        EvictionInterface<K, V> evictionClass = builder.getEvictionClass();
+        String evictionClassName = evictionClass == null ? "null" : evictionClass.getClass().getSimpleName();
+        return super.configToString() + ", eviction-class=" + evictionClassName+ ", " + fullChecker.configToString();
     }
 
-    protected String evictionConfigInfo() {
-        EvictionInterface<K, V> evictionClass = builder.getEvictionClass();
-        return ", maxElements=" + builder.getMaxElements()
-             + ", eviction-class=" + ((evictionClass != null) ? evictionClass.getClass().getSimpleName() : "null");
-    }
 }
