@@ -1,3 +1,9 @@
+v2.0 Releases
+=============
+- 2.0.0
+    - SAE-453 Require Java 8 (LongAdder). Version bump to V2.0.0.
+    - triava-6 Fix insert and access timestamp overflow
+
 v1.x Releases
 =============
 - 1.0.5

@@ -2,7 +2,10 @@
 
 The triava project contains several of trivago's core libraries for Java-based projects: caching, collections, annotations, concurrency libraries and more.
 
-TriavaCache is fully JCache / JSR107 (Java Caching) compliant. For more about compliance, read the [TCK information](./tck/README.md)
+TriavaCache (short: tcache) is fully JCache / JSR107 (Java Caching) compliant. More information on tcache:
+- JSR107 compliance: See [TCK information](./tck/README.md) and https://jcp.org/aboutJava/communityprocess/implementations/jsr107/index.html
+- Blog post: https://tech.trivago.com/2015/10/15/tcache/
+- Talk on FROsCon : https://programm.froscon.de/2016/events/1803.html
 
 ## License
 Licensed under the Apache License, Version 2.0
@@ -18,7 +21,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
     <dependency>
       <groupId>com.trivago</groupId>
       <artifactId>triava</artifactId>
-      <version>1.0.5</version>
+      <version>2.0.0</version>
     </dependency>
   </dependencies>
 ```
@@ -27,7 +30,7 @@ triava is available from [Maven Central](http://search.maven.org/#search|ga|1|a%
 ### Usage in Gradle: build.gradle
 ```
 dependencies {
-	compile 'com.trivago:triava:1.0.5'
+	compile 'com.trivago:triava:2.0.0'
 }
 ```
 
@@ -37,7 +40,7 @@ See [Changelog](CHANGES.md)
 
 
 ## Building:
-triava requires Java 7 and depends on the JSR107 API javax.cache:cache-api:1.0.0. Dependencies are resolved by Maven. The following will build everything, including Javadoc and a source jar:
+triava requires Java 8 and depends on the JSR107 API javax.cache:cache-api:1.0.0. Dependencies are resolved by Maven. The following will build everything, including Javadoc and a source jar:
 
 `mvn package`
 
@@ -65,7 +68,7 @@ Before uploading a new version, you should:
  - Upload to Maven Central (check with maintainers on details, e.g. in the triava Knowledge page)
  - Tag the release, if the release is good
 ```
-version=1.0.5; git tag -a v$version -m "v$version"
+version=2.0.0; git tag -a v$version -m "v$version"
 mvn clean deploy -P release
 ```
 
