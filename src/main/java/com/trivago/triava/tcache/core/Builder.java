@@ -43,6 +43,8 @@ import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.eviction.EvictionInterface;
 import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
 import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
+import com.trivago.triava.tcache.util.Weigher;
+import com.trivago.triava.time.TimeSource;
 
 /**
  * A Builder to create Cache instances. A Builder instance must be retrieved via a TCacheFactory,
@@ -71,9 +73,11 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 
 	private EvictionPolicy evictionPolicy = EvictionPolicy.LFU;
 	private EvictionInterface<K, V> evictionClass = null;
+    private TimeSource timeSource = null;
 	private HashImplementation hashImplementation = HashImplementation.ConcurrentHashMap;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
-	private boolean statistics = false; // off by JSR107 default
+    private Weigher weigher = null;
+    private boolean statistics = false; // off by JSR107 default
 	private boolean management = false; // off by JSR107 default
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
 	private Class<K> keyType = objectKeyType();
@@ -89,7 +93,7 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	private boolean writeThrough = false;
 	private boolean readThrough = false;
 
-	/**
+    /**
 	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
 	 * The native Builder by default uses a STORE_BY_REFERENCE model instead of the JSR107 default of STORE_BY_VALUE. 
 	 * <p>
@@ -246,16 +250,25 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 		return this;
 	}
 
-	/**
-	 * @return the evictionClass. null if there is no custom class
-	 */
+	@Override
 	public EvictionInterface<K, V> getEvictionClass()
 	{
 		return evictionClass;
 	}
 
+    @Override
+    public Builder<K, V> setTimeSource(TimeSource timeSource) {
+	    this.timeSource = timeSource;
+        return this;
+    }
 
-	/**
+    @Override
+    public TimeSource getTimeSource() {
+        return timeSource;
+    }
+
+
+    /**
 	 * Set the StorageBackend for the underlying ConcurrentMap. If this method is not called,
 	 * ConcurrentHashMap will be used.
 	 *  
@@ -285,13 +298,16 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 		return this;
 	}
 
-//	/**
-//	 * @return the factory
-//	 */
-//	public TCacheFactory getFactory()
-//	{
-//		return factory;
-//	}
+	@Override
+    public Builder<K,V> setWeigher(Weigher weigher) {
+        this.weigher = weigher;
+        return this;
+    }
+
+    @Override
+    public Weigher getWeigher() {
+        return weigher;
+    }
 
 	public boolean getStatistics()
 	{
@@ -516,7 +532,9 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	 * Copies the configuration to the target Builder. If the source (configuration)
 	 * is also a Builder, its fields also get copied. Any null-value in the
 	 * configuration is ignored in the copying process, leaving the corresponding
-	 * target value unchanged. The CacheWriteMode can be
+	 * target value unchanged. This ensures that default values in the target do not
+     * get replaced by null.
+     * The CacheWriteMode can be
 	 * defined in two ways: If configuration is a Builder it is copied plainly,
 	 * otherwise it is derived from configuration.isStoreByValue().
 	 * 
@@ -541,13 +559,15 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 			if (sourceB.evictionPolicy != null)
 				target.evictionPolicy = sourceB.evictionPolicy;
 			if (sourceB.evictionClass != null)
-				target.evictionClass = sourceB.evictionClass;			
-			if (sourceB.hashImplementation != null)
+				target.evictionClass = sourceB.evictionClass;
+            if (sourceB.hashImplementation != null)
 				target.hashImplementation = sourceB.hashImplementation;
 			if (sourceB.jamPolicy != null)
 				target.jamPolicy = sourceB.jamPolicy;
 			if (sourceB.loader != null)
 				target.loader = sourceB.loader; // loader vs loaderFactory
+            target.timeSource = sourceB.timeSource;
+            target.weigher = sourceB.weigher;
 
 			tcacheWriteMode = sourceB.writeMode;
 		}
