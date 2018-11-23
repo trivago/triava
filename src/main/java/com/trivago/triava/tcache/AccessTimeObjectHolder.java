@@ -281,7 +281,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	private void setLastAccessTime()
 	{
-		lastAccess = (int)(currentTimeMillisEstimate() - Cache.baseTimeMillis);
+		lastAccess = SecondsOrMillis.fromMillisToInternal(currentTimeMillisEstimate() - Cache.baseTimeMillis);
 	}
 	
 	private long currentTimeMillisEstimate()
@@ -292,7 +292,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	@Override
 	public long getLastAccessTime()
 	{
-		return Cache.baseTimeMillis + lastAccess;
+		return Cache.baseTimeMillis + SecondsOrMillis.fromInternalToMillis(lastAccess);
 	}
 	
 	@Override
@@ -308,13 +308,13 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	private void setInputDate()
 	{
-		inputDate = (int)(currentTimeMillisEstimate() - Cache.baseTimeMillis);
+		inputDate = SecondsOrMillis.fromMillisToInternal(currentTimeMillisEstimate() - Cache.baseTimeMillis);
 	}
 
 	@Override
 	public long getCreationTime()
 	{
-		return Cache.baseTimeMillis + inputDate;
+		return Cache.baseTimeMillis + SecondsOrMillis.fromInternalToMillis(inputDate);
 	}
 
 	@Override
