@@ -32,6 +32,8 @@ import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.eviction.EvictionInterface;
+import com.trivago.triava.tcache.util.Weigher;
+import com.trivago.triava.time.TimeSource;
 
 /**
  * A Builder to create Cache instances. A Builder instance must be retrieved via a TCacheFactory,
@@ -164,7 +166,23 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	 */
 	EvictionInterface<K, V> getEvictionClass();
 
-	/**
+    /**
+     * Sets the TimeSource to use for within this Cache. Whenever a timestamp for the current time is required,
+     * that TimeSource is used. This includes the insert timestamp for write operations like put() or replace(),
+     * and for determining the expiration time. If #timeSource is null, then the default TimeSource is used, which
+     * has a 10ms precision.
+     *
+     * @param timeSource The TimeSource. null means to use the triava default TimeSource
+     * @return This Builder
+     */
+    B setTimeSource(TimeSource timeSource);
+
+    /**
+     * @return the TimeSource. null if the default TimeSource
+     */
+    TimeSource getTimeSource();
+
+    /**
 	 * Set the StorageBackend for the underlying ConcurrentMap. If this method is not called,
 	 * ConcurrentHashMap will be used.
 	 *  
@@ -185,6 +203,20 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	 * @return This Builder
 	 */
 	B setJamPolicy(JamPolicy jamPolicy);
+
+    /**
+     * Sets the Weigher that determines the weight of an entry. If the Weigher is non-null, the Cache will
+     * weigh each element and limit the size by the maximum weight.
+     *
+     * @param weigher The weigher
+     * @return This Builder
+     */
+    B setWeigher(Weigher weigher);
+
+    /**
+     * Gets the Weigher that determines the weight of an entry.
+     */
+     Weigher getWeigher();
 
 	/**
 	 * Returns whether statistics are enabled
