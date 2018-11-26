@@ -57,9 +57,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 12 #4 
 	private volatile Object data; // Holds either a V instance, or serialized data, e.g. byte[]
 	// 16 #4
-	private int inputDate; // in milliseconds relative to baseTimeMillis 
+	private int inputDate; // in milliseconds or seconds relative to baseTimeMillis
 	// 20 #4
-	private int lastAccess = 0; // in milliseconds relative to baseTimeMillis
+	private int lastAccess = 0; // in milliseconds or seconds relative to baseTimeMillis
 	// 24 #4
 	private int maxIdleTime = 0;  // in milliseconds or seconds relative to inputDate
 	// 28 #4
@@ -428,7 +428,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	@Override
 	public String toString()
 	{
-		return "AccessTimeObjectHolder [dataPresent=" + (data != null) + ", inputDate=" + inputDate + ", lastAccess=" + lastAccess
+		return "AccessTimeObjectHolder [dataPresent=" + (data != null) + ", inputDate=" + SecondsOrMillis.fromInternalToMillis(inputDate) + ", lastAccess=" + SecondsOrMillis.fromInternalToMillis(lastAccess)
 				+ ", maxIdleTime=" + maxIdleTime + ", maxCacheTime=" + maxCacheTime + ", useCount=" + useCount
 				+ ", flags=" + flags + "]";
 	}

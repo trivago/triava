@@ -82,7 +82,7 @@ public class EstimatorTimeSource extends Thread implements TimeSource
 		setName("EstimatorTimeSource-" + UPDATE_INTERVAL_MS + "ms");
 		setPriority(Thread.MAX_PRIORITY);
 		setDaemon(true);
-		start();
+		start(); // TODO Calling Thread.start() from within the constructor is problematic (initialization safety)
 
 	}
 
