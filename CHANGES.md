@@ -1,11 +1,15 @@
 v2.0 Releases
 =============
+2.x releases are targeted at Java 8+
+- 2.0.1
+    - Documentation updates, including pom.xml
 - 2.0.0
     - SAE-453 Require Java 8 (LongAdder). Version bump to V2.0.0.
     - triava-6 Fix insert and access timestamp overflow
 
 v1.x Releases
 =============
+1.x releases are targeted at Java 7
 - 1.0.5
      - SAE-453 Performance boost: Move statistics from AtomicLong to LongAdder
      - SAE-483 Add getAndPut() to triava cache interface
