@@ -101,10 +101,13 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 						byte[] valueAsBytearray = Serializing.toBytearray(value);
 						this.data = valueAsBytearray;
 						break;
-					}
+					} else {
+					    throw new IllegalArgumentException("Value is not Serializable: " + value);
+                    }
 				case Intern:
 					flags = SERIALIZATION_NONE;
 					//this.data = interner.get(value);
+                    // CacheWriteMode.Intern is not yet implemented
 				default:
 					throw new UnsupportedOperationException("CacheWriteMode not supported: " + writeMode);
 			}
@@ -150,8 +153,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	}
 	
 	/**
-	 * Releases all references to objects that this holder holds. This makes sure that the data object can be
-	 * collected by the GC, even if the holder would still be referenced by someone.
+	 * Marks this holder as released. Such a holder is not present in the Cache anymore, because it was deleted,
+     * replaced, expired, evicted or otherwise removed from the Cache.
+     *
 	 * <p>
 	 *     This is the end-of-life for the instance, and {@link #isInvalid()} yields true from now on. If a reference to this holder is stored for a longer
 	 *     time, a Thread should check {@link #isInvalid()}.   
