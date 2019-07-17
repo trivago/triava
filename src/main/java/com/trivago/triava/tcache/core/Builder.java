@@ -16,6 +16,18 @@
 
 package com.trivago.triava.tcache.core;
 
+import com.trivago.triava.annotations.Beta;
+import com.trivago.triava.tcache.Cache;
+import com.trivago.triava.tcache.CacheWriteMode;
+import com.trivago.triava.tcache.EvictionPolicy;
+import com.trivago.triava.tcache.HashImplementation;
+import com.trivago.triava.tcache.JamPolicy;
+import com.trivago.triava.tcache.eviction.EvictionInterface;
+import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
+import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
+import com.trivago.triava.tcache.weigher.Weigher;
+import com.trivago.triava.time.TimeSource;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Properties;
@@ -33,18 +45,6 @@ import javax.cache.expiry.EternalExpiryPolicy;
 import javax.cache.expiry.ExpiryPolicy;
 import javax.cache.expiry.TouchedExpiryPolicy;
 import javax.cache.integration.CacheWriter;
-
-import com.trivago.triava.annotations.Beta;
-import com.trivago.triava.tcache.Cache;
-import com.trivago.triava.tcache.CacheWriteMode;
-import com.trivago.triava.tcache.EvictionPolicy;
-import com.trivago.triava.tcache.HashImplementation;
-import com.trivago.triava.tcache.JamPolicy;
-import com.trivago.triava.tcache.eviction.EvictionInterface;
-import com.trivago.triava.tcache.storage.HighscalelibNonBlockingHashMap;
-import com.trivago.triava.tcache.storage.JavaConcurrentHashMap;
-import com.trivago.triava.tcache.util.Weigher;
-import com.trivago.triava.time.TimeSource;
 
 /**
  * A Builder to create Cache instances. A Builder instance must be retrieved via a TCacheFactory,
@@ -76,7 +76,7 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
     private TimeSource timeSource = null;
 	private HashImplementation hashImplementation = HashImplementation.ConcurrentHashMap;
 	private JamPolicy jamPolicy = JamPolicy.WAIT;
-    private Weigher weigher = null;
+    private Weigher<V> weigher = null;
     private boolean statistics = false; // off by JSR107 default
 	private boolean management = false; // off by JSR107 default
 	private CacheWriteMode writeMode = CacheWriteMode.Identity;
@@ -92,6 +92,7 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	
 	private boolean writeThrough = false;
 	private boolean readThrough = false;
+    private long maxWeight = 0;
 
     /**
 	 * Native Builder for creating Cache instances. The returned object is initialized with default values.
@@ -225,7 +226,15 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 		return this;
 	}
 
-	@Override
+    @Override
+    public Builder<K, V> setMaxWeight(long maxWeight) {
+	    if (maxWeight < 0)
+            throw new IllegalArgumentException("Invalid maxWeight: " + expectedMapSize);
+        this.maxWeight = maxWeight;
+        return this;
+    }
+
+    @Override
 	public Builder<K,V> setConcurrencyLevel(int concurrencyLevel)
 	{
 		this.concurrencyLevel = concurrencyLevel;
@@ -299,13 +308,13 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 	}
 
 	@Override
-    public Builder<K,V> setWeigher(Weigher weigher) {
+    public Builder<K,V> setWeigher(Weigher<V> weigher) {
         this.weigher = weigher;
         return this;
     }
 
     @Override
-    public Weigher getWeigher() {
+    public Weigher<V> getWeigher() {
         return weigher;
     }
 
@@ -388,7 +397,12 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 		return expectedMapSize;
 	}
 
-	/**
+    @Override
+    public long getMaxWeight() {
+        return maxWeight;
+    }
+
+    /**
 	 * @return the concurrencyLevel
 	 */
 	public int getConcurrencyLevel()
@@ -568,6 +582,7 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 				target.loader = sourceB.loader; // loader vs loaderFactory
             target.timeSource = sourceB.timeSource;
             target.weigher = sourceB.weigher;
+            this.maxWeight = sourceB.maxWeight;
 
 			tcacheWriteMode = sourceB.writeMode;
 		}
@@ -631,7 +646,9 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 		result = prime * result + (statistics ? 1231 : 1237);
 		result = prime * result + ((valueType == null) ? 0 : valueType.hashCode());
 		result = prime * result + ((writeMode == null) ? 0 : writeMode.hashCode());
-		return result;
+        result = prime * result + (int) (maxWeight ^(maxWeight >>> 32));
+        result = prime * result + weigher.hashCode();
+        return result;
 	}
 
 	@Override
@@ -706,6 +723,11 @@ public class Builder<K,V>  implements TriavaCacheConfiguration<K, V, Builder<K,V
 			return false;
 		if (writeMode != other.writeMode)
 			return false;
+
+        if (maxWeight != other.maxWeight)
+            return false;
+        else if (!weigher.equals(other.weigher))
+            return false;
 		return true;
 	}
 

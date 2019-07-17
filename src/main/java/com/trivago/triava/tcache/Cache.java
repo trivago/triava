@@ -16,29 +16,11 @@
 
 package com.trivago.triava.tcache;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-
-import javax.cache.configuration.Factory;
-import javax.cache.event.EventType;
-import javax.cache.expiry.Duration;
-import javax.cache.expiry.ExpiryPolicy;
-import javax.cache.integration.CacheLoader;
-import javax.cache.integration.CacheLoaderException;
-import javax.cache.integration.CacheWriter;
-
 import com.trivago.triava.logging.TriavaLogger;
 import com.trivago.triava.logging.TriavaNullLogger;
 import com.trivago.triava.tcache.action.ActionContext;
 import com.trivago.triava.tcache.core.Builder;
+import com.trivago.triava.tcache.core.CacheMetadataInterface;
 import com.trivago.triava.tcache.core.CacheWriterWrapper;
 import com.trivago.triava.tcache.core.Holders;
 import com.trivago.triava.tcache.core.NopCacheWriter;
@@ -64,10 +46,32 @@ import com.trivago.triava.tcache.util.ChangeStatus;
 import com.trivago.triava.tcache.util.KeyValueUtil;
 import com.trivago.triava.tcache.util.ObjectSizeCalculatorInterface;
 import com.trivago.triava.tcache.util.TCacheConfigurationMBean;
-import com.trivago.triava.tcache.util.Weigher;
+import com.trivago.triava.tcache.weigher.DefaultWeightLimiter;
+import com.trivago.triava.tcache.weigher.Weigher;
+import com.trivago.triava.tcache.weigher.Weight1;
+import com.trivago.triava.tcache.weigher.WeightLimiter;
 import com.trivago.triava.time.EstimatorTimeSource;
 import com.trivago.triava.time.SystemTimeSource;
 import com.trivago.triava.time.TimeSource;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+
+import javax.cache.configuration.Factory;
+import javax.cache.event.EventType;
+import javax.cache.expiry.Duration;
+import javax.cache.expiry.ExpiryPolicy;
+import javax.cache.integration.CacheLoader;
+import javax.cache.integration.CacheLoaderException;
+import javax.cache.integration.CacheWriter;
 
 
 /**
@@ -106,7 +110,7 @@ import com.trivago.triava.time.TimeSource;
  * @since 2009-06-10
  *
  */
-public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionContext<K, V>
+public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionContext<K, V>, CacheMetadataInterface
 {
     static long CLEANUP_LOG_INTERVAL = TimeUnit.SECONDS.toMillis(60);
     static TriavaLogger logger = new TriavaNullLogger();
@@ -135,8 +139,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	//final HashInterner<V> interner = new HashInterner<>(100);
 
 
-    protected final CacheLimit.FullChecker fullChecker;
-    private final Weigher weigher;
+    protected final WeightLimiter<V> weightLimiter;
+    protected final Weigher<V> weigher;
 
 	/**
 	 * Cache hit counter.
@@ -221,7 +225,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.cleanUpIntervalMillis = 1;
 
 		this.jamPolicy = builder.getJamPolicy();
-		this.weigher = builder.getWeigher();
+		// For weighing the values: Use the user provided Weigher, or apply a constant weight of 1.
+        final Weigher<V> bWeigher = builder.getWeigher();
+        this.weigher = bWeigher != null ? bWeigher : new Weight1();
 		// CacheLoader directly or via CacheLoaderFactory
 		Factory<javax.cache.integration.CacheLoader<K, V>> lf = builder.getCacheLoaderFactory();
 		if (lf != null)
@@ -249,11 +255,9 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			this.cacheWriter = cwWrapper;
 		}
 
-        boolean hasWeigher = builder.getWeigher() != null;
-        this.fullChecker = hasWeigher ? new CacheLimit.SizeFullChecker(builder.getId()) : new CacheLimit
-            .DummyFullChecker();
+        this.weightLimiter = new DefaultWeightLimiter(builder, weigher);
 
-		objects = createBackingMap(builder);
+		objects = createBackingMap(builder, weightLimiter);
 
 		enableStatistics(builder.getStatistics());
 		enableManagement(builder.isManagementEnabled());
@@ -272,11 +276,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	}
 
 	@SuppressWarnings("unchecked") // Avoid warning for the "generics cast" in the last line
-	private ConcurrentMap<K, AccessTimeObjectHolder<V>> createBackingMap(Builder<K, V> builder)
+	private ConcurrentMap<K, AccessTimeObjectHolder<V>> createBackingMap(Builder<K, V> builder, WeightLimiter weightLimiter)
 	{
 		StorageBackend<K, V> storageFactory = builder.storageFactory();
 
-		ConcurrentMap<K, ? extends TCacheHolder<V>> map = storageFactory.createMap(builder, evictionExtraSpace(builder));
+		ConcurrentMap<K, ? extends TCacheHolder<V>> map = storageFactory.createMap(builder, weightLimiter.evictionBoundaries());
 
 		CacheWriteMode cacheWriteMode = builder.getCacheWriteMode();
 		if (cacheWriteMode.isStoreByValue())
@@ -654,6 +658,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			 */
 			if (oldHolder == null)
 			{
+                weightLimiter.add(data);
 				newHolder.complete(expiryPolicy.getExpiryForCreation(), cacheTime);
 				hasPut = true;
 				if (!strictJSR107)
@@ -692,7 +697,8 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			long calculatedIdleTime = newHolder.calculateMaxIdleTimeFromUpdateOrCreation(oldHolder != null, expiryPolicy, oldHolder);
 			effectiveHolder = newHolder;
 			hasPut = true;
-			// We have to complete the entry as late as possible, to make sure it cannot be found in the Cache before it is complete.
+            weightLimiter.add(data);
+            // We have to complete the entry as late as possible, to make sure it cannot be found in the Cache before it is complete.
 			// Additionally, inputDate and lastAccessTime must be as accurate as possible. There was an issue before, as the TCK
 			// tests used an ExpiryPolicy-Server that took 20-60 ms to process the ExpiryPolicy. At that point of time Elements with 20ms expiration
 			// were already expired. The TCK is correct. Test in the TCK is org.jsr107.tck.expiry.CacheExpiryTest.testCacheStatisticsRemoveAll()
@@ -747,11 +753,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (oldHolder != null)
 		{
 			// replaced
-			V oldValue = oldHolder.peek();
+            // Hint: Weight limiter: should be applied, as the new value could be more expensive than the old one.
+            weightLimiter.add(newHolder.peek());
+
+            V oldValue = oldHolder.peek();
 			if (oldValue != null)
 			{
 				newHolder.updateMaxIdleTime(expiryPolicy.getExpiryForUpdate()); // OK
 			}
+            // TODO Should we notify a Listener, similar to expireEntry(key,oldHolder);
+			releaseHolder(oldHolder);
 			return oldValue;
 
 		}
@@ -778,10 +789,16 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		newHolder = new AccessTimeObjectHolder<V>(newValue, Constants.EXPIRY_MAX, cacheTimeSpread(),
             builder.getCacheWriteMode(), this);
 		boolean replaced = this.objects.replace(key, oldHolder, newHolder);
-		if (replaced)
-			newHolder.updateMaxIdleTime(expiryPolicy.getExpiryForUpdate());
-		else
-			oldHolder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
+		if (replaced) {
+            newHolder.updateMaxIdleTime(expiryPolicy.getExpiryForUpdate());
+            // Hint: Weight limiter: should be applied, as the new value could be more expensive than the old one.
+            weightLimiter.add(newHolder.peek());
+            // TODO Should we notify a Listener, similar to expireEntry(key,oldHolder);
+            releaseHolder(oldHolder);
+        }
+		else {
+            oldHolder.updateMaxIdleTime(expiryPolicy.getExpiryForAccess());
+        }
 
 		return replaced ? ChangeStatus.CHANGED : ChangeStatus.UNCHANGED;
 		
@@ -877,14 +894,11 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (holder == null)
 		{
 			// debugLogger.debug("1lCache GET key:"+pKey.hashCode()+"; CACHE:null");
-			if (loaded)
-			{
-				// already counted at ##LOADED_MISS_COUNT## => do nothing
-			}
-			else
+			if (!loaded)
 			{
 				statisticsCalculator.incrementMissCount();
 			}
+            // else: already counted at ##LOADED_MISS_COUNT## => do nothing
 			return null;
 		}
 
@@ -1096,7 +1110,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 	private int cleanUp()
 	{
 		boolean expiryNotification = listeners.hasListenerFor(EventType.EXPIRED);
-		Map<K, V> evictedElements = expiryNotification ? new HashMap<K, V>() : null;
+		Map<K, V> evictedElements = expiryNotification ? new HashMap<>() : null;
 
 		// -1- Clean
 		int removedEntries = 0;
@@ -1110,7 +1124,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			{
 				iter.remove();
 				V value = holder.peek();
-				boolean removed = holder.release();
+				boolean removed = releaseHolderBoolean(holder, value);
 				if (removed) // SAE-150 Verify removal
 				{
 					++removedEntries;
@@ -1161,8 +1175,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		if (!holderValue.equals(value))
 			return false;
 
-		AccessTimeObjectHolder<V> gh = gatedHolder(holder);
-		boolean validBeforeInvalidate = gh != null;
+		boolean validBeforeInvalidate = gatedHolder(holder) != null;
 		boolean removed = this.objects.remove(key, holder);
 		releaseHolder(holder);
 		return validBeforeInvalidate ? removed : false;
@@ -1263,7 +1276,7 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		boolean released = holder.release();
 		if (released)
 		{
-		    fullChecker.remove(oldData);
+		    weightLimiter.remove(oldData);
 			// SAE-150 Return oldData, if it the current call released it. This is the regular case.
 			return oldData;
 		}
@@ -1276,7 +1289,26 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 			return null;
 		}
 	}
-	
+
+    /**
+     * This is one of two methods for releasing a holder. This is the fastest implmementation, and you should prefer
+     * it whenever possible over calling {@link #releaseHolder(AccessTimeObjectHolder)}}.
+     * You may only call this, if holder != null and holder.peek() == value.
+     *
+     * @param holder The holder to release. Must be non-null
+     * @return true if the holder was released by the calling thread. false if the holder was already released.
+     */
+    boolean releaseHolderBoolean(AccessTimeObjectHolder<V> holder, V value)
+    {
+        if (holder.release())
+        {
+            weightLimiter.remove(value);
+            return true;
+        }
+
+        return false;
+    }
+
 	/**
 	 * Returns an Iterator which can be used to traverse all entries of the Cache.
 	 * The values of the entry are of type TCacheHolder&lt;V&gt;.
@@ -1499,14 +1531,14 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 
 	/**
 	 * Releases the given holder and sends an EXPIRED notification
-	 * @param key
-	 * @param holder
-	 * @return
-	 */
+	 * @param key The key
+	 * @param holder The holder
+	 * @return true if the calling thread released the holder. false if the holder was already released.
+     */
 	boolean expireEntry(K key, AccessTimeObjectHolder<V> holder)
 	{
 		V value = holder.peek();
-		boolean removed = holder.release();
+		boolean removed = releaseHolderBoolean(holder, value);
 		if (removed) // SAE-150 Verify removal
 		{
 			listeners.dispatchEvent(EventType.EXPIRED, key, value);
@@ -1514,7 +1546,17 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
 		
 		return removed;
 	}
-	
+
+    @Override
+    public int elementCount() {
+        return size();
+    }
+
+    @Override
+    public long weight() {
+        return weightLimiter.weight();
+    }
+
     /**
      * Thread that removes expired entries.
      */
@@ -1605,7 +1647,10 @@ public class Cache<K, V> implements Thread.UncaughtExceptionHandler, ActionConte
            + ", listeners=" + listeners.size()
 
            + ", managementEnabled=" + isManagementEnabled()
-           + ", statisticsEnabled=" + isStatisticsEnabled();
+           + ", statisticsEnabled=" + isStatisticsEnabled()
+
+           + ", weightLimiter=" + weightLimiter
+            ;
     }
 
 	TCacheFactory getFactory()

@@ -19,6 +19,7 @@ package com.trivago.triava.tcache.core;
 import java.util.concurrent.ConcurrentMap;
 
 import com.trivago.triava.tcache.TCacheHolder;
+import com.trivago.triava.tcache.eviction.EvictionTargets;
 
 /**
  * The basic interface for providing a storage backend that holds the values of  
@@ -39,4 +40,6 @@ public interface StorageBackend<K,V>
 	 * @return An instance of the storage.
 	 */
 	ConcurrentMap<K, ? extends TCacheHolder<V>> createMap(Builder<K,V> builder, double sizeFactor);
+
+    ConcurrentMap<K, ? extends TCacheHolder<V>> createMap(Builder<K,V> builder, EvictionTargets evictionBoundaries);
 }

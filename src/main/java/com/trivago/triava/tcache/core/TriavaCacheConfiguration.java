@@ -32,7 +32,7 @@ import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.eviction.EvictionInterface;
-import com.trivago.triava.tcache.util.Weigher;
+import com.trivago.triava.tcache.weigher.Weigher;
 import com.trivago.triava.time.TimeSource;
 
 /**
@@ -106,15 +106,30 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	B setCleanupInterval(int cleanupInterval, TimeUnit timeUnit);
 
 	/**
-	 * Sets the expected number of elements to be stored. Cache instances with eviction policy will start evicting
-	 * after reaching {@link #getMaxElements()}. Cache instances of unlimited size
-	 * {@link EvictionPolicy}.NONE will use this value only as a hint
+	 * Sets the expected number of elements to be stored. Cache instances with eviction policy and default
+     * {@link Weigher} will start evicting after reaching {@link #getMaxElements()}.  Cache
+     * instances of unlimited size {@link EvictionPolicy}.NONE will use this value only as a hint
 	 * for initially sizing the underlying storage structures.
-	 * 
+     * <br> Note: If a non-default weigher like {@link com.trivago.triava.tcache.weigher.ArrayWeigher} is used, then
+     * {@link #setMaxWeight(long)} should also be called.
+     *
+     * @see #setMaxWeight(long)
+	 *
 	 * @param maxElements The maximum number of elements to be stored
 	 * @return This Builder
 	 */
 	B setMaxElements(int maxElements);
+
+
+    /**
+     * Sets the expected weight to be stored. Cache instances with eviction policy will start evicting
+     * after reaching {@link #getMaxWeight()}. If this method is not called, the maximum weight is equal to
+     * {@link #getMaxElements()}.
+     *
+     * @param maxWeight The maximum weight to be stored
+     * @return This Builder
+     */
+    B setMaxWeight(long maxWeight);
 
 	/**
 	 * Sets the expected concurrency level. In other words, the number of application Threads that concurrently write to the Cache.
@@ -211,7 +226,7 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
      * @param weigher The weigher
      * @return This Builder
      */
-    B setWeigher(Weigher weigher);
+    B setWeigher(Weigher<V> weigher);
 
     /**
      * Gets the Weigher that determines the weight of an entry.
@@ -274,7 +289,14 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	 */
 	int getMaxElements();
 
-	/**
+    /**
+     * @see #setMaxWeight(long)
+     * @return the maximum weight.
+     */
+    long getMaxWeight();
+
+
+    /**
 	 * @return the concurrencyLevel
 	 */
 	int getConcurrencyLevel();
