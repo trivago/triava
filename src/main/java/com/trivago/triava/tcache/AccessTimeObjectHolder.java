@@ -154,7 +154,9 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	
 	/**
 	 * Marks this holder as released. Such a holder is not present in the Cache anymore, because it was deleted,
-     * replaced, expired, evicted or otherwise removed from the Cache.
+     * replaced, expired, evicted or otherwise removed from the Cache. The method return code indicates to the
+     * calling Thread if it has actually released it (contrasting to a different concurrent call). The caller can
+     * then act on it, e.g. updating statistics or maintaining the weight of the cache.
      *
 	 * <p>
 	 *     This is the end-of-life for the instance, and {@link #isInvalid()} yields true from now on. If a reference to this holder is stored for a longer
