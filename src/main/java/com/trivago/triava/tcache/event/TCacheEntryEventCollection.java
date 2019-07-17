@@ -29,7 +29,7 @@ public class TCacheEntryEventCollection<K,V>
 	 * Creates a TCacheEntryEventCollection where all events have the same type "event"
 	 * 
 	 * @param events The events
-	 * @param event The EventType. All events must match the given event.
+	 * @param eventType The EventType. All events must match the given event.
 	 */
 	TCacheEntryEventCollection(Iterable<CacheEntryEvent<? extends K, ? extends V>> events, EventType eventType)
 	{

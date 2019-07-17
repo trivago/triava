@@ -16,12 +16,13 @@
 
 package com.trivago.triava.tcache.storage;
 
-import java.lang.reflect.Constructor;
-import java.util.concurrent.ConcurrentMap;
-
 import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.StorageBackend;
+import com.trivago.triava.tcache.eviction.EvictionTargets;
+
+import java.lang.reflect.Constructor;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Implements a storage that uses the Highscale libs. It is only implemented for performance tests.
@@ -58,5 +59,11 @@ public class HighscalelibNonBlockingHashMap<K,V> implements StorageBackend<K, V>
 		}
 		
 	}
+
+    @Override
+    public ConcurrentMap<K, ? extends TCacheHolder<V>> createMap(Builder<K, V> builder,
+        EvictionTargets evictionBoundaries) {
+        throw new UnsupportedOperationException("EvictionTargets based constructor not supüported for HighscalelibNonBlockingHashMap");
+    }
 
 }

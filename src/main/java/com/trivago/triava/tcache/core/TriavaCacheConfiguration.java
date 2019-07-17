@@ -32,6 +32,8 @@ import com.trivago.triava.tcache.EvictionPolicy;
 import com.trivago.triava.tcache.HashImplementation;
 import com.trivago.triava.tcache.JamPolicy;
 import com.trivago.triava.tcache.eviction.EvictionInterface;
+import com.trivago.triava.tcache.weigher.Weigher;
+import com.trivago.triava.time.TimeSource;
 
 /**
  * A Builder to create Cache instances. A Builder instance must be retrieved via a TCacheFactory,
@@ -104,15 +106,30 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	B setCleanupInterval(int cleanupInterval, TimeUnit timeUnit);
 
 	/**
-	 * Sets the expected number of elements to be stored. Cache instances with eviction policy will start evicting
-	 * after reaching {@link #getMaxElements()}. Cache instances of unlimited size
-	 * {@link EvictionPolicy}.NONE will use this value only as a hint
+	 * Sets the expected number of elements to be stored. Cache instances with eviction policy and default
+     * {@link Weigher} will start evicting after reaching {@link #getMaxElements()}.  Cache
+     * instances of unlimited size {@link EvictionPolicy}.NONE will use this value only as a hint
 	 * for initially sizing the underlying storage structures.
-	 * 
+     * <br> Note: If a non-default weigher like {@link com.trivago.triava.tcache.weigher.ArrayWeigher} is used, then
+     * {@link #setMaxWeight(long)} should also be called.
+     *
+     * @see #setMaxWeight(long)
+	 *
 	 * @param maxElements The maximum number of elements to be stored
 	 * @return This Builder
 	 */
 	B setMaxElements(int maxElements);
+
+
+    /**
+     * Sets the expected weight to be stored. Cache instances with eviction policy will start evicting
+     * after reaching {@link #getMaxWeight()}. If this method is not called, the maximum weight is equal to
+     * {@link #getMaxElements()}.
+     *
+     * @param maxWeight The maximum weight to be stored
+     * @return This Builder
+     */
+    B setMaxWeight(long maxWeight);
 
 	/**
 	 * Sets the expected concurrency level. In other words, the number of application Threads that concurrently write to the Cache.
@@ -164,7 +181,23 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	 */
 	EvictionInterface<K, V> getEvictionClass();
 
-	/**
+    /**
+     * Sets the TimeSource to use for within this Cache. Whenever a timestamp for the current time is required,
+     * that TimeSource is used. This includes the insert timestamp for write operations like put() or replace(),
+     * and for determining the expiration time. If #timeSource is null, then the default TimeSource is used, which
+     * has a 10ms precision.
+     *
+     * @param timeSource The TimeSource. null means to use the triava default TimeSource
+     * @return This Builder
+     */
+    B setTimeSource(TimeSource timeSource);
+
+    /**
+     * @return the TimeSource. null if the default TimeSource
+     */
+    TimeSource getTimeSource();
+
+    /**
 	 * Set the StorageBackend for the underlying ConcurrentMap. If this method is not called,
 	 * ConcurrentHashMap will be used.
 	 *  
@@ -185,6 +218,20 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	 * @return This Builder
 	 */
 	B setJamPolicy(JamPolicy jamPolicy);
+
+    /**
+     * Sets the Weigher that determines the weight of an entry. If the Weigher is non-null, the Cache will
+     * weigh each element and limit the size by the maximum weight.
+     *
+     * @param weigher The weigher
+     * @return This Builder
+     */
+    B setWeigher(Weigher<V> weigher);
+
+    /**
+     * Gets the Weigher that determines the weight of an entry.
+     */
+     Weigher getWeigher();
 
 	/**
 	 * Returns whether statistics are enabled
@@ -242,7 +289,14 @@ public interface TriavaCacheConfiguration<K,V,B extends TriavaCacheConfiguration
 	 */
 	int getMaxElements();
 
-	/**
+    /**
+     * @see #setMaxWeight(long)
+     * @return the maximum weight.
+     */
+    long getMaxWeight();
+
+
+    /**
 	 * @return the concurrencyLevel
 	 */
 	int getConcurrencyLevel();

@@ -55,7 +55,8 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	// 0 #12
 	// Object header
 	// 12 #4 
-	private volatile Object data; // Holds either a V instance, or serialized data, e.g. byte[]
+	private final Object data; // Holds either a V instance, or serialized data, e.g. byte[]
+    private final Cache tCache;
 	// 16 #4
 	private int inputDate; // in milliseconds or seconds relative to baseTimeMillis
 	// 20 #4
@@ -81,7 +82,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	 * @param writeMode The CacheWriteMode that defines how to serialize the data
 	 * @throws CacheException when there is a problem serializing the value
 	 */
-	public AccessTimeObjectHolder(V value, CacheWriteMode writeMode) throws CacheException
+	public AccessTimeObjectHolder(V value, CacheWriteMode writeMode, Cache tCache) throws CacheException
 	{
 		try
 		{
@@ -100,10 +101,13 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 						byte[] valueAsBytearray = Serializing.toBytearray(value);
 						this.data = valueAsBytearray;
 						break;
-					}
+					} else {
+					    throw new IllegalArgumentException("Value is not Serializable: " + value);
+                    }
 				case Intern:
 					flags = SERIALIZATION_NONE;
 					//this.data = interner.get(value);
+                    // CacheWriteMode.Intern is not yet implemented
 				default:
 					throw new UnsupportedOperationException("CacheWriteMode not supported: " + writeMode);
 			}
@@ -113,6 +117,7 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 //			{
 //				System.out.println("Slow serializing. value=" + value + ", ms=" + duration / 1_000_000d);
 //			}
+            this.tCache = tCache;
 		}
 		catch (Exception exc)
 		{
@@ -121,9 +126,10 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	}
 
-	public AccessTimeObjectHolder(V value, long maxIdleTimeMillis, long maxCacheTimeSecs, CacheWriteMode writeMode) throws CacheException
+	public AccessTimeObjectHolder(V value, long maxIdleTimeMillis, long maxCacheTimeSecs, CacheWriteMode writeMode,
+        Cache tCache) throws CacheException
 	{
-		this(value, writeMode);
+		this(value, writeMode, tCache);
 		complete(maxIdleTimeMillis, maxCacheTimeSecs);
 	}
 
@@ -147,8 +153,11 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 	}
 	
 	/**
-	 * Releases all references to objects that this holder holds. This makes sure that the data object can be
-	 * collected by the GC, even if the holder would still be referenced by someone.
+	 * Marks this holder as released. Such a holder is not present in the Cache anymore, because it was deleted,
+     * replaced, expired, evicted or otherwise removed from the Cache. The method return code indicates to the
+     * calling Thread if it has actually released it (contrasting to a different concurrent call). The caller can
+     * then act on it, e.g. updating statistics or maintaining the weight of the cache.
+     *
 	 * <p>
 	 *     This is the end-of-life for the instance, and {@link #isInvalid()} yields true from now on. If a reference to this holder is stored for a longer
 	 *     time, a Thread should check {@link #isInvalid()}.   
@@ -281,18 +290,18 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	private void setLastAccessTime()
 	{
-		lastAccess = SecondsOrMillis.fromMillisToInternal(currentTimeMillisEstimate() - Cache.baseTimeMillis);
+		lastAccess = SecondsOrMillis.fromMillisToInternal(currentTimeMillisEstimate() - tCache.baseTimeMillis);
 	}
 	
 	private long currentTimeMillisEstimate()
 	{
-		return Cache.millisEstimator.millis();
+		return tCache.millisEstimator.millis();
 	}
 	
 	@Override
 	public long getLastAccessTime()
 	{
-		return Cache.baseTimeMillis + SecondsOrMillis.fromInternalToMillis(lastAccess);
+		return tCache.baseTimeMillis + SecondsOrMillis.fromInternalToMillis(lastAccess);
 	}
 	
 	@Override
@@ -308,13 +317,13 @@ public final class AccessTimeObjectHolder<V> implements TCacheHolder<V>
 
 	private void setInputDate()
 	{
-		inputDate = SecondsOrMillis.fromMillisToInternal(currentTimeMillisEstimate() - Cache.baseTimeMillis);
+		inputDate = SecondsOrMillis.fromMillisToInternal(currentTimeMillisEstimate() - tCache.baseTimeMillis);
 	}
 
 	@Override
 	public long getCreationTime()
 	{
-		return Cache.baseTimeMillis + SecondsOrMillis.fromInternalToMillis(inputDate);
+		return tCache.baseTimeMillis + SecondsOrMillis.fromInternalToMillis(inputDate);
 	}
 
 	@Override

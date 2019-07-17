@@ -100,7 +100,16 @@ public class CacheLimitLFUTest
 	@Test
 	public void testKeySet()
 	{
-		assertTrue("Key set is empty", !cache.keySet().isEmpty());
+	    // Create a new instance with a high idle and cache time. We don't want the cache to be empty because all
+        // entries already expired.
+        Cache<String, Integer> cache1 = buildLfuCache("CacheLFUTest.testKeySet", 100000, 100000, 10);
+        int count = 12000;
+
+        for (int i = 0; i < count; i++)
+        {
+            cache1.putIfAbsent(String.valueOf(i), i, maxIdleTime, maxCacheTime, TimeUnit.SECONDS);
+        }
+        assertTrue("Key set is empty", !cache1.keySet().isEmpty());
 	}
 	
 	@Test

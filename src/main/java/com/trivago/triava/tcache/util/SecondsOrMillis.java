@@ -17,7 +17,10 @@
 package com.trivago.triava.tcache.util;
 
 /**
- * Utility class to convert a millisecond value to an internal representation, with precision of either milliseconds or seconds. 
+ * Utility class to convert a millisecond value to an internal representation, with precision of either milliseconds
+ * or seconds. The goal of the internal representation is to save memory for timestamps. It only requires 4 byte, even
+ * for very high values. The "cost" is a oss of precision, and a bit of CPU for calling the converter methods from
+ * this class.
  */
 public class SecondsOrMillis
 {

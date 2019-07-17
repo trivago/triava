@@ -16,12 +16,13 @@
 
 package com.trivago.triava.tcache.storage;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import com.trivago.triava.tcache.TCacheHolder;
 import com.trivago.triava.tcache.core.Builder;
 import com.trivago.triava.tcache.core.StorageBackend;
+import com.trivago.triava.tcache.eviction.EvictionTargets;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Implements a storage that uses Java's ConcurrentHashMap.
@@ -33,13 +34,19 @@ import com.trivago.triava.tcache.core.StorageBackend;
  */
 public class JavaConcurrentHashMap<K,V> implements StorageBackend<K, V>
 {
+    private double TABLE_DENSITY = 0.75F;
+
 	@Override
 	public ConcurrentMap<K, TCacheHolder<V>> createMap(Builder<K,V> builder, double evictionMapSizeFactor)
 	{
-		double loadFactor = 0.75F;
-		int requiredMapSize = (int) (builder.getMaxElements() / loadFactor) + (int)evictionMapSizeFactor;
-		return new ConcurrentHashMap<>(requiredMapSize, (float) loadFactor,
-				builder.getMapConcurrencyLevel());
+		int requiredMapSize = (int) (builder.getMaxElements() / TABLE_DENSITY) + (int)evictionMapSizeFactor;
+		return new ConcurrentHashMap<>(requiredMapSize, (float)TABLE_DENSITY, builder.getMapConcurrencyLevel());
 	}
+
+    @Override
+    public ConcurrentMap<K, ? extends TCacheHolder<V>> createMap(Builder<K,V> builder, EvictionTargets evictionBoundaries) {
+        return new ConcurrentHashMap<>(evictionBoundaries.blockingElements(), (float)TABLE_DENSITY,
+            builder.getMapConcurrencyLevel());
+    }
 
 }
